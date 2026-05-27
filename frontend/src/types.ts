@@ -1,4 +1,7 @@
 export type Language = "zh" | "en";
+export type ProjectStatus = "Draft" | "Analyzing" | "Report Ready" | "Finalized";
+export type RiskLevel = "Low" | "Medium" | "High";
+export type WorkspaceTab = "overview" | "intake" | "preferences" | "attachments" | "benchmark" | "report";
 
 export interface LocalizedText {
   zh: string;
@@ -25,22 +28,77 @@ export interface PlcEcosystem {
   };
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  industry: string;
+  goal: string;
+  status: ProjectStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectIntake {
+  projectSize: "Small" | "Medium" | "Large";
+  ioScale: number;
+  motionRequirement: number;
+  safetyRequirement: number;
+  budgetSensitivity: number;
+  teamExperience: string;
+  existingPlatform: string;
+  candidatePlatforms: string[];
+  constraints: string;
+}
+
+export interface PlatformPreference {
+  platformId: string;
+  preferenceWeight: number;
+  userReasonNote: string;
+}
+
+export interface ProjectAttachment {
+  id: string;
+  projectId: string;
+  fileName: string;
+  fileType: "Electrical List" | "I/O List" | "Requirements" | "Architecture" | "Other";
+  declaredPurpose: string;
+  uploadedAt: string;
+}
+
+export interface BenchmarkResult {
+  platformId: string;
+  technicalScore: number;
+  preferenceScore: number;
+  weightedScore: number;
+  riskLevel: RiskLevel;
+  rationale: LocalizedText;
+  assumptions: LocalizedText[];
+}
+
+export interface ReportSection {
+  id: string;
+  title: LocalizedText;
+  body: LocalizedText;
+  assumptions: LocalizedText[];
+  lastGeneratedAt: string;
+}
+
+export interface ReportDraft {
+  projectId: string;
+  sections: ReportSection[];
+  version: number;
+  status: "Draft" | "Ready";
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: LocalizedText;
 }
 
-export interface PlcProject {
-  id: string;
-  title: LocalizedText;
-  plant: LocalizedText;
-  selectedPlatformId: string;
-  status: "Draft" | "Reviewed" | "Decision Ready";
-  updatedAt: string;
-  objective: LocalizedText;
-  recommendation: LocalizedText;
-  decisionFactors: LocalizedText[];
-  migrationNotes: LocalizedText[];
-  riskLevel: "Low" | "Medium" | "High";
-  effortIndex: number;
+export interface ProjectWorkspace {
+  project: Project;
+  intake: ProjectIntake;
+  preferences: PlatformPreference[];
+  attachments: ProjectAttachment[];
+  report: ReportDraft;
 }

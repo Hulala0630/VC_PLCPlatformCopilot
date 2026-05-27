@@ -1,4 +1,4 @@
-import type { ChatMessage, PlcEcosystem, PlcProject } from "../types";
+import type { ChatMessage, PlcEcosystem, ProjectWorkspace, ReportSection } from "../types";
 
 export const ecosystems: PlcEcosystem[] = [
   {
@@ -125,13 +125,176 @@ export const ecosystems: PlcEcosystem[] = [
   },
 ];
 
+function preferences(weights: Record<string, number>) {
+  return ecosystems.map((platform) => ({
+    platformId: platform.id,
+    preferenceWeight: weights[platform.id] ?? 50,
+    userReasonNote: "",
+  }));
+}
+
+function reportSections(projectName: string): ReportSection[] {
+  const now = "2026-05-27";
+  return [
+    {
+      id: "executive-summary",
+      title: { zh: "执行摘要", en: "Executive Summary" },
+      body: {
+        zh: `${projectName} 当前处于基于 mock 数据的决策草稿阶段。建议先完善输入资料，再生成正式推荐结论。`,
+        en: `${projectName} is currently in a mock-data decision draft stage. Complete the inputs before issuing a formal recommendation.`,
+      },
+      assumptions: [{ zh: "当前未解析附件内容。", en: "Attachment content is not parsed in this version." }],
+      lastGeneratedAt: now,
+    },
+    {
+      id: "project-inputs",
+      title: { zh: "项目输入", en: "Project Inputs" },
+      body: {
+        zh: "报告将汇总行业、目标、I/O 规模、运动/安全需求、团队经验和候选平台。",
+        en: "The report summarizes industry, goal, I/O scale, motion/safety needs, team experience, and candidate platforms.",
+      },
+      assumptions: [{ zh: "输入由用户手动维护。", en: "Inputs are maintained manually by the user." }],
+      lastGeneratedAt: now,
+    },
+    {
+      id: "platform-benchmark",
+      title: { zh: "平台基准对比", en: "Platform Benchmark" },
+      body: {
+        zh: "平台排序由技术评分和用户倾向权重共同决定。",
+        en: "Platform ranking is determined by technical scores and user preference weights.",
+      },
+      assumptions: [{ zh: "基础平台评分来自 mock profile。", en: "Base platform scores come from mock profiles." }],
+      lastGeneratedAt: now,
+    },
+    {
+      id: "preference-impact",
+      title: { zh: "倾向性影响", en: "Preference Impact" },
+      body: {
+        zh: "用户对曾经使用过、客户指定或团队熟悉的平台可设置更高倾向权重。",
+        en: "Users can assign higher preference weights to platforms they used before, customer-mandated platforms, or familiar team stacks.",
+      },
+      assumptions: [{ zh: "倾向性是决策输入，不替代技术评分。", en: "Preference is a decision input and does not replace technical scoring." }],
+      lastGeneratedAt: now,
+    },
+    {
+      id: "risk-assessment",
+      title: { zh: "风险评估", en: "Risk Assessment" },
+      body: {
+        zh: "风险由平台开放性、团队经验、迁移复杂度和资料完整度初步判断。",
+        en: "Risk is initially estimated from openness, team experience, migration complexity, and input completeness.",
+      },
+      assumptions: [{ zh: "风险等级为自动化初判。", en: "Risk level is an automated first-pass estimate." }],
+      lastGeneratedAt: now,
+    },
+    {
+      id: "roadmap",
+      title: { zh: "迁移与实施路线图", en: "Migration / Implementation Roadmap" },
+      body: {
+        zh: "建议按资料审计、平台确认、试点验证、模板化、上线切换的顺序推进。",
+        en: "Recommended sequence: input audit, platform confirmation, pilot validation, template standardization, and rollout cutover.",
+      },
+      assumptions: [{ zh: "路线图会在后续接入真实估算模型后细化。", en: "Roadmap will be refined after real estimation models are connected." }],
+      lastGeneratedAt: now,
+    },
+    {
+      id: "assumptions",
+      title: { zh: "假设与不确定性", en: "Assumptions & Uncertainty" },
+      body: {
+        zh: "当前版本不解析附件、不调用真实 AI、不连接 PLC。所有结论用于早期决策讨论。",
+        en: "This version does not parse attachments, call real AI, or connect to PLCs. All conclusions are for early decision discussion.",
+      },
+      assumptions: [{ zh: "需要用户确认关键假设。", en: "Key assumptions require user confirmation." }],
+      lastGeneratedAt: now,
+    },
+  ];
+}
+
+export const workspaces: ProjectWorkspace[] = [
+  {
+    project: {
+      id: "ev-line-standardization",
+      name: "新能源电池产线 PLC 标准化",
+      industry: "Battery Manufacturing",
+      goal: "统一新产线 PLC 平台，并兼顾长期维护、供应商资源和安全标准。",
+      status: "Report Ready",
+      createdAt: "2026-05-17",
+      updatedAt: "2026-05-27",
+    },
+    intake: {
+      projectSize: "Large",
+      ioScale: 1800,
+      motionRequirement: 58,
+      safetyRequirement: 86,
+      budgetSensitivity: 52,
+      teamExperience: "Siemens maintenance team with limited TwinCAT experience",
+      existingPlatform: "siemens-tia",
+      candidatePlatforms: ["siemens-tia", "twincat", "codesys", "rockwell"],
+      constraints: "Group standardization, spare-parts stability, safety approval, supplier availability.",
+    },
+    preferences: preferences({ "siemens-tia": 85, twincat: 55, codesys: 45, rockwell: 60, mitsubishi: 30, omron: 35 }),
+    attachments: [
+      {
+        id: "att-io-list",
+        projectId: "ev-line-standardization",
+        fileName: "Battery_Line_IO_List.xlsx",
+        fileType: "I/O List",
+        declaredPurpose: "I/O scale and cabinet planning reference",
+        uploadedAt: "2026-05-27",
+      },
+      {
+        id: "att-standard",
+        projectId: "ev-line-standardization",
+        fileName: "Group_Automation_Standard.pdf",
+        fileType: "Requirements",
+        declaredPurpose: "Internal PLC standard and safety requirements",
+        uploadedAt: "2026-05-27",
+      },
+    ],
+    report: { projectId: "ev-line-standardization", sections: reportSections("新能源电池产线 PLC 标准化"), version: 1, status: "Ready" },
+  },
+  {
+    project: {
+      id: "high-speed-packaging",
+      name: "高速包装机平台选型",
+      industry: "Machine Building",
+      goal: "选择适合高速运动控制、视觉同步和虚拟调试的控制平台。",
+      status: "Analyzing",
+      createdAt: "2026-05-16",
+      updatedAt: "2026-05-27",
+    },
+    intake: {
+      projectSize: "Medium",
+      ioScale: 420,
+      motionRequirement: 94,
+      safetyRequirement: 72,
+      budgetSensitivity: 58,
+      teamExperience: "Strong software team, moderate Siemens background",
+      existingPlatform: "siemens-tia",
+      candidatePlatforms: ["twincat", "codesys", "siemens-tia", "omron"],
+      constraints: "High-speed motion, virtual commissioning, reusable machine template.",
+    },
+    preferences: preferences({ "siemens-tia": 52, twincat: 88, codesys: 65, rockwell: 25, mitsubishi: 45, omron: 62 }),
+    attachments: [
+      {
+        id: "att-sequence",
+        projectId: "high-speed-packaging",
+        fileName: "Packaging_Machine_Function_Target.docx",
+        fileType: "Requirements",
+        declaredPurpose: "Machine sequence and target throughput",
+        uploadedAt: "2026-05-27",
+      },
+    ],
+    report: { projectId: "high-speed-packaging", sections: reportSections("高速包装机平台选型"), version: 1, status: "Draft" },
+  },
+];
+
 export const initialMessages: Record<string, ChatMessage[]> = {
   "siemens-tia": [
     {
       role: "assistant",
       content: {
-        zh: "如果你的目标是集团标准化、长期维护和供应链稳定，Siemens TIA Portal 是强候选。请告诉我项目规模、I/O 点数和现有装机基础。",
-        en: "If your goal is enterprise standardization, long-term maintenance, and supply-chain stability, Siemens TIA Portal is a strong candidate. Tell me project size, I/O count, and installed base.",
+        zh: "Siemens 适合标准化、长期维护和安全生态较强的项目。请补充项目规模、I/O 点数和现有装机基础。",
+        en: "Siemens fits projects that value standardization, long-term maintenance, and safety ecosystem depth. Add project size, I/O count, and installed base.",
       },
     },
   ],
@@ -139,8 +302,8 @@ export const initialMessages: Record<string, ChatMessage[]> = {
     {
       role: "assistant",
       content: {
-        zh: "CODESYS 更适合开放硬件策略和 OEM 控制器路线。我们需要确认安全认证、供应商责任边界和长期维护团队能力。",
-        en: "CODESYS fits open hardware strategies and OEM controller roadmaps. We should confirm safety certification, supplier responsibility boundaries, and long-term maintenance capability.",
+        zh: "CODESYS 适合开放硬件策略和 OEM 控制器路线。需要确认硬件供应商、认证路径和维护责任边界。",
+        en: "CODESYS fits open hardware strategies and OEM controller roadmaps. Confirm hardware vendor, certification path, and maintenance ownership.",
       },
     },
   ],
@@ -148,120 +311,9 @@ export const initialMessages: Record<string, ChatMessage[]> = {
     {
       role: "assistant",
       content: {
-        zh: "TwinCAT 对高速运动、虚拟调试和软件定义自动化很有吸引力。关键问题是团队是否具备足够的软件工程能力。",
-        en: "TwinCAT is attractive for high-speed motion, virtual commissioning, and software-defined automation. The key question is whether the team has enough software engineering capability.",
-      },
-    },
-  ],
-  rockwell: [
-    {
-      role: "assistant",
-      content: {
-        zh: "Rockwell 适合北美装机基础和大型产线。迁移评估时需要特别关注 TCO、授权、备件和停机窗口。",
-        en: "Rockwell fits North American installed bases and large lines. Migration assessment should focus on TCO, licensing, spare parts, and downtime windows.",
-      },
-    },
-  ],
-  mitsubishi: [
-    {
-      role: "assistant",
-      content: {
-        zh: "Mitsubishi 常见于亚洲设备制造场景。适合成本敏感项目，但需要评估开放集成、仿真和长期平台战略。",
-        en: "Mitsubishi is common in Asian machine-building contexts. It fits cost-sensitive projects, but openness, simulation, and long-term platform strategy need review.",
-      },
-    },
-  ],
-  omron: [
-    {
-      role: "assistant",
-      content: {
-        zh: "Omron Sysmac 对运动、视觉和紧凑型机器控制友好。我们可以重点评估机器节拍、视觉检测和维护团队经验。",
-        en: "Omron Sysmac is friendly for motion, vision, and compact machine control. We can focus on machine takt, vision inspection, and maintenance team experience.",
+        zh: "TwinCAT 对高速运动、虚拟调试和软件定义自动化很有吸引力。关键是团队软件工程能力。",
+        en: "TwinCAT is attractive for high-speed motion, virtual commissioning, and software-defined automation. Team software capability is the key factor.",
       },
     },
   ],
 };
-
-export const projects: PlcProject[] = [
-  {
-    id: "ev-line-standardization",
-    title: { zh: "新能源电池产线 PLC 标准化", en: "EV Battery Line PLC Standardization" },
-    plant: { zh: "华东新工厂", en: "East China Greenfield Plant" },
-    selectedPlatformId: "siemens-tia",
-    status: "Decision Ready",
-    updatedAt: "2026-05-17",
-    objective: {
-      zh: "在集团新产线中统一 PLC 平台，并兼顾长期维护、供应商资源和安全标准。",
-      en: "Standardize the PLC platform for new group production lines while balancing maintenance, supplier availability, and safety standards.",
-    },
-    recommendation: {
-      zh: "建议优先采用 Siemens TIA Portal。主要理由是组织已有 Siemens 维护基础，安全与 HMI 生态完整，供应商资源更容易统一。",
-      en: "Recommend Siemens TIA Portal first. The organization already has Siemens maintenance capability, the safety/HMI ecosystem is integrated, and supplier alignment is easier.",
-    },
-    decisionFactors: [
-      { zh: "集团标准化收益高", en: "High enterprise standardization value" },
-      { zh: "维护与备件体系成熟", en: "Mature maintenance and spare-parts ecosystem" },
-      { zh: "迁移风险中等，可通过试点产线降低", en: "Medium migration risk, reducible through a pilot line" },
-    ],
-    migrationNotes: [
-      { zh: "先完成 I/O 清单和 HMI 标签审计", en: "Audit I/O list and HMI tags first" },
-      { zh: "将安全回路和停机窗口作为关键约束", en: "Treat safety loops and downtime windows as key constraints" },
-    ],
-    riskLevel: "Medium",
-    effortIndex: 58,
-  },
-  {
-    id: "high-speed-packaging",
-    title: { zh: "高速包装机平台选型", en: "High-Speed Packaging Machine Selection" },
-    plant: { zh: "OEM 设备项目", en: "OEM Machine Project" },
-    selectedPlatformId: "twincat",
-    status: "Reviewed",
-    updatedAt: "2026-05-16",
-    objective: {
-      zh: "选择适合高速运动控制、视觉同步和虚拟调试的控制平台。",
-      en: "Select a control platform for high-speed motion, vision synchronization, and virtual commissioning.",
-    },
-    recommendation: {
-      zh: "建议优先评估 TwinCAT。它在实时性能、运动控制和软件开放性方面更适合该机器类型。",
-      en: "Recommend evaluating TwinCAT first. It better fits this machine type through real-time performance, motion control, and software openness.",
-    },
-    decisionFactors: [
-      { zh: "运动控制需求高", en: "High motion-control requirement" },
-      { zh: "软件团队能力较强", en: "Strong software engineering team" },
-      { zh: "虚拟调试价值明显", en: "Clear virtual commissioning value" },
-    ],
-    migrationNotes: [
-      { zh: "需要建立 TwinCAT 工程模板", en: "Create a TwinCAT engineering template" },
-      { zh: "需要定义实时任务、轴组和仿真接口规范", en: "Define real-time tasks, axis groups, and simulation interfaces" },
-    ],
-    riskLevel: "Medium",
-    effortIndex: 63,
-  },
-  {
-    id: "cost-sensitive-oem",
-    title: { zh: "成本敏感型 OEM 控制器策略", en: "Cost-Sensitive OEM Controller Strategy" },
-    plant: { zh: "出口设备产品线", en: "Export Machine Product Line" },
-    selectedPlatformId: "codesys",
-    status: "Draft",
-    updatedAt: "2026-05-15",
-    objective: {
-      zh: "降低硬件绑定与整体成本，同时保持 IEC 61131-3 工程体验。",
-      en: "Reduce hardware lock-in and total cost while keeping an IEC 61131-3 engineering experience.",
-    },
-    recommendation: {
-      zh: "建议以 CODESYS 作为开放控制平台候选，但需建立硬件供应商认证清单和维护责任边界。",
-      en: "Recommend CODESYS as an open control-platform candidate, with a certified hardware supplier list and clear maintenance responsibility boundaries.",
-    },
-    decisionFactors: [
-      { zh: "开放性和成本效率强", en: "Strong openness and cost efficiency" },
-      { zh: "供应商质量差异需要管理", en: "Supplier quality variance must be managed" },
-      { zh: "安全认证路径需要提前确认", en: "Safety certification path must be confirmed early" },
-    ],
-    migrationNotes: [
-      { zh: "先选定目标硬件族，再做软件模板", en: "Select target hardware family before software templates" },
-      { zh: "建立跨硬件回归测试", en: "Create cross-hardware regression tests" },
-    ],
-    riskLevel: "Low",
-    effortIndex: 44,
-  },
-];

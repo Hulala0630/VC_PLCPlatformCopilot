@@ -1,24 +1,36 @@
-from app.models import MigrationEstimate, MigrationEstimateRequest
+from app.data import ECOSYSTEMS
+from app.models import BenchmarkResult, LocalizedText, ProjectWorkspace
 
 
-def estimate_migration(request: MigrationEstimateRequest) -> MigrationEstimate:
-    effort = round(
-        request.rewrite_effort * 0.34
-        + request.testing_effort * 0.22
-        + request.validation_effort * 0.18
-        + request.training_effort * 0.14
-        + request.downtime_risk * 0.12
-        - request.reusable_assets * 0.18
-    )
-    normalized = max(15, min(95, effort))
-    cost_level = "高 / High" if normalized > 70 else "中 / Medium" if normalized > 45 else "低 / Low"
+def _average_score(values: list[int]) -> int:
+    return round(sum(values) / len(values))
 
-    return MigrationEstimate(
-        engineering_effort_index=normalized,
-        cost_level=cost_level,
-        uncertainty="中 / Medium",
-        assumptions=[
-            "当前估算基于 MVP mock 权重，不代表正式报价。 / Current estimate uses MVP mock weights and is not a formal quote.",
-            "真实项目需要补充 I/O、HMI、安全、测试与停机窗口数据。 / Real projects need I/O, HMI, safety, test, and downtime-window data.",
-        ],
-    )
+
+def create_benchmark(workspace: ProjectWorkspace) -> list[BenchmarkResult]:
+    results: list[BenchmarkResult] = []
+    for platform in ECOSYSTEMS:
+        if platform.id not in workspace.intake.candidate_platforms:
+            continue
+        scores = platform.scores.model_dump()
+        technical = _average_score(list(scores.values()))
+        preference = next((item.preference_weight for item in workspace.preferences if item.platform_id == platform.id), 50)
+        weighted = round(technical * 0.72 + preference * 0.28)
+        risk = "Low" if weighted >= 78 else "Medium" if weighted >= 65 else "High"
+        results.append(
+            BenchmarkResult(
+                platform_id=platform.id,
+                technical_score=technical,
+                preference_score=preference,
+                weighted_score=weighted,
+                risk_level=risk,
+                rationale=LocalizedText(
+                    zh=f"{platform.name} 技术评分 {technical}，用户倾向 {preference}，综合得分 {weighted}。",
+                    en=f"{platform.name} technical score {technical}, preference score {preference}, weighted score {weighted}.",
+                ),
+                assumptions=[
+                    LocalizedText(zh="技术评分来自 mock 平台 profile。", en="Technical score comes from mock platform profiles."),
+                    LocalizedText(zh="用户倾向权重占综合评分 28%。", en="User preference contributes 28% of the weighted score."),
+                ],
+            )
+        )
+    return sorted(results, key=lambda item: item.weighted_score, reverse=True)

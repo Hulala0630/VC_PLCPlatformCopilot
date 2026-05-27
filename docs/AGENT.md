@@ -1,115 +1,221 @@
 ## Development Context
 
-开发上下文
+This project uses a vibe-coding workflow.
 
-This project is built using a vibe-coding workflow.
+本项目采用 vibe-coding 工作流。
 
-本项目采用 vibe-coding 工作流构建。
+The user is product architect and industrial automation domain expert. Codex is senior full-stack implementation engineer and technical architect.
 
-The user acts as product architect and industrial automation domain expert.
+用户是产品架构师与工业自动化领域专家。Codex 是资深全栈实现工程师与技术架构师。
 
-用户担任产品架构师与工业自动化领域专家。
+## Current Baseline
 
-Codex acts as senior full-stack implementation engineer and technical architect.
+The current baseline implements the project-loop information architecture:
 
-Codex 担任资深全栈实现工程师与技术架构师。
+当前基线实现项目闭环信息架构：
 
-## Current Project Name
+- Create project.
+- Fill lightweight project intake.
+- Register attachment metadata.
+- Set PLC platform preference weights.
+- Run deterministic benchmark.
+- Keep agent behavior as explanation/report placeholder.
+- Generate and edit report sections.
 
-当前项目名称
+## Architecture
 
-PLC Platform Benchmark & Migration Decision Copilot
+- `frontend/`: React, TypeScript, Vite, Tailwind CSS workstation UI.
+- `backend/`: FastAPI API skeleton with ecosystem, project, and benchmark endpoints.
+- `docs/`: Product and development context.
+- `infra/`: Deployment notes.
 
-PLC 平台基准与迁移决策副驾驶
-
-## Current Architecture
-
-当前架构
-
-- `frontend/`: Current React + TypeScript + Vite + Tailwind CSS workstation UI.
-  `frontend/`：当前 React + TypeScript + Vite + Tailwind CSS 工作台前端。
-- `backend/`: FastAPI skeleton for future API, scoring, persistence, and AI integration.
-  `backend/`：FastAPI 后端骨架，用于未来 API、评分、持久化与 AI 集成。
-- `docs/`: Product and agent development context.
-  `docs/`：产品与开发上下文。
-- `infra/`: Deployment notes and infrastructure assets.
-  `infra/`：部署说明与基础设施资产。
-
-## Phase 1 Completion
-
-阶段一完成状态
-
-Phase 1 is complete. Treat the current state as the baseline for future feature work.
-
-阶段一已完成。后续功能开发应以当前状态作为基线。
-
-Do not reintroduce the removed `apps/` prototype directory unless explicitly requested.
-
-除非明确要求，不要重新引入已移除的 `apps/` 原型目录。
-
-## Current Frontend Interaction
-
-当前前端交互
-
-The frontend should prioritize the workstation layout:
-
-前端应优先围绕工作台布局开发：
-
-- Left expandable sidebar.
-  左侧可展开侧边栏。
-- PLC ecosystem list inside the sidebar.
-  侧边栏内的 PLC 生态列表。
-- Query conversation panel inside the sidebar after selecting a PLC ecosystem.
-  选择 PLC 生态后，在侧边栏中显示 Query 沟通区。
-- Right-side main workspace showing discussed PLC projects.
-  右侧主工作区展示已沟通过的 PLC 项目。
-- Project click reveals decision output and selection/migration information.
-  点击项目后展示决策输出、选型和迁移信息。
-- Chinese/English content is controlled by a language switch button.
-  中文/英文由语言切换按钮控制。
+Do not recreate the removed `apps/` prototype directory unless explicitly requested.
 
 ## Development Rules
 
-开发规则
-
 - Focus on decision support, not PLC programming.
-  聚焦决策支持，而不是 PLC 编程。
-- Do not build PLC code conversion or direct PLC connection features unless explicitly requested later.
-  除非之后明确要求，不要构建 PLC 代码转换或直接连接 PLC 的功能。
-- Emphasize business and technical trade-offs.
-  强调商业与技术取舍。
-- Use assumptions and clearly state uncertainty.
-  使用假设，并清楚说明不确定性。
-- Keep architecture modular and local-first.
-  保持架构模块化，并坚持本地优先。
-- Build incrementally with mock data first.
-  先使用 mock 数据进行增量构建。
+- Do not build PLC code conversion.
+- Do not build direct PLC connection.
+- Prefer deterministic automation for scoring, ranking, risk, and report structure.
+- Use agent behavior for explanation, prose, follow-up questions, and section rewriting.
+- V1 attachment handling is metadata-only.
+- Keep Chinese/English language switch behavior.
 - Keep the app runnable after each meaningful change.
-  每次有意义的改动后保持应用可运行。
-- Preserve the language-switch approach instead of showing all bilingual text side by side.
-  保持语言切换方式，不要重新改回中英并列显示。
 
-## Stack
+## Current Shared Concepts
 
-技术栈
+- `Project`
+- `ProjectIntake`
+- `PlatformPreference`
+- `ProjectAttachment`
+- `BenchmarkResult`
+- `ReportDraft`
 
-- Frontend / 前端: React, TypeScript, Vite, Tailwind CSS
-- Backend / 后端: FastAPI
-- AI Layer / AI 层: OpenAI-compatible API, LangGraph future
-- Data / 数据: JSON/YAML profiles, SQLite future, Chroma future
-- Deployment / 部署: Local-first, Docker-ready
+These concepts should remain aligned between frontend and backend as implementation moves from mock data to API-backed data.
 
-## Next Development Priorities
+## Workstream Split
 
-下一步优先级
+后续开发拆成四个独立计划来推进。每个计划都应保持当前产品边界：这是 PLC 决策支持 Copilot，不是 PLC 编程、代码转换或 PLC 直连工具。
 
-1. Connect frontend mock project data to FastAPI endpoints.
-   将前端 mock 项目数据接入 FastAPI 接口。
-2. Prepare SQLite persistence for project discussions and selected PLC ecosystem state.
-   为项目沟通记录与所选 PLC 生态状态准备 SQLite 持久化。
-3. Add real query assistant behavior with an OpenAI-compatible API.
-   使用 OpenAI-compatible API 增加真实 Query 助手行为。
-4. Add project maturity assessment and migration scoring forms.
-   增加项目成熟度评估与迁移评分表单。
-5. Add report generation workflow.
-   增加报告生成工作流。
+The future work is split into four independent workstreams. Each workstream must preserve the current product boundary: this is a PLC decision-support Copilot, not a PLC programming, code conversion, or direct PLC connection tool.
+
+### 1. Frontend & Interaction Design / 前端与交互设计
+
+Goal:
+
+目标：
+
+- Make the project-loop workstation clear, smooth, and executive-grade.
+- 让项目闭环工作台清晰、顺滑，并具备咨询式高级感。
+
+Responsibilities:
+
+职责：
+
+- Project workspace layout.
+- 项目工作台布局。
+- Left PLC ecosystem sidebar and project Query panel.
+- 左侧 PLC 生态侧边栏与项目 Query 面板。
+- Main tabs: Overview, Intake, Preferences, Attachments, Benchmark, Report.
+- 主区 Tabs：Overview、Intake、Preferences、Attachments、Benchmark、Report。
+- Language switch UX.
+- 中英文切换体验。
+- Report section editing experience.
+- 报告分区编辑体验。
+- Visual hierarchy for benchmark, risk, assumptions, and recommendation.
+- Benchmark、风险、假设与推荐结论的视觉层级。
+
+Success Criteria:
+
+成功标准：
+
+- A user can understand the full workflow without reading documentation.
+- 用户不读文档也能理解完整流程。
+- Project creation, intake, preference sliders, attachment register, benchmark, and report editing feel like one continuous flow.
+- 新建项目、填写信息、倾向滑块、附件登记、benchmark 和报告编辑形成连续流程。
+- The UI remains usable in both Chinese and English.
+- 中英文状态下界面都可读可用。
+
+### 2. Backend Project Overview / 后端项目总览
+
+Goal:
+
+目标：
+
+- Turn the backend from skeleton APIs into the source of truth for project-loop data.
+- 将后端从 API 骨架升级为项目闭环数据的事实来源。
+
+Responsibilities:
+
+职责：
+
+- Project APIs.
+- 项目 API。
+- PLC ecosystem APIs.
+- PLC 生态 API。
+- Intake, preference, attachment metadata, benchmark, and report draft APIs.
+- Intake、倾向权重、附件元信息、benchmark 与报告草稿 API。
+- SQLite persistence design.
+- SQLite 持久化设计。
+- Backend-owned deterministic benchmark service.
+- 后端负责的确定性 benchmark 服务。
+- Keep frontend/backend shared concepts aligned.
+- 保持前后端共享概念一致。
+
+Success Criteria:
+
+成功标准：
+
+- Frontend can load and update project-loop data through FastAPI.
+- 前端可通过 FastAPI 加载与更新项目闭环数据。
+- API shapes match `Project`, `ProjectIntake`, `PlatformPreference`, `ProjectAttachment`, `BenchmarkResult`, and `ReportDraft`.
+- API 结构与上述共享模型一致。
+- Mock data can be replaced by SQLite without redesigning the UI.
+- Mock 数据可替换为 SQLite，而不需要重做 UI。
+
+### 3. Input / Output Fallbacks / 输入输出兜底
+
+Goal:
+
+目标：
+
+- Make the app robust when information is incomplete, documents are not parsed, AI is unavailable, or report generation is partial.
+- 当信息不完整、文档未解析、AI 不可用或报告生成不完整时，应用仍然稳健可用。
+
+Responsibilities:
+
+职责：
+
+- Empty states and missing-field guidance.
+- 空状态与缺失字段提示。
+- Attachment metadata-only behavior.
+- 附件仅登记元信息的行为。
+- Deterministic fallback when AI is unavailable.
+- AI 不可用时的确定性兜底。
+- Benchmark assumptions and uncertainty display.
+- Benchmark 假设与不确定性展示。
+- Report section regeneration fallback.
+- 报告分区重算兜底。
+- Export-ready report structure, even before PDF/PPT exists.
+- 在 PDF/PPT 未实现前，也保持报告结构可输出。
+
+Success Criteria:
+
+成功标准：
+
+- Users always see what is missing and what assumption is being used.
+- 用户始终能看到缺失信息和当前使用的假设。
+- No workflow depends on real AI, RAG, Excel parsing, or PLC connection in V1.
+- V1 没有任何流程依赖真实 AI、RAG、Excel 解析或 PLC 连接。
+- The product remains useful with partial project information.
+- 即使项目信息不完整，产品仍有价值。
+
+### 4. Intelligence Layer / 智能化
+
+Goal:
+
+目标：
+
+- Add AI only where it improves explanation, follow-up questions, report prose, and document-grounded reasoning.
+- 只在解释、追问、报告文字和文档依据推理上增加 AI。
+
+Responsibilities:
+
+职责：
+
+- OpenAI-compatible chat service.
+- OpenAI-compatible 聊天服务。
+- Agent prompt boundaries.
+- Agent 提示词边界。
+- Explain benchmark scores without replacing deterministic scoring.
+- 解释 benchmark 得分，但不替代确定性评分。
+- Suggest missing inputs and follow-up questions.
+- 建议缺失输入和追问。
+- Rewrite individual report sections.
+- 重写单个报告分区。
+- Future document parsing and Chroma RAG.
+- 未来文档解析与 Chroma RAG。
+- Future LangGraph workflows.
+- 未来 LangGraph 工作流。
+
+Success Criteria:
+
+成功标准：
+
+- AI outputs are grounded in project inputs, benchmark results, assumptions, and attached metadata.
+- AI 输出基于项目输入、benchmark 结果、假设和附件元信息。
+- AI never claims to have parsed documents unless parsing/RAG is actually implemented.
+- 除非已经实现解析/RAG，否则 AI 不声称已读取文件内容。
+- AI never generates PLC code or conversion logic.
+- AI 不生成 PLC 代码或转换逻辑。
+
+## Cross-Workstream Rule
+
+跨工作流规则：
+
+- Each workstream should remain independently plannable and implementable.
+- 每个工作流都应能独立规划和实现。
+- Keep the app runnable after each completed task.
+- 每次任务完成后保持应用可运行。
+- After each implementation task, start the frontend/backend preview when possible and provide the preview URL.
+- 每次实现任务结束后，尽可能启动前后端预览，并提供预览地址。
