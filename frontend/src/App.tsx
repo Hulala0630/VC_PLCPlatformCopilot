@@ -1,6 +1,9 @@
 import {
   AlertTriangle,
   BarChart3,
+  Check,
+  CheckCircle2,
+  ChevronRight,
   ClipboardList,
   Cpu,
   FileText,
@@ -10,13 +13,15 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Paperclip,
+  Plus,
+  RefreshCw,
   Save,
   Send,
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { ecosystems, initialMessages, workspaces as seedWorkspaces } from "./data/platforms";
+import { ecosystems, initialMessages, reportSections, workspaces as seedWorkspaces } from "./data/platforms";
 import type {
   BenchmarkResult,
   ChatMessage,
@@ -31,48 +36,70 @@ import type {
 
 const copy = {
   zh: {
-    title: "PLC 平台基准与迁移决策副驾驶",
-    subtitle: "创建项目、登记资料、设置平台倾向、自动分析并生成报告",
+    title: "PLC 平台基准与迁移决策工作台",
+    subtitle: "项目闭环：创建项目、登记输入、设置偏好、生成排名、撰写报告",
     language: "English",
     newProject: "新建项目",
-    ecosystems: "PLC 生态",
+    ecosystems: "PLC 生态侧边栏",
     query: "当前项目 Query",
     send: "发送",
     askPlaceholder: "输入项目约束、选型问题或报告修改意见",
     project: "项目",
     status: "状态",
     updated: "更新",
-    overview: "总览",
-    intake: "项目信息",
-    preferences: "平台倾向",
-    attachments: "资料附件",
+    overview: "Overview",
+    intake: "Intake",
+    preferences: "Preferences",
+    attachments: "Attachments",
     benchmark: "Benchmark",
-    report: "报告",
-    projectGoal: "项目目标",
-    deterministic: "确定性自动化",
-    agentRole: "Agent 角色",
-    automationList: "表单校验、平台评分、偏好加权、风险初判、报告结构生成。",
-    agentList: "解释得分、补全追问、生成报告草稿、说明假设与不确定性。",
+    report: "Report",
     save: "保存",
-    generateReport: "生成报告草稿",
     regenerateSection: "重算当前分区",
     addAttachment: "登记附件",
-    fileNote: "第一版只记录附件元信息，不解析文件内容，也不接 RAG。",
+    fileNote: "当前版本只登记附件元信息，不解析文件，不接 RAG。",
     technicalScore: "技术评分",
-    preferenceScore: "倾向评分",
+    preferenceScore: "用户倾向",
+    weightedImpact: "加权影响",
+    finalScore: "最终评分",
     weightedScore: "加权总分",
     risk: "风险",
-    assumptions: "假设与不确定性",
+    assumptions: "Assumptions",
+    uncertainty: "Uncertainty",
+    dataSources: "Data sources used",
     reportSections: "报告目录",
-    sectionEditor: "分区编辑",
+    sectionEditor: "文档编辑器",
     rightPanel: "依据面板",
     candidatePlatforms: "候选平台",
-    projectInputs: "轻量输入",
+    projectInputs: "项目输入",
     emptyQuestion: "请输入内容后再发送。",
+    completion: "项目完成度",
+    nextStep: "下一步建议",
+    workflow: "决策流程",
+    required: "必填",
+    optional: "可选",
+    complete: "已完成",
+    missing: "待补充",
+    validation: "输入完整度",
+    reason: "倾向原因",
+    registeredOnly: "Registered only",
+    emptyAttachments: "还没有登记附件。先记录文件名、类型和用途，后续版本再接入解析。",
+    futureExport: "PDF / PPT 导出入口（未来版本）",
+    topRecommendation: "当前首选",
+    reasonPlaceholder: "例如：以前用过、客户指定、团队熟悉、供应链稳定、成本原因",
+    attachmentPurpose: "用途",
+    fileName: "文件名",
+    fileType: "文件类型",
+    created: "创建",
+    projectEntrance: "项目入口",
+    portfolioIntro: "从项目列表进入不同 PLC 决策工作流。",
+    listView: "列表",
+    typeView: "按类型",
+    openProject: "打开项目",
+    byType: "项目类型",
   },
   en: {
     title: "PLC Platform Benchmark & Migration Decision Copilot",
-    subtitle: "Create projects, register documents, set platform preference, run analysis, and generate reports",
+    subtitle: "Closed-loop workspace: create, intake, prefer, rank, and write the recommendation",
     language: "中文",
     newProject: "New Project",
     ecosystems: "PLC Ecosystems",
@@ -88,30 +115,53 @@ const copy = {
     attachments: "Attachments",
     benchmark: "Benchmark",
     report: "Report",
-    projectGoal: "Project Goal",
-    deterministic: "Deterministic Automation",
-    agentRole: "Agent Role",
-    automationList: "Form validation, platform scoring, preference weighting, risk estimate, and report structure generation.",
-    agentList: "Explain scores, ask follow-ups, draft report text, and state assumptions and uncertainty.",
     save: "Save",
-    generateReport: "Generate Report Draft",
     regenerateSection: "Regenerate Section",
     addAttachment: "Register Attachment",
-    fileNote: "V1 only records attachment metadata. It does not parse files or run RAG.",
+    fileNote: "This version only records attachment metadata. It does not parse files or run RAG.",
     technicalScore: "Technical Score",
-    preferenceScore: "Preference Score",
+    preferenceScore: "User Preference",
+    weightedImpact: "Weighted Impact",
+    finalScore: "Final Score",
     weightedScore: "Weighted Score",
     risk: "Risk",
-    assumptions: "Assumptions & Uncertainty",
+    assumptions: "Assumptions",
+    uncertainty: "Uncertainty",
+    dataSources: "Data sources used",
     reportSections: "Report Sections",
-    sectionEditor: "Section Editor",
+    sectionEditor: "Document Editor",
     rightPanel: "Evidence Panel",
     candidatePlatforms: "Candidate Platforms",
-    projectInputs: "Lightweight Inputs",
+    projectInputs: "Project Inputs",
     emptyQuestion: "Enter content before sending.",
+    completion: "Project Completeness",
+    nextStep: "Next Step",
+    workflow: "Decision Flow",
+    required: "Required",
+    optional: "Optional",
+    complete: "Complete",
+    missing: "Missing",
+    validation: "Input Completeness",
+    reason: "Preference Reason",
+    registeredOnly: "Registered only",
+    emptyAttachments: "No attachments registered yet. Record file name, type, and purpose now; parsing can come later.",
+    futureExport: "PDF / PPT export entry (future)",
+    topRecommendation: "Current Lead",
+    reasonPlaceholder: "Examples: used before, customer mandated, team familiarity, supply stability, cost reason",
+    attachmentPurpose: "Purpose",
+    fileName: "File name",
+    fileType: "File type",
+    created: "Created",
+    projectEntrance: "Project Entrance",
+    portfolioIntro: "Enter each PLC decision workflow from the project portfolio.",
+    listView: "List",
+    typeView: "By Type",
+    openProject: "Open Project",
+    byType: "Project Type",
   },
-};
+} as const;
 
+const tabOrder: WorkspaceTab[] = ["overview", "intake", "preferences", "attachments", "benchmark", "report"];
 const tabs: { id: WorkspaceTab; icon: React.ReactNode }[] = [
   { id: "overview", icon: <ClipboardList size={16} /> },
   { id: "intake", icon: <FileText size={16} /> },
@@ -121,11 +171,19 @@ const tabs: { id: WorkspaceTab; icon: React.ReactNode }[] = [
   { id: "report", icon: <Sparkles size={16} /> },
 ];
 
+const attachmentTypes: ProjectAttachment["fileType"][] = ["Electrical List", "I/O List", "Requirements", "Architecture", "Other"];
+const today = "2026-05-30";
+
 const riskClass = {
   Low: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   Medium: "bg-amber-50 text-amber-800 ring-amber-200",
   High: "bg-rose-50 text-rose-700 ring-rose-200",
 };
+
+const riskLabel = {
+  zh: { Low: "低", Medium: "中", High: "高" },
+  en: { Low: "Low", Medium: "Medium", High: "High" },
+} as const;
 
 function localize(value: LocalizedText, language: Language): string {
   return value[language];
@@ -134,6 +192,42 @@ function localize(value: LocalizedText, language: Language): string {
 function averageScore(platform: PlcEcosystem) {
   const values = Object.values(platform.scores);
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function calculateCompleteness(workspace: ProjectWorkspace) {
+  const checks = [
+    Boolean(workspace.project.name.trim()),
+    Boolean(workspace.project.industry.trim()),
+    Boolean(workspace.project.goal.trim()),
+    workspace.intake.ioScale > 0,
+    Boolean(workspace.intake.teamExperience.trim()),
+    Boolean(workspace.intake.constraints.trim()),
+    workspace.intake.candidatePlatforms.length >= 2,
+    workspace.preferences.some((item) => item.preferenceWeight !== 50 || item.userReasonNote.trim()),
+    workspace.attachments.length > 0,
+    workspace.report.sections.some((section) => section.body.en.trim() || section.body.zh.trim()),
+  ];
+  const done = checks.filter(Boolean).length;
+  return { done, total: checks.length, percent: Math.round((done / checks.length) * 100) };
+}
+
+function nextStepFor(workspace: ProjectWorkspace, language: Language): string {
+  if (!workspace.project.goal.trim() || !workspace.project.industry.trim()) {
+    return language === "zh" ? "先补齐项目目标与行业背景。" : "Complete project goal and industry context first.";
+  }
+  if (!workspace.intake.teamExperience.trim() || !workspace.intake.constraints.trim()) {
+    return language === "zh" ? "补充团队经验和硬约束，让排名解释更可靠。" : "Add team experience and hard constraints to improve ranking context.";
+  }
+  if (workspace.intake.candidatePlatforms.length < 2) {
+    return language === "zh" ? "至少选择两个候选平台用于对比。" : "Select at least two candidate platforms for comparison.";
+  }
+  if (!workspace.preferences.some((item) => item.userReasonNote.trim())) {
+    return language === "zh" ? "为关键平台填写倾向原因，区分技术分和业务偏好。" : "Add preference reasons for key platforms to separate technical fit from business preference.";
+  }
+  if (workspace.attachments.length === 0) {
+    return language === "zh" ? "登记附件元信息，明确输入来源但不解析文件。" : "Register attachment metadata to clarify input sources without parsing files.";
+  }
+  return language === "zh" ? "进入 Benchmark 与 Report，检查首选平台、风险和假设。" : "Review Benchmark and Report for the lead platform, risks, and assumptions.";
 }
 
 function calculateBenchmark(workspace: ProjectWorkspace): BenchmarkResult[] {
@@ -151,12 +245,12 @@ function calculateBenchmark(workspace: ProjectWorkspace): BenchmarkResult[] {
         weightedScore: weighted,
         riskLevel,
         rationale: {
-          zh: `${platform.name} 的技术评分为 ${technical}，用户倾向为 ${preference}，综合后为 ${weighted}。`,
-          en: `${platform.name} has a technical score of ${technical}, preference score of ${preference}, and weighted score of ${weighted}.`,
+          zh: `${platform.name} 的技术评分为 ${technical}，用户倾向为 ${preference}，综合后最终评分为 ${weighted}。`,
+          en: `${platform.name} has a technical score of ${technical}, user preference of ${preference}, and final score of ${weighted}.`,
         },
         assumptions: [
           { zh: "技术评分来自 mock 平台 profile。", en: "Technical score comes from mock platform profiles." },
-          { zh: "用户倾向权重占综合评分 28%。", en: "User preference contributes 28% of the weighted score." },
+          { zh: "用户倾向占最终评分 28%。", en: "User preference contributes 28% of the final score." },
         ],
       } satisfies BenchmarkResult;
     })
@@ -170,6 +264,7 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState(seedWorkspaces[0].project.id);
   const [selectedEcosystemId, setSelectedEcosystemId] = useState("siemens-tia");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
+  const [projectHomeView, setProjectHomeView] = useState<"list" | "type">("list");
   const [activeReportSectionId, setActiveReportSectionId] = useState("executive-summary");
   const [draft, setDraft] = useState("");
   const [draftError, setDraftError] = useState("");
@@ -182,6 +277,7 @@ export default function App() {
   const topResult = benchmarkResults[0];
   const topPlatform = ecosystems.find((item) => item.id === topResult?.platformId) ?? ecosystems[0];
   const messages = threads[selectedProjectId] ?? initialMessages[selectedEcosystemId] ?? [];
+  const completeness = calculateCompleteness(workspace);
 
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
@@ -192,17 +288,17 @@ export default function App() {
   }
 
   function createProject() {
-    const id = `project-${workspaces.length + 1}`;
-    const now = "2026-05-27";
+    const id = `project-${Date.now()}`;
+    const projectName = language === "zh" ? "新建 PLC 决策项目" : "New PLC Decision Project";
     const next: ProjectWorkspace = {
       project: {
         id,
-        name: language === "zh" ? "新建 PLC 决策项目" : "New PLC Decision Project",
-        industry: "General Manufacturing",
-        goal: language === "zh" ? "填写项目目标并运行 benchmark 分析。" : "Fill in the project goal and run benchmark analysis.",
+        name: projectName,
+        industry: "",
+        goal: "",
         status: "Draft",
-        createdAt: now,
-        updatedAt: now,
+        createdAt: today,
+        updatedAt: today,
       },
       intake: {
         projectSize: "Medium",
@@ -221,12 +317,13 @@ export default function App() {
         projectId: id,
         version: 1,
         status: "Draft",
-        sections: [],
+        sections: reportSections(projectName),
       },
     };
     setWorkspaces([next, ...workspaces]);
     setSelectedProjectId(id);
     setActiveTab("intake");
+    setActiveReportSectionId("executive-summary");
   }
 
   function sendMessage() {
@@ -238,8 +335,8 @@ export default function App() {
     const assistant: ChatMessage = {
       role: "assistant",
       content: {
-        zh: `已记录。当前项目推荐先完善轻量输入、确认候选平台，再查看 ${topPlatform.name} 的 benchmark 解释。`,
-        en: `Noted. For this project, complete lightweight inputs, confirm candidates, then review the benchmark explanation for ${topPlatform.name}.`,
+        zh: `已记录。当前建议：${nextStepFor(workspace, "zh")} 目前排名第一的是 ${topPlatform.name}。`,
+        en: `Noted. Recommended next step: ${nextStepFor(workspace, "en")} Current lead is ${topPlatform.name}.`,
       },
     };
     const user: ChatMessage = { role: "user", content: { zh: question, en: question } };
@@ -251,7 +348,7 @@ export default function App() {
   return (
     <main className="flex h-screen min-h-[760px] overflow-hidden bg-slate-100 text-slate-950">
       <aside className={`${sidebarOpen ? "w-full max-w-[400px]" : "w-[76px]"} flex shrink-0 flex-col border-r border-slate-200 bg-slate-950 text-white transition-all duration-300`}>
-        <div className="flex min-h-[88px] items-center justify-between gap-3 border-b border-white/10 p-4">
+        <div className="flex min-h-[92px] items-center justify-between gap-3 border-b border-white/10 p-4">
           {sidebarOpen ? (
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">{t.project}</p>
@@ -260,7 +357,7 @@ export default function App() {
           ) : (
             <Cpu className="mx-auto text-cyan-300" size={24} />
           )}
-          <button className="rounded-md bg-white/10 p-2 hover:bg-white/15" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <button className="rounded-md bg-white/10 p-2 hover:bg-white/15" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle sidebar">
             {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
           </button>
         </div>
@@ -304,7 +401,7 @@ export default function App() {
               </div>
               <div className="mt-3 rounded-md border border-white/10 bg-white/5 p-3">
                 <p className="text-sm font-semibold">{workspace.project.name}</p>
-                <p className="mt-1 text-xs text-slate-400">{workspace.project.goal}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{workspace.project.goal || nextStepFor(workspace, language)}</p>
               </div>
               <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                 {messages.map((message, index) => (
@@ -329,6 +426,7 @@ export default function App() {
       </aside>
 
       <section className="min-w-0 flex-1 overflow-y-auto">
+        {activeTab !== "overview" ? (
         <header className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
@@ -349,12 +447,14 @@ export default function App() {
             </div>
             <div className="grid grid-cols-3 gap-3 text-sm">
               <Kpi label={t.status} value={workspace.project.status} />
-              <Kpi label={t.updated} value={workspace.project.updatedAt} />
+              <Kpi label={t.completion} value={`${completeness.percent}%`} />
               <Kpi label={t.weightedScore} value={`${topResult?.weightedScore ?? 0}/100`} />
             </div>
           </div>
 
-          <nav className="mt-5 flex gap-2 overflow-x-auto pb-1">
+          <FlowNav activeTab={activeTab} setActiveTab={setActiveTab} language={language} completeness={completeness.percent} />
+
+          <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
             {tabs.map((tab) => (
               <button key={tab.id} className={`inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${activeTab === tab.id ? "bg-cyan-700 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`} onClick={() => setActiveTab(tab.id)}>
                 {tab.icon}
@@ -363,13 +463,25 @@ export default function App() {
             ))}
           </nav>
         </header>
+        ) : null}
 
         <div className="p-5 lg:p-6">
-          {activeTab === "overview" ? <Overview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} /> : null}
-          {activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={updateWorkspace} labels={t} /> : null}
-          {activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updateWorkspace} labels={t} /> : null}
-          {activeTab === "attachments" ? <Attachments workspace={workspace} updateWorkspace={updateWorkspace} labels={t} /> : null}
-          {activeTab === "benchmark" ? <Benchmark results={benchmarkResults} labels={t} language={language} /> : null}
+          {activeTab === "overview" ? (
+            <ProjectHome
+              workspaces={workspaces}
+              selectedProjectId={selectedProjectId}
+              setSelectedProjectId={setSelectedProjectId}
+              setActiveTab={setActiveTab}
+              language={language}
+              labels={t}
+              view={projectHomeView}
+              setView={setProjectHomeView}
+            />
+          ) : null}
+          {activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={updateWorkspace} language={language} labels={t} /> : null}
+          {activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updateWorkspace} language={language} labels={t} /> : null}
+          {activeTab === "attachments" ? <Attachments workspace={workspace} updateWorkspace={updateWorkspace} language={language} labels={t} /> : null}
+          {activeTab === "benchmark" ? <Benchmark results={benchmarkResults} workspace={workspace} labels={t} language={language} /> : null}
           {activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} /> : null}
         </div>
       </section>
@@ -377,61 +489,291 @@ export default function App() {
   );
 }
 
-function Overview({ workspace, topPlatform, topResult, language, labels }: { workspace: ProjectWorkspace; topPlatform: PlcEcosystem; topResult?: BenchmarkResult; language: Language; labels: (typeof copy)[Language] }) {
+function FlowNav({ activeTab, setActiveTab, language, completeness }: { activeTab: WorkspaceTab; setActiveTab: (tab: WorkspaceTab) => void; language: Language; completeness: number }) {
+  const names = language === "zh" ? ["创建项目", "Intake", "Preferences", "Attachments", "Benchmark", "Report"] : ["Create", "Intake", "Preferences", "Attachments", "Benchmark", "Report"];
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <Panel title={workspace.project.name} description={workspace.project.goal}>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Info title={labels.projectInputs} value={`${workspace.intake.projectSize} / ${workspace.intake.ioScale} I/O`} />
-          <Info title={labels.candidatePlatforms} value={workspace.intake.candidatePlatforms.map((id) => ecosystems.find((item) => item.id === id)?.name).join(", ")} />
-          <Info title={labels.deterministic} value={labels.automationList} />
-          <Info title={labels.agentRole} value={labels.agentList} />
+    <div className="mt-5 flex items-center gap-2 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-2">
+      {tabOrder.map((tab, index) => {
+        const passed = completeness >= Math.min(100, index * 18);
+        return (
+          <button key={tab} className={`inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold ${activeTab === tab ? "bg-white text-cyan-800 shadow-sm" : "text-slate-600 hover:bg-white"}`} onClick={() => setActiveTab(tab)}>
+            <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${passed ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}`}>{passed ? <Check size={13} /> : index + 1}</span>
+            {names[index]}
+            {index < tabOrder.length - 1 ? <ChevronRight className="text-slate-300" size={14} /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProjectHome({
+  workspaces,
+  selectedProjectId,
+  setSelectedProjectId,
+  setActiveTab,
+  language,
+  labels,
+  view,
+  setView,
+}: {
+  workspaces: ProjectWorkspace[];
+  selectedProjectId: string;
+  setSelectedProjectId: (id: string) => void;
+  setActiveTab: (tab: WorkspaceTab) => void;
+  language: Language;
+  labels: (typeof copy)[Language];
+  view: "list" | "type";
+  setView: (view: "list" | "type") => void;
+}) {
+  const groups = workspaces.reduce<Record<string, ProjectWorkspace[]>>((acc, item) => {
+    const key = item.project.industry || (language === "zh" ? "未分类" : "Unclassified");
+    acc[key] = [...(acc[key] ?? []), item];
+    return acc;
+  }, {});
+
+  return (
+    <div className="grid gap-5">
+      <Panel title={labels.projectEntrance} description={labels.portfolioIntro}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Kpi label={labels.project} value={`${workspaces.length}`} />
+            <Kpi label={labels.status} value={`${workspaces.filter((item) => item.project.status === "Report Ready").length} Ready`} />
+            <Kpi label={labels.byType} value={`${Object.keys(groups).length}`} />
+          </div>
+          <div className="inline-flex w-fit rounded-md border border-slate-200 bg-slate-50 p-1">
+            <button className={`rounded px-3 py-2 text-sm font-semibold ${view === "list" ? "bg-white text-cyan-800 shadow-sm" : "text-slate-600 hover:text-slate-900"}`} onClick={() => setView("list")}>
+              {labels.listView}
+            </button>
+            <button className={`rounded px-3 py-2 text-sm font-semibold ${view === "type" ? "bg-white text-cyan-800 shadow-sm" : "text-slate-600 hover:text-slate-900"}`} onClick={() => setView("type")}>
+              {labels.typeView}
+            </button>
+          </div>
         </div>
       </Panel>
-      <Panel title={labels.benchmark} description={topPlatform.name}>
-        <MetricBar label={labels.technicalScore} value={topResult?.technicalScore ?? 0} />
-        <MetricBar label={labels.preferenceScore} value={topResult?.preferenceScore ?? 0} />
-        <MetricBar label={labels.weightedScore} value={topResult?.weightedScore ?? 0} />
-        <p className="mt-4 text-sm leading-6 text-slate-600">{topResult ? localize(topResult.rationale, language) : ""}</p>
+
+      {view === "list" ? (
+        <div className="grid gap-4">
+          {workspaces.map((item) => (
+            <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-5">
+          {Object.entries(groups).map(([type, items]) => (
+            <Panel key={type} title={type} description={`${items.length} ${language === "zh" ? "个项目" : "projects"}`}>
+              <div className="grid gap-4">
+                {items.map((item) => (
+                  <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
+                ))}
+              </div>
+            </Panel>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectEntryCard({
+  workspace,
+  selected,
+  language,
+  labels,
+  setSelectedProjectId,
+  setActiveTab,
+}: {
+  workspace: ProjectWorkspace;
+  selected: boolean;
+  language: Language;
+  labels: (typeof copy)[Language];
+  setSelectedProjectId: (id: string) => void;
+  setActiveTab: (tab: WorkspaceTab) => void;
+}) {
+  const completeness = calculateCompleteness(workspace);
+  const benchmark = calculateBenchmark(workspace);
+  const topResult = benchmark[0];
+  const topPlatform = ecosystems.find((item) => item.id === topResult?.platformId);
+
+  function open(tab: WorkspaceTab) {
+    setSelectedProjectId(workspace.project.id);
+    setActiveTab(tab);
+  }
+
+  return (
+    <section className={`cursor-pointer rounded-md border bg-white p-4 shadow-sm transition ${selected ? "border-cyan-400 ring-1 ring-cyan-200" : "border-slate-200 hover:border-slate-300 hover:shadow"}`} onClick={() => setSelectedProjectId(workspace.project.id)}>
+      <div className={`grid gap-4 ${selected ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
+        <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{workspace.project.industry || labels.byType}</p>
+              <h3 className="mt-1 text-lg font-semibold">{workspace.project.name}</h3>
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{workspace.project.goal || nextStepFor(workspace, language)}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{workspace.project.status}</span>
+              <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">{completeness.percent}%</span>
+            </div>
+          </div>
+          {selected ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => open("intake")}>
+                {labels.openProject}
+              </button>
+              <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("benchmark")}>
+                Benchmark
+              </button>
+              <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("report")}>
+                Report
+              </button>
+            </div>
+          ) : null}
+        </div>
+        {selected ? (
+          <div className="grid gap-3">
+            <MetricBar label={labels.completion} value={completeness.percent} tone="cyan" />
+            <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
+            <Info title={labels.topRecommendation} value={topPlatform?.name ?? "-"} />
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function Intake({ workspace, updateWorkspace, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language]; language: Language }) {
+  const [draft, setDraft] = useState(workspace);
+
+  useEffect(() => {
+    setDraft(workspace);
+  }, [workspace]);
+
+  const required = [
+    { label: language === "zh" ? "项目名称" : "Project name", ok: Boolean(draft.project.name.trim()) },
+    { label: language === "zh" ? "行业" : "Industry", ok: Boolean(draft.project.industry.trim()) },
+    { label: language === "zh" ? "项目目标" : "Project goal", ok: Boolean(draft.project.goal.trim()) },
+    { label: "I/O", ok: draft.intake.ioScale > 0 },
+    { label: language === "zh" ? "候选平台" : "Candidates", ok: draft.intake.candidatePlatforms.length >= 2 },
+  ];
+  const optional = [
+    { label: language === "zh" ? "团队经验" : "Team experience", ok: Boolean(draft.intake.teamExperience.trim()) },
+    { label: language === "zh" ? "约束条件" : "Constraints", ok: Boolean(draft.intake.constraints.trim()) },
+    { label: language === "zh" ? "现有平台" : "Existing platform", ok: Boolean(draft.intake.existingPlatform) },
+  ];
+  const completion = Math.round((required.filter((item) => item.ok).length / required.length) * 100);
+
+  function toggleCandidate(platformId: string) {
+    const exists = draft.intake.candidatePlatforms.includes(platformId);
+    const candidatePlatforms = exists ? draft.intake.candidatePlatforms.filter((id) => id !== platformId) : [...draft.intake.candidatePlatforms, platformId];
+    setDraft({ ...draft, intake: { ...draft.intake, candidatePlatforms } });
+  }
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <Panel title={labels.intake} description={language === "zh" ? "像咨询访谈一样收集足够的决策输入。" : "Capture enough decision inputs like a consulting intake."}>
+        <div className="grid gap-5">
+          <section>
+            <SectionTitle title={language === "zh" ? "1. 项目画像" : "1. Project profile"} />
+            <div className="mt-3 grid gap-4 lg:grid-cols-2">
+              <Field label={language === "zh" ? "项目名称" : "Project Name"} badge={labels.required} value={draft.project.name} onChange={(value) => setDraft({ ...draft, project: { ...draft.project, name: value } })} />
+              <Field label={language === "zh" ? "行业" : "Industry"} badge={labels.required} value={draft.project.industry} onChange={(value) => setDraft({ ...draft, project: { ...draft.project, industry: value } })} />
+              <Field label={language === "zh" ? "项目目标" : "Goal"} badge={labels.required} value={draft.project.goal} onChange={(value) => setDraft({ ...draft, project: { ...draft.project, goal: value } })} wide />
+            </div>
+          </section>
+
+          <section>
+            <SectionTitle title={language === "zh" ? "2. 工程规模与约束" : "2. Engineering scale and constraints"} />
+            <div className="mt-3 grid gap-4 lg:grid-cols-2">
+              <Select label={language === "zh" ? "项目规模" : "Project Size"} value={draft.intake.projectSize} options={["Small", "Medium", "Large"]} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, projectSize: value as ProjectWorkspace["intake"]["projectSize"] } })} />
+              <NumberField label="I/O Scale" badge={labels.required} value={draft.intake.ioScale} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, ioScale: value } })} />
+              <Range label={language === "zh" ? "运动控制要求" : "Motion Requirement"} value={draft.intake.motionRequirement} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, motionRequirement: value } })} />
+              <Range label={language === "zh" ? "安全要求" : "Safety Requirement"} value={draft.intake.safetyRequirement} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, safetyRequirement: value } })} />
+              <Range label={language === "zh" ? "预算敏感度" : "Budget Sensitivity"} value={draft.intake.budgetSensitivity} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, budgetSensitivity: value } })} />
+              <Select label={language === "zh" ? "现有平台" : "Existing Platform"} value={draft.intake.existingPlatform} options={ecosystems.map((item) => item.id)} optionLabel={(id) => ecosystems.find((item) => item.id === id)?.name ?? id} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, existingPlatform: value } })} />
+              <Field label={language === "zh" ? "团队经验" : "Team Experience"} badge={labels.optional} value={draft.intake.teamExperience} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, teamExperience: value } })} wide />
+              <Field label={language === "zh" ? "硬约束" : "Constraints"} badge={labels.optional} value={draft.intake.constraints} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, constraints: value } })} wide />
+            </div>
+          </section>
+
+          <section>
+            <SectionTitle title={language === "zh" ? "3. 候选平台" : "3. Candidate platforms"} />
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {ecosystems.map((platform) => {
+                const selected = draft.intake.candidatePlatforms.includes(platform.id);
+                return (
+                  <button key={platform.id} className={`rounded-md border p-3 text-left ${selected ? "border-cyan-500 bg-cyan-50" : "border-slate-200 bg-white hover:bg-slate-50"}`} onClick={() => toggleCandidate(platform.id)}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">{platform.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{platform.vendor}</p>
+                      </div>
+                      {selected ? <CheckCircle2 className="text-cyan-700" size={18} /> : null}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+        <button className="mt-5 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => updateWorkspace({ ...draft, project: { ...draft.project, updatedAt: today } })}>
+          <Save size={16} />
+          {labels.save}
+        </button>
+      </Panel>
+
+      <Panel title={labels.validation} description={`${completion}%`}>
+        <ValidationList title={labels.required} items={required} labels={labels} />
+        <div className="mt-5">
+          <ValidationList title={labels.optional} items={optional} labels={labels} />
+        </div>
       </Panel>
     </div>
   );
 }
 
-function Intake({ workspace, updateWorkspace, labels }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language] }) {
-  const [draft, setDraft] = useState(workspace);
-  return (
-    <Panel title={labels.intake} description={labels.projectInputs}>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Field label="Project Name" value={draft.project.name} onChange={(value) => setDraft({ ...draft, project: { ...draft.project, name: value } })} />
-        <Field label="Industry" value={draft.project.industry} onChange={(value) => setDraft({ ...draft, project: { ...draft.project, industry: value } })} />
-        <Field label="Goal" value={draft.project.goal} onChange={(value) => setDraft({ ...draft, project: { ...draft.project, goal: value } })} wide />
-        <Select label="Project Size" value={draft.intake.projectSize} options={["Small", "Medium", "Large"]} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, projectSize: value as ProjectWorkspace["intake"]["projectSize"] } })} />
-        <NumberField label="I/O Scale" value={draft.intake.ioScale} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, ioScale: value } })} />
-        <Range label="Motion Requirement" value={draft.intake.motionRequirement} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, motionRequirement: value } })} />
-        <Range label="Safety Requirement" value={draft.intake.safetyRequirement} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, safetyRequirement: value } })} />
-        <Range label="Budget Sensitivity" value={draft.intake.budgetSensitivity} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, budgetSensitivity: value } })} />
-        <Field label="Team Experience" value={draft.intake.teamExperience} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, teamExperience: value } })} wide />
-        <Field label="Constraints" value={draft.intake.constraints} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, constraints: value } })} wide />
-      </div>
-      <button className="mt-5 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => updateWorkspace({ ...draft, project: { ...draft.project, updatedAt: "2026-05-27" } })}>
-        <Save size={16} />
-        {labels.save}
-      </button>
-    </Panel>
-  );
-}
+function Preferences({ workspace, updateWorkspace, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language]; language: Language }) {
+  const reasonOptions = language === "zh" ? ["以前用过", "客户指定", "团队熟悉", "供应链稳定", "成本原因"] : ["Used before", "Customer mandated", "Team familiarity", "Supply stability", "Cost reason"];
 
-function Preferences({ workspace, updateWorkspace, labels }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language] }) {
+  function updatePreference(platformId: string, patch: { preferenceWeight?: number; userReasonNote?: string }) {
+    updateWorkspace({
+      ...workspace,
+      project: { ...workspace.project, updatedAt: today },
+      preferences: workspace.preferences.map((item) => (item.platformId === platformId ? { ...item, ...patch } : item)),
+    });
+  }
+
   return (
-    <Panel title={labels.preferences} description="Preference sliders participate in the benchmark weighted score.">
+    <Panel title={labels.preferences} description={language === "zh" ? "技术评分保持独立；用户倾向只影响加权结果。" : "Technical scores stay independent; user preference changes only the weighted result."}>
       <div className="grid gap-4">
         {workspace.preferences.map((pref) => {
           const platform = ecosystems.find((item) => item.id === pref.platformId) ?? ecosystems[0];
+          const technical = averageScore(platform);
+          const impact = Math.round(pref.preferenceWeight * 0.28);
+          const selected = workspace.intake.candidatePlatforms.includes(pref.platformId);
           return (
-            <div key={pref.platformId} className="rounded-md border border-slate-200 p-4">
-              <Range label={platform.name} value={pref.preferenceWeight} onChange={(value) => updateWorkspace({ ...workspace, preferences: workspace.preferences.map((item) => (item.platformId === pref.platformId ? { ...item, preferenceWeight: value } : item)) })} />
-              <input className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Reason note / 倾向原因" value={pref.userReasonNote} onChange={(event) => updateWorkspace({ ...workspace, preferences: workspace.preferences.map((item) => (item.platformId === pref.platformId ? { ...item, userReasonNote: event.target.value } : item)) })} />
+            <div key={pref.platformId} className={`rounded-md border p-4 ${selected ? "border-cyan-200 bg-white" : "border-slate-200 bg-slate-50 opacity-75"}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold">{platform.name}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{selected ? labels.candidatePlatforms : language === "zh" ? "未纳入当前候选集" : "Not in current candidate set"}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <MiniScore label={labels.technicalScore} value={technical} />
+                  <MiniScore label={labels.preferenceScore} value={pref.preferenceWeight} />
+                  <MiniScore label={labels.weightedImpact} value={impact} />
+                </div>
+              </div>
+              <div className="mt-4">
+                <Range label={labels.preferenceScore} value={pref.preferenceWeight} onChange={(value) => updatePreference(pref.platformId, { preferenceWeight: value })} />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {reasonOptions.map((reason) => (
+                  <button key={reason} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-cyan-50 hover:text-cyan-800" onClick={() => updatePreference(pref.platformId, { userReasonNote: pref.userReasonNote ? `${pref.userReasonNote}; ${reason}` : reason })}>
+                    <Plus size={12} className="inline" /> {reason}
+                  </button>
+                ))}
+              </div>
+              <input className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder={labels.reasonPlaceholder} value={pref.userReasonNote} onChange={(event) => updatePreference(pref.platformId, { userReasonNote: event.target.value })} />
             </div>
           );
         })}
@@ -440,60 +782,107 @@ function Preferences({ workspace, updateWorkspace, labels }: { workspace: Projec
   );
 }
 
-function Attachments({ workspace, updateWorkspace, labels }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language] }) {
+function Attachments({ workspace, updateWorkspace, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language]; language: Language }) {
+  const [form, setForm] = useState({ fileName: "", fileType: "Requirements" as ProjectAttachment["fileType"], declaredPurpose: "" });
+
   function addAttachment() {
+    if (!form.fileName.trim()) return;
     const next: ProjectAttachment = {
-      id: `att-${workspace.attachments.length + 1}`,
+      id: `att-${Date.now()}`,
       projectId: workspace.project.id,
-      fileName: `New_Project_Document_${workspace.attachments.length + 1}.xlsx`,
-      fileType: "I/O List",
-      declaredPurpose: "Registered metadata only. File parsing is out of scope for V1.",
-      uploadedAt: "2026-05-27",
+      fileName: form.fileName.trim(),
+      fileType: form.fileType,
+      declaredPurpose: form.declaredPurpose.trim() || (language === "zh" ? "仅登记元信息，未解析文件内容。" : "Metadata registered only; file content is not parsed."),
+      uploadedAt: today,
     };
-    updateWorkspace({ ...workspace, attachments: [...workspace.attachments, next] });
+    updateWorkspace({ ...workspace, project: { ...workspace.project, updatedAt: today }, attachments: [...workspace.attachments, next] });
+    setForm({ fileName: "", fileType: "Requirements", declaredPurpose: "" });
   }
+
   return (
-    <Panel title={labels.attachments} description={labels.fileNote}>
-      <button className="mb-4 inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={addAttachment}>
-        <Paperclip size={16} />
-        {labels.addAttachment}
-      </button>
-      <div className="grid gap-3">
-        {workspace.attachments.map((attachment) => (
-          <div key={attachment.id} className="rounded-md border border-slate-200 bg-white p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="font-semibold">{attachment.fileName}</h3>
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{attachment.fileType}</span>
-            </div>
-            <p className="mt-2 text-sm text-slate-600">{attachment.declaredPurpose}</p>
-            <p className="mt-2 text-xs text-slate-400">{attachment.uploadedAt}</p>
+    <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <Panel title={labels.addAttachment} description={labels.fileNote}>
+        <div className="grid gap-3">
+          <Field label={labels.fileName} badge={labels.required} value={form.fileName} onChange={(value) => setForm({ ...form, fileName: value })} />
+          <Select label={labels.fileType} value={form.fileType} options={attachmentTypes} onChange={(value) => setForm({ ...form, fileType: value as ProjectAttachment["fileType"] })} />
+          <Field label={labels.attachmentPurpose} badge={labels.optional} value={form.declaredPurpose} onChange={(value) => setForm({ ...form, declaredPurpose: value })} />
+          <button className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={addAttachment}>
+            <Paperclip size={16} />
+            {labels.addAttachment}
+          </button>
+        </div>
+      </Panel>
+      <Panel title={labels.attachments} description={`${workspace.attachments.length} ${language === "zh" ? "个已登记附件" : "registered attachments"}`}>
+        {workspace.attachments.length === 0 ? (
+          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+            <Paperclip className="mx-auto text-slate-400" size={28} />
+            <p className="mt-3 text-sm font-semibold text-slate-700">{labels.emptyAttachments}</p>
           </div>
-        ))}
-      </div>
-    </Panel>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {workspace.attachments.map((attachment) => (
+              <div key={attachment.id} className="rounded-md border border-slate-200 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-semibold">{attachment.fileName}</h3>
+                  <span className="rounded-full bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-800">{labels.registeredOnly}</span>
+                </div>
+                <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                  <p>
+                    <span className="font-semibold text-slate-800">{labels.fileType}: </span>
+                    {attachment.fileType}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-800">{labels.attachmentPurpose}: </span>
+                    {attachment.declaredPurpose}
+                  </p>
+                  <p className="text-xs text-slate-400">{attachment.uploadedAt}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+    </div>
   );
 }
 
-function Benchmark({ results, labels, language }: { results: BenchmarkResult[]; labels: (typeof copy)[Language]; language: Language }) {
+function Benchmark({ results, workspace, labels, language }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; labels: (typeof copy)[Language]; language: Language }) {
   return (
-    <Panel title={labels.benchmark} description="Deterministic ranking: technical score + platform preference weight.">
+    <Panel title={labels.benchmark} description={language === "zh" ? "咨询 dashboard：技术分 + 用户倾向 = 最终排序。" : "Consulting dashboard: technical score + user preference = final ranking."}>
       <div className="grid gap-4">
         {results.map((result, index) => {
           const platform = ecosystems.find((item) => item.id === result.platformId) ?? ecosystems[0];
+          const preference = workspace.preferences.find((item) => item.platformId === result.platformId);
           return (
-            <div key={result.platformId} className="rounded-md border border-slate-200 p-4">
+            <div key={result.platformId} className={`rounded-md border p-4 ${index === 0 ? "border-cyan-400 bg-cyan-50/70 shadow-sm" : "border-slate-200 bg-white"}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm text-slate-500">#{index + 1}</p>
-                  <h3 className="text-lg font-semibold">{platform.name}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{localize(result.rationale, language)}</p>
+                  <p className="text-sm font-semibold text-slate-500">#{index + 1} {index === 0 ? ` · ${labels.topRecommendation}` : ""}</p>
+                  <h3 className="mt-1 text-xl font-semibold">{platform.name}</h3>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{localize(result.rationale, language)}</p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${riskClass[result.riskLevel]}`}>{result.riskLevel}</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${riskClass[result.riskLevel]}`}>
+                  {labels.risk}: {riskLabel[language][result.riskLevel]}
+                </span>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <MetricBar label={labels.technicalScore} value={result.technicalScore} />
-                <MetricBar label={labels.preferenceScore} value={result.preferenceScore} />
-                <MetricBar label={labels.weightedScore} value={result.weightedScore} />
+                <MetricBar label={labels.technicalScore} value={result.technicalScore} tone="slate" />
+                <MetricBar label={labels.preferenceScore} value={result.preferenceScore} tone="cyan" />
+                <MetricBar label={labels.finalScore} value={result.weightedScore} tone="emerald" />
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-md bg-white/80 p-3 ring-1 ring-slate-200">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.assumptions}</p>
+                  <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                    {result.assumptions.map((item) => (
+                      <li key={localize(item, language)}>{localize(item, language)}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-md bg-white/80 p-3 ring-1 ring-slate-200">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.reason}</p>
+                  <p className="mt-2 text-sm text-slate-600">{preference?.userReasonNote || (language === "zh" ? "尚未填写用户倾向原因。" : "No user preference reason entered yet.")}</p>
+                </div>
               </div>
             </div>
           );
@@ -523,47 +912,77 @@ function ReportBuilder({
   const section = workspace.report.sections.find((item) => item.id === activeSectionId) ?? workspace.report.sections[0];
   const topPlatform = ecosystems.find((item) => item.id === benchmarkResults[0]?.platformId);
 
+  function updateSection(next: ReportSection) {
+    updateWorkspace({
+      ...workspace,
+      project: { ...workspace.project, updatedAt: today },
+      report: { ...workspace.report, sections: workspace.report.sections.map((item) => (item.id === next.id ? next : item)) },
+    });
+  }
+
   function regenerateSection() {
     if (!section) return;
     const generated: ReportSection = {
       ...section,
       body: {
-        zh: `基于当前输入和偏好权重，${topPlatform?.name ?? "候选平台"} 是当前排序最高的平台。本段由确定性分析结果生成，Agent 只负责文字组织和假设说明。`,
-        en: `Based on current inputs and preference weights, ${topPlatform?.name ?? "the candidate platform"} ranks highest. This section is generated from deterministic analysis; the agent only drafts wording and states assumptions.`,
+        zh: `基于当前输入、偏好权重与 mock 平台评分，${topPlatform?.name ?? "候选平台"} 是当前排序最高的平台。本分区由前端确定性逻辑重算，未调用真实 AI，未解析附件。`,
+        en: `Based on current inputs, preference weights, and mock platform scoring, ${topPlatform?.name ?? "the candidate platform"} ranks highest. This section was recalculated by deterministic frontend logic, with no real AI call and no file parsing.`,
       },
-      lastGeneratedAt: "2026-05-27",
+      assumptions: [
+        { zh: "技术评分来自 mock 平台 profile。", en: "Technical score comes from mock platform profiles." },
+        { zh: "附件仅作为元信息来源登记。", en: "Attachments are registered as metadata only." },
+      ],
+      uncertainty: {
+        zh: "正式结论仍需真实供应商、成本、交期和现场约束确认。",
+        en: "A formal conclusion still needs real vendor, cost, delivery, and site-constraint confirmation.",
+      },
+      dataSourcesUsed: [
+        { zh: "Intake 表单", en: "Intake form" },
+        { zh: "偏好滑块", en: "Preference sliders" },
+        { zh: "Benchmark 排名", en: "Benchmark ranking" },
+      ],
+      lastGeneratedAt: today,
     };
-    updateWorkspace({ ...workspace, report: { ...workspace.report, sections: workspace.report.sections.map((item) => (item.id === section.id ? generated : item)), status: "Ready" } });
+    updateWorkspace({
+      ...workspace,
+      project: { ...workspace.project, status: "Report Ready", updatedAt: today },
+      report: { ...workspace.report, sections: workspace.report.sections.map((item) => (item.id === section.id ? generated : item)), status: "Ready" },
+    });
   }
 
   if (!section) {
-    return <Panel title={labels.report} description="No report sections available yet." />;
+    return <Panel title={labels.report} description={language === "zh" ? "暂无报告分区。" : "No report sections available yet."} />;
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
-      <Panel title={labels.reportSections}>
+    <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+      <Panel title={labels.reportSections} description={`v${workspace.report.version} · ${workspace.report.status}`}>
         <div className="space-y-2">
-          {workspace.report.sections.map((item) => (
-            <button key={item.id} className={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${item.id === section.id ? "bg-cyan-50 text-cyan-800" : "bg-slate-50 text-slate-700 hover:bg-slate-100"}`} onClick={() => setActiveSectionId(item.id)}>
+          {workspace.report.sections.map((item, index) => (
+            <button key={item.id} className={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${item.id === section.id ? "bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200" : "bg-slate-50 text-slate-700 hover:bg-slate-100"}`} onClick={() => setActiveSectionId(item.id)}>
+              <span className="mr-2 text-xs text-slate-400">{String(index + 1).padStart(2, "0")}</span>
               {localize(item.title, language)}
             </button>
           ))}
         </div>
-      </Panel>
-      <Panel title={labels.sectionEditor} description={localize(section.title, language)}>
-        <textarea className="h-[360px] w-full resize-none rounded-md border border-slate-300 p-4 text-sm leading-6" value={localize(section.body, language)} onChange={(event) => updateWorkspace({ ...workspace, report: { ...workspace.report, sections: workspace.report.sections.map((item) => (item.id === section.id ? { ...item, body: { ...item.body, [language]: event.target.value } } : item)) } })} />
-        <button className="mt-4 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={regenerateSection}>
-          <Sparkles size={16} />
-          {labels.regenerateSection}
+        <button className="mt-4 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500" disabled>
+          {labels.futureExport}
         </button>
       </Panel>
+      <Panel title={labels.sectionEditor} description={localize(section.title, language)}>
+        <textarea className="min-h-[440px] w-full resize-y rounded-md border border-slate-300 bg-white p-5 text-sm leading-7 shadow-inner outline-none focus:ring-2 focus:ring-cyan-400" value={localize(section.body, language)} onChange={(event) => updateSection({ ...section, body: { ...section.body, [language]: event.target.value } })} />
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={regenerateSection}>
+            <RefreshCw size={16} />
+            {labels.regenerateSection}
+          </button>
+          <p className="text-xs text-slate-500">{labels.updated}: {section.lastGeneratedAt}</p>
+        </div>
+      </Panel>
       <Panel title={labels.rightPanel} description={labels.assumptions}>
-        <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600">
-          {section.assumptions.map((item) => (
-            <li key={localize(item, language)}>{localize(item, language)}</li>
-          ))}
-        </ul>
+        <EvidenceBlock title={labels.assumptions} items={section.assumptions.map((item) => localize(item, language))} />
+        <EvidenceBlock title={labels.uncertainty} items={[localize(section.uncertainty, language)]} />
+        <EvidenceBlock title={labels.dataSources} items={section.dataSourcesUsed.map((item) => localize(item, language))} />
       </Panel>
     </div>
   );
@@ -594,51 +1013,118 @@ function Info({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-md bg-slate-50 p-4">
       <p className="text-sm font-semibold">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{value || "-"}</p>
     </div>
   );
 }
 
-function MetricBar({ label, value }: { label: string; value: number }) {
+function SectionTitle({ title }: { title: string }) {
+  return <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h3>;
+}
+
+function ValidationList({ title, items, labels }: { title: string; items: { label: string; ok: boolean }[]; labels: (typeof copy)[Language] }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-sm">
-        <span>{label}</span>
-        <span className="font-semibold text-cyan-700">{value}</span>
-      </div>
-      <div className="h-2.5 rounded-full bg-slate-200">
-        <div className="h-2.5 rounded-full bg-cyan-600" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <p className="text-sm font-semibold">{title}</p>
+      <div className="mt-2 space-y-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center justify-between gap-3 rounded-md bg-slate-50 px-3 py-2 text-sm">
+            <span>{item.label}</span>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${item.ok ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>
+              {item.ok ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+              {item.ok ? labels.complete : labels.missing}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function Field({ label, value, onChange, wide = false }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean }) {
+function ScoreDial({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md bg-slate-50 p-4">
+      <p className="text-sm font-semibold">{label}</p>
+      <div className="mt-3 flex items-end gap-2">
+        <span className="text-4xl font-semibold text-cyan-800">{value}</span>
+        <span className="pb-1 text-sm font-semibold text-slate-500">%</span>
+      </div>
+      <div className="mt-3 h-2 rounded-full bg-slate-200">
+        <div className="h-2 rounded-full bg-cyan-600" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MetricBar({ label, value, tone = "cyan" }: { label: string; value: number; tone?: "cyan" | "emerald" | "slate" }) {
+  const color = tone === "emerald" ? "bg-emerald-600" : tone === "slate" ? "bg-slate-600" : "bg-cyan-600";
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+        <span>{label}</span>
+        <span className="font-semibold text-slate-900">{value}</span>
+      </div>
+      <div className="h-2.5 rounded-full bg-slate-200">
+        <div className={`h-2.5 rounded-full ${color}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MiniScore({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-[82px] rounded-md bg-slate-50 px-2 py-2">
+      <p className="truncate text-[11px] font-semibold text-slate-500">{label}</p>
+      <p className="mt-1 text-base font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function EvidenceBlock({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-600">
+        {items.map((item) => (
+          <li key={item} className="rounded-md bg-slate-50 p-2">{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, badge, wide = false }: { label: string; value: string; onChange: (value: string) => void; badge?: string; wide?: boolean }) {
   return (
     <label className={`grid gap-1 text-sm font-medium text-slate-700 ${wide ? "lg:col-span-2" : ""}`}>
-      {label}
-      <input className="rounded-md border border-slate-300 px-3 py-2" value={value} onChange={(event) => onChange(event.target.value)} />
+      <span className="flex items-center justify-between gap-2">
+        {label}
+        {badge ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">{badge}</span> : null}
+      </span>
+      <input className="rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-400" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function NumberField({ label, value, onChange, badge }: { label: string; value: number; onChange: (value: number) => void; badge?: string }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-700">
-      {label}
-      <input type="number" className="rounded-md border border-slate-300 px-3 py-2" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <span className="flex items-center justify-between gap-2">
+        {label}
+        {badge ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">{badge}</span> : null}
+      </span>
+      <input type="number" className="rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-400" value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
   );
 }
 
-function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+function Select({ label, value, options, onChange, optionLabel }: { label: string; value: string; options: string[]; onChange: (value: string) => void; optionLabel?: (value: string) => string }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-700">
       {label}
-      <select className="rounded-md border border-slate-300 px-3 py-2" value={value} onChange={(event) => onChange(event.target.value)}>
+      <select className="rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-400" value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {optionLabel ? optionLabel(option) : option}
           </option>
         ))}
       </select>
@@ -653,7 +1139,7 @@ function Range({ label, value, onChange }: { label: string; value: number; onCha
         {label}
         <span className="font-semibold text-cyan-700">{value}</span>
       </span>
-      <input type="range" min="0" max="100" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input className="accent-cyan-700" type="range" min="0" max="100" value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
   );
 }

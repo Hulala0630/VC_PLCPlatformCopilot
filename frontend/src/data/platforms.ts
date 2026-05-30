@@ -100,7 +100,7 @@ export const ecosystems: PlcEcosystem[] = [
       { zh: "成本与交付周期有竞争力", en: "Competitive cost and delivery profile" },
     ],
     cautions: [
-      { zh: "高阶软件生态和开放集成不如 TwinCAT/CODESYS", en: "Advanced software ecosystem and openness trail TwinCAT/CODESYS" },
+      { zh: "高级软件生态和开放集成不如 TwinCAT/CODESYS", en: "Advanced software ecosystem and openness trail TwinCAT/CODESYS" },
     ],
     scores: { productivity: 72, motion: 74, safety: 70, simulation: 62, openness: 55, talent: 66, cost: 82 },
   },
@@ -133,17 +133,19 @@ function preferences(weights: Record<string, number>) {
   }));
 }
 
-function reportSections(projectName: string): ReportSection[] {
+export function reportSections(projectName: string): ReportSection[] {
   const now = "2026-05-27";
   return [
     {
       id: "executive-summary",
       title: { zh: "执行摘要", en: "Executive Summary" },
       body: {
-        zh: `${projectName} 当前处于基于 mock 数据的决策草稿阶段。建议先完善输入资料，再生成正式推荐结论。`,
+        zh: `${projectName} 当前处于基于 mock 数据的决策草稿阶段。建议先完善输入资料，再形成正式推荐结论。`,
         en: `${projectName} is currently in a mock-data decision draft stage. Complete the inputs before issuing a formal recommendation.`,
       },
       assumptions: [{ zh: "当前未解析附件内容。", en: "Attachment content is not parsed in this version." }],
+      uncertainty: { zh: "完整性取决于人工录入的信息质量。", en: "Confidence depends on the quality of manually entered inputs." },
+      dataSourcesUsed: [{ zh: "项目 Intake", en: "Project intake" }, { zh: "平台 mock profile", en: "Mock platform profiles" }],
       lastGeneratedAt: now,
     },
     {
@@ -154,6 +156,8 @@ function reportSections(projectName: string): ReportSection[] {
         en: "The report summarizes industry, goal, I/O scale, motion/safety needs, team experience, and candidate platforms.",
       },
       assumptions: [{ zh: "输入由用户手动维护。", en: "Inputs are maintained manually by the user." }],
+      uncertainty: { zh: "未填写字段会降低建议可靠性。", en: "Unfilled fields reduce recommendation reliability." },
+      dataSourcesUsed: [{ zh: "Intake 表单", en: "Intake form" }],
       lastGeneratedAt: now,
     },
     {
@@ -164,16 +168,20 @@ function reportSections(projectName: string): ReportSection[] {
         en: "Platform ranking is determined by technical scores and user preference weights.",
       },
       assumptions: [{ zh: "基础平台评分来自 mock profile。", en: "Base platform scores come from mock profiles." }],
+      uncertainty: { zh: "真实项目还需要供应商报价、交期与现场约束。", en: "A real project still needs vendor quotes, lead times, and site constraints." },
+      dataSourcesUsed: [{ zh: "平台评分库", en: "Platform scoring library" }, { zh: "偏好滑块", en: "Preference sliders" }],
       lastGeneratedAt: now,
     },
     {
       id: "preference-impact",
       title: { zh: "倾向性影响", en: "Preference Impact" },
       body: {
-        zh: "用户对曾经使用过、客户指定或团队熟悉的平台可设置更高倾向权重。",
-        en: "Users can assign higher preference weights to platforms they used before, customer-mandated platforms, or familiar team stacks.",
+        zh: "用户可对曾经使用过、客户指定、团队熟悉、供应链稳定或成本原因相关的平台设置更高倾向权重。",
+        en: "Users can assign higher preference weights for prior use, customer mandate, team familiarity, supply stability, or cost reasons.",
       },
       assumptions: [{ zh: "倾向性是决策输入，不替代技术评分。", en: "Preference is a decision input and does not replace technical scoring." }],
+      uncertainty: { zh: "倾向原因需要在正式决策前确认。", en: "Preference reasons should be confirmed before a formal decision." },
+      dataSourcesUsed: [{ zh: "用户倾向原因", en: "User preference reasons" }],
       lastGeneratedAt: now,
     },
     {
@@ -184,6 +192,8 @@ function reportSections(projectName: string): ReportSection[] {
         en: "Risk is initially estimated from openness, team experience, migration complexity, and input completeness.",
       },
       assumptions: [{ zh: "风险等级为自动化初判。", en: "Risk level is an automated first-pass estimate." }],
+      uncertainty: { zh: "未接入真实采购、维护和合规数据。", en: "Real procurement, maintenance, and compliance data is not connected." },
+      dataSourcesUsed: [{ zh: "Benchmark 排名", en: "Benchmark ranking" }, { zh: "项目约束", en: "Project constraints" }],
       lastGeneratedAt: now,
     },
     {
@@ -193,7 +203,9 @@ function reportSections(projectName: string): ReportSection[] {
         zh: "建议按资料审计、平台确认、试点验证、模板化、上线切换的顺序推进。",
         en: "Recommended sequence: input audit, platform confirmation, pilot validation, template standardization, and rollout cutover.",
       },
-      assumptions: [{ zh: "路线图会在后续接入真实估算模型后细化。", en: "Roadmap will be refined after real estimation models are connected." }],
+      assumptions: [{ zh: "路线图会在接入真实估算模型后细化。", en: "Roadmap will be refined after real estimation models are connected." }],
+      uncertainty: { zh: "当前不包含真实工期与资源负载估算。", en: "Current draft does not include real schedule or resourcing estimates." },
+      dataSourcesUsed: [{ zh: "项目目标", en: "Project goal" }, { zh: "风险评估", en: "Risk assessment" }],
       lastGeneratedAt: now,
     },
     {
@@ -203,13 +215,49 @@ function reportSections(projectName: string): ReportSection[] {
         zh: "当前版本不解析附件、不调用真实 AI、不连接 PLC。所有结论用于早期决策讨论。",
         en: "This version does not parse attachments, call real AI, or connect to PLCs. All conclusions are for early decision discussion.",
       },
-      assumptions: [{ zh: "需要用户确认关键假设。", en: "Key assumptions require user confirmation." }],
+      assumptions: [{ zh: "关键假设需要用户确认。", en: "Key assumptions require user confirmation." }],
+      uncertainty: { zh: "正式推荐前需要补充真实工程、成本和交付数据。", en: "Formal recommendation requires real engineering, cost, and delivery data." },
+      dataSourcesUsed: [{ zh: "用户输入", en: "User input" }, { zh: "Mock 评分模型", en: "Mock scoring model" }],
       lastGeneratedAt: now,
     },
   ];
 }
 
 export const workspaces: ProjectWorkspace[] = [
+  {
+    project: {
+      id: "test-migration-project",
+      name: "测试迁移项目",
+      industry: "Automotive",
+      goal: "评估既有 PLC 平台迁移路径、供应链稳定性和实施风险。",
+      status: "Draft",
+      createdAt: "2026-05-30",
+      updatedAt: "2026-05-30",
+    },
+    intake: {
+      projectSize: "Medium",
+      ioScale: 620,
+      motionRequirement: 64,
+      safetyRequirement: 78,
+      budgetSensitivity: 66,
+      teamExperience: "Team familiar with Siemens and CODESYS; limited Rockwell maintenance experience.",
+      existingPlatform: "siemens-tia",
+      candidatePlatforms: ["siemens-tia", "codesys", "twincat"],
+      constraints: "Customer expects stable supply chain, reusable standards, and low migration disruption.",
+    },
+    preferences: preferences({ "siemens-tia": 78, codesys: 72, twincat: 58, rockwell: 35, mitsubishi: 42, omron: 46 }),
+    attachments: [
+      {
+        id: "att-test-io",
+        projectId: "test-migration-project",
+        fileName: "Test_Project_IO_List.xlsx",
+        fileType: "I/O List",
+        declaredPurpose: "Baseline I/O count and cabinet planning reference",
+        uploadedAt: "2026-05-30",
+      },
+    ],
+    report: { projectId: "test-migration-project", sections: reportSections("测试迁移项目"), version: 1, status: "Draft" },
+  },
   {
     project: {
       id: "ev-line-standardization",
@@ -293,7 +341,7 @@ export const initialMessages: Record<string, ChatMessage[]> = {
     {
       role: "assistant",
       content: {
-        zh: "Siemens 适合标准化、长期维护和安全生态较强的项目。请补充项目规模、I/O 点数和现有装机基础。",
+        zh: "Siemens 适合重视标准化、长期维护和安全生态深度的项目。建议先补充项目规模、I/O 点数和现有装机基础。",
         en: "Siemens fits projects that value standardization, long-term maintenance, and safety ecosystem depth. Add project size, I/O count, and installed base.",
       },
     },

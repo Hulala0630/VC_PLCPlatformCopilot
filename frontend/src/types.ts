@@ -80,6 +80,8 @@ export interface ReportSection {
   title: LocalizedText;
   body: LocalizedText;
   assumptions: LocalizedText[];
+  uncertainty: LocalizedText;
+  dataSourcesUsed: LocalizedText[];
   lastGeneratedAt: string;
 }
 
