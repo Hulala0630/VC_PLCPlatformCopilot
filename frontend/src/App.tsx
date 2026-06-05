@@ -21,7 +21,17 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { ecosystems, initialMessages, reportSections, workspaces as seedWorkspaces } from "./data/platforms";
+import {
+  addProjectAttachment,
+  createProject as apiCreateProject,
+  getEcosystems,
+  getProjects,
+  runProjectBenchmark,
+  updateProjectIntake,
+  updateProjectPreferences,
+  updateReportSection as apiUpdateReportSection,
+} from "./api/client";
+import { ecosystems as fallbackEcosystems, initialMessages, reportSections, workspaces as seedWorkspaces } from "./data/platforms";
 import type {
   BenchmarkResult,
   ChatMessage,
@@ -96,6 +106,13 @@ const copy = {
     typeView: "按类型",
     openProject: "打开项目",
     byType: "项目类型",
+    apiConnected: "API 已连接",
+    mockFallback: "Mock 兜底模式",
+    checkingApi: "检查 API",
+    saving: "保存中",
+    saved: "已保存",
+    saveFailed: "保存失败，已使用本地状态",
+    savePreferences: "保存偏好",
   },
   en: {
     title: "PLC Platform Benchmark & Migration Decision Copilot",
@@ -158,6 +175,13 @@ const copy = {
     typeView: "By Type",
     openProject: "Open Project",
     byType: "Project Type",
+    apiConnected: "API connected",
+    mockFallback: "Mock fallback",
+    checkingApi: "Checking API",
+    saving: "Saving...",
+    saved: "Saved",
+    saveFailed: "Save failed, using local state",
+    savePreferences: "Save Preferences",
   },
 } as const;
 
@@ -230,8 +254,8 @@ function nextStepFor(workspace: ProjectWorkspace, language: Language): string {
   return language === "zh" ? "进入 Benchmark 与 Report，检查首选平台、风险和假设。" : "Review Benchmark and Report for the lead platform, risks, and assumptions.";
 }
 
-function calculateBenchmark(workspace: ProjectWorkspace): BenchmarkResult[] {
-  return ecosystems
+function calculateBenchmark(workspace: ProjectWorkspace, platformCatalog: PlcEcosystem[] = fallbackEcosystems): BenchmarkResult[] {
+  return platformCatalog
     .filter((platform) => workspace.intake.candidatePlatforms.includes(platform.id))
     .map((platform) => {
       const preference = workspace.preferences.find((item) => item.platformId === platform.id)?.preferenceWeight ?? 50;
@@ -260,22 +284,27 @@ function calculateBenchmark(workspace: ProjectWorkspace): BenchmarkResult[] {
 export default function App() {
   const [language, setLanguage] = useState<Language>("zh");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [platformCatalog, setPlatformCatalog] = useState<PlcEcosystem[]>(fallbackEcosystems);
   const [workspaces, setWorkspaces] = useState<ProjectWorkspace[]>(seedWorkspaces);
   const [selectedProjectId, setSelectedProjectId] = useState(seedWorkspaces[0].project.id);
   const [selectedEcosystemId, setSelectedEcosystemId] = useState("siemens-tia");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
   const [projectHomeView, setProjectHomeView] = useState<"list" | "type">("list");
   const [activeReportSectionId, setActiveReportSectionId] = useState("executive-summary");
+  const [apiMode, setApiMode] = useState<"checking" | "connected" | "fallback">("checking");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [benchmarkByProject, setBenchmarkByProject] = useState<Record<string, BenchmarkResult[]>>({});
   const [draft, setDraft] = useState("");
   const [draftError, setDraftError] = useState("");
   const [threads, setThreads] = useState<Record<string, ChatMessage[]>>(initialMessages);
 
   const t = copy[language];
   const workspace = workspaces.find((item) => item.project.id === selectedProjectId) ?? workspaces[0];
-  const selectedEcosystem = ecosystems.find((item) => item.id === selectedEcosystemId) ?? ecosystems[0];
-  const benchmarkResults = useMemo(() => calculateBenchmark(workspace), [workspace]);
+  const selectedEcosystem = platformCatalog.find((item) => item.id === selectedEcosystemId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
+  const fallbackBenchmarkResults = useMemo(() => calculateBenchmark(workspace, platformCatalog), [workspace, platformCatalog]);
+  const benchmarkResults = benchmarkByProject[selectedProjectId] ?? fallbackBenchmarkResults;
   const topResult = benchmarkResults[0];
-  const topPlatform = ecosystems.find((item) => item.id === topResult?.platformId) ?? ecosystems[0];
+  const topPlatform = platformCatalog.find((item) => item.id === topResult?.platformId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
   const messages = threads[selectedProjectId] ?? initialMessages[selectedEcosystemId] ?? [];
   const completeness = calculateCompleteness(workspace);
 
@@ -283,14 +312,58 @@ export default function App() {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
   }, [language]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFromApi() {
+      try {
+        const [apiEcosystems, apiProjects] = await Promise.all([getEcosystems(), getProjects()]);
+        if (cancelled) return;
+        setPlatformCatalog(apiEcosystems);
+        setWorkspaces(apiProjects);
+        if (apiProjects.length > 0) {
+          setSelectedProjectId((current) => (apiProjects.some((item) => item.project.id === current) ? current : apiProjects[0].project.id));
+        }
+        setApiMode("connected");
+      } catch (error) {
+        console.warn("Backend unavailable, using local mock fallback.", error);
+        if (!cancelled) {
+          setPlatformCatalog(fallbackEcosystems);
+          setWorkspaces(seedWorkspaces);
+          setApiMode("fallback");
+        }
+      }
+    }
+
+    loadFromApi();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function updateWorkspace(next: ProjectWorkspace) {
     setWorkspaces((current) => current.map((item) => (item.project.id === next.project.id ? next : item)));
   }
 
-  function createProject() {
+  function replaceWorkspace(next: ProjectWorkspace) {
+    setWorkspaces((current) => {
+      const exists = current.some((item) => item.project.id === next.project.id);
+      return exists ? current.map((item) => (item.project.id === next.project.id ? next : item)) : [next, ...current];
+    });
+  }
+
+  function noteSaved() {
+    setSaveState("saved");
+  }
+
+  function noteFailed() {
+    setSaveState("failed");
+  }
+
+  async function createProject() {
     const id = `project-${Date.now()}`;
     const projectName = language === "zh" ? "新建 PLC 决策项目" : "New PLC Decision Project";
-    const next: ProjectWorkspace = {
+    const fallbackWorkspace: ProjectWorkspace = {
       project: {
         id,
         name: projectName,
@@ -308,10 +381,10 @@ export default function App() {
         budgetSensitivity: 50,
         teamExperience: "",
         existingPlatform: "siemens-tia",
-        candidatePlatforms: ecosystems.slice(0, 4).map((item) => item.id),
+        candidatePlatforms: platformCatalog.slice(0, 4).map((item) => item.id),
         constraints: "",
       },
-      preferences: ecosystems.map((platform) => ({ platformId: platform.id, preferenceWeight: 50, userReasonNote: "" })),
+      preferences: platformCatalog.map((platform) => ({ platformId: platform.id, preferenceWeight: 50, userReasonNote: "" })),
       attachments: [],
       report: {
         projectId: id,
@@ -320,10 +393,23 @@ export default function App() {
         sections: reportSections(projectName),
       },
     };
-    setWorkspaces([next, ...workspaces]);
-    setSelectedProjectId(id);
-    setActiveTab("intake");
-    setActiveReportSectionId("executive-summary");
+
+    setSaveState("saving");
+    try {
+      if (apiMode !== "connected") throw new Error("API unavailable");
+      const next = await apiCreateProject({ name: projectName, industry: "", goal: "" });
+      replaceWorkspace(next);
+      setSelectedProjectId(next.project.id);
+      noteSaved();
+    } catch (error) {
+      console.warn("Project creation used local fallback.", error);
+      setWorkspaces([fallbackWorkspace, ...workspaces]);
+      setSelectedProjectId(id);
+      noteFailed();
+    } finally {
+      setActiveTab("intake");
+      setActiveReportSectionId("executive-summary");
+    }
   }
 
   function sendMessage() {
@@ -343,6 +429,92 @@ export default function App() {
     setThreads({ ...threads, [selectedProjectId]: [...messages, user, assistant] });
     setDraft("");
     setDraftError("");
+  }
+
+  async function saveIntake(next: ProjectWorkspace) {
+    setSaveState("saving");
+    const localNext = { ...next, project: { ...next.project, updatedAt: today } };
+    try {
+      if (apiMode !== "connected") throw new Error("API unavailable");
+      const saved = await updateProjectIntake(next.project.id, next.intake);
+      replaceWorkspace(saved);
+      noteSaved();
+    } catch (error) {
+      console.warn("Intake save used local fallback.", error);
+      updateWorkspace(localNext);
+      noteFailed();
+    }
+  }
+
+  function updatePreferencesLocal(next: ProjectWorkspace) {
+    updateWorkspace({ ...next, project: { ...next.project, updatedAt: today } });
+    setBenchmarkByProject((current) => {
+      const nextMap = { ...current };
+      delete nextMap[next.project.id];
+      return nextMap;
+    });
+  }
+
+  async function savePreferences(next: ProjectWorkspace) {
+    setSaveState("saving");
+    try {
+      if (apiMode !== "connected") throw new Error("API unavailable");
+      const saved = await updateProjectPreferences(next.project.id, next.preferences);
+      replaceWorkspace(saved);
+      const results = await runProjectBenchmark(saved.project.id);
+      setBenchmarkByProject((current) => ({ ...current, [saved.project.id]: results }));
+      noteSaved();
+    } catch (error) {
+      console.warn("Preference save used local fallback.", error);
+      updatePreferencesLocal(next);
+      noteFailed();
+    }
+  }
+
+  async function registerAttachment(projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) {
+    setSaveState("saving");
+    try {
+      if (apiMode !== "connected") throw new Error("API unavailable");
+      const saved = await addProjectAttachment(projectId, attachment);
+      replaceWorkspace(saved);
+      noteSaved();
+    } catch (error) {
+      console.warn("Attachment registration used local fallback.", error);
+      updateWorkspace(fallbackWorkspace);
+      noteFailed();
+    }
+  }
+
+  async function runBenchmark(projectId: string) {
+    try {
+      if (apiMode !== "connected") throw new Error("API unavailable");
+      const results = await runProjectBenchmark(projectId);
+      setBenchmarkByProject((current) => ({ ...current, [projectId]: results }));
+    } catch (error) {
+      console.warn("Benchmark used frontend fallback.", error);
+      setBenchmarkByProject((current) => {
+        const nextMap = { ...current };
+        delete nextMap[projectId];
+        return nextMap;
+      });
+    }
+  }
+
+  async function saveReportSection(projectId: string, section: ReportSection, fallbackWorkspace: ProjectWorkspace) {
+    setSaveState("saving");
+    try {
+      if (apiMode !== "connected") throw new Error("API unavailable");
+      const saved = await apiUpdateReportSection(projectId, section.id, {
+        body: section.body,
+        assumptions: section.assumptions,
+      });
+      replaceWorkspace(saved);
+      noteSaved();
+    } catch (error) {
+      console.warn("Report section save used local fallback.", error);
+      updateWorkspace(fallbackWorkspace);
+      noteFailed();
+    }
   }
 
   return (
@@ -376,7 +548,7 @@ export default function App() {
                 </button>
               </div>
               <div className="mt-4 grid max-h-[250px] gap-2 overflow-y-auto pr-1">
-                {ecosystems.map((platform) => (
+                {platformCatalog.map((platform) => (
                   <button
                     key={platform.id}
                     className={`rounded-md border p-3 text-left transition ${selectedEcosystemId === platform.id ? "border-cyan-400 bg-cyan-400/15" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
@@ -443,6 +615,7 @@ export default function App() {
                   <FolderPlus size={16} />
                   {t.newProject}
                 </button>
+                <StatusPill apiMode={apiMode} saveState={saveState} labels={t} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3 text-sm">
@@ -474,15 +647,18 @@ export default function App() {
               setActiveTab={setActiveTab}
               language={language}
               labels={t}
+              apiMode={apiMode}
+              saveState={saveState}
+              platformCatalog={platformCatalog}
               view={projectHomeView}
               setView={setProjectHomeView}
             />
           ) : null}
-          {activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={updateWorkspace} language={language} labels={t} /> : null}
-          {activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updateWorkspace} language={language} labels={t} /> : null}
-          {activeTab === "attachments" ? <Attachments workspace={workspace} updateWorkspace={updateWorkspace} language={language} labels={t} /> : null}
-          {activeTab === "benchmark" ? <Benchmark results={benchmarkResults} workspace={workspace} labels={t} language={language} /> : null}
-          {activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} /> : null}
+          {activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
+          {activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
+          {activeTab === "attachments" ? <Attachments workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} /> : null}
+          {activeTab === "benchmark" ? <Benchmark results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} /> : null}
+          {activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} /> : null}
         </div>
       </section>
     </main>
@@ -507,6 +683,19 @@ function FlowNav({ activeTab, setActiveTab, language, completeness }: { activeTa
   );
 }
 
+function StatusPill({ apiMode, saveState, labels }: { apiMode: "checking" | "connected" | "fallback"; saveState: "idle" | "saving" | "saved" | "failed"; labels: (typeof copy)[Language] }) {
+  const apiText = apiMode === "connected" ? labels.apiConnected : apiMode === "fallback" ? labels.mockFallback : labels.checkingApi;
+  const saveText = saveState === "saving" ? labels.saving : saveState === "saved" ? labels.saved : saveState === "failed" ? labels.saveFailed : "";
+  const tone = apiMode === "connected" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : apiMode === "fallback" ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-slate-50 text-slate-600 ring-slate-200";
+
+  return (
+    <div className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold ring-1 ${tone}`}>
+      <span>{apiText}</span>
+      {saveText ? <span className="border-l border-current/20 pl-2">{saveText}</span> : null}
+    </div>
+  );
+}
+
 function ProjectHome({
   workspaces,
   selectedProjectId,
@@ -514,6 +703,9 @@ function ProjectHome({
   setActiveTab,
   language,
   labels,
+  apiMode,
+  saveState,
+  platformCatalog,
   view,
   setView,
 }: {
@@ -523,6 +715,9 @@ function ProjectHome({
   setActiveTab: (tab: WorkspaceTab) => void;
   language: Language;
   labels: (typeof copy)[Language];
+  apiMode: "checking" | "connected" | "fallback";
+  saveState: "idle" | "saving" | "saved" | "failed";
+  platformCatalog: PlcEcosystem[];
   view: "list" | "type";
   setView: (view: "list" | "type") => void;
 }) {
@@ -549,13 +744,14 @@ function ProjectHome({
               {labels.typeView}
             </button>
           </div>
+          <StatusPill apiMode={apiMode} saveState={saveState} labels={labels} />
         </div>
       </Panel>
 
       {view === "list" ? (
         <div className="grid gap-4">
           {workspaces.map((item) => (
-            <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
+            <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
           ))}
         </div>
       ) : (
@@ -564,7 +760,7 @@ function ProjectHome({
             <Panel key={type} title={type} description={`${items.length} ${language === "zh" ? "个项目" : "projects"}`}>
               <div className="grid gap-4">
                 {items.map((item) => (
-                  <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
+                  <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
                 ))}
               </div>
             </Panel>
@@ -580,6 +776,7 @@ function ProjectEntryCard({
   selected,
   language,
   labels,
+  platformCatalog,
   setSelectedProjectId,
   setActiveTab,
 }: {
@@ -587,13 +784,14 @@ function ProjectEntryCard({
   selected: boolean;
   language: Language;
   labels: (typeof copy)[Language];
+  platformCatalog: PlcEcosystem[];
   setSelectedProjectId: (id: string) => void;
   setActiveTab: (tab: WorkspaceTab) => void;
 }) {
   const completeness = calculateCompleteness(workspace);
-  const benchmark = calculateBenchmark(workspace);
+  const benchmark = calculateBenchmark(workspace, platformCatalog);
   const topResult = benchmark[0];
-  const topPlatform = ecosystems.find((item) => item.id === topResult?.platformId);
+  const topPlatform = platformCatalog.find((item) => item.id === topResult?.platformId);
 
   function open(tab: WorkspaceTab) {
     setSelectedProjectId(workspace.project.id);
@@ -641,7 +839,7 @@ function ProjectEntryCard({
   );
 }
 
-function Intake({ workspace, updateWorkspace, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language]; language: Language }) {
+function Intake({ workspace, updateWorkspace, platformCatalog, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void | Promise<void>; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language }) {
   const [draft, setDraft] = useState(workspace);
 
   useEffect(() => {
@@ -689,7 +887,7 @@ function Intake({ workspace, updateWorkspace, labels, language }: { workspace: P
               <Range label={language === "zh" ? "运动控制要求" : "Motion Requirement"} value={draft.intake.motionRequirement} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, motionRequirement: value } })} />
               <Range label={language === "zh" ? "安全要求" : "Safety Requirement"} value={draft.intake.safetyRequirement} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, safetyRequirement: value } })} />
               <Range label={language === "zh" ? "预算敏感度" : "Budget Sensitivity"} value={draft.intake.budgetSensitivity} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, budgetSensitivity: value } })} />
-              <Select label={language === "zh" ? "现有平台" : "Existing Platform"} value={draft.intake.existingPlatform} options={ecosystems.map((item) => item.id)} optionLabel={(id) => ecosystems.find((item) => item.id === id)?.name ?? id} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, existingPlatform: value } })} />
+              <Select label={language === "zh" ? "现有平台" : "Existing Platform"} value={draft.intake.existingPlatform} options={platformCatalog.map((item) => item.id)} optionLabel={(id) => platformCatalog.find((item) => item.id === id)?.name ?? id} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, existingPlatform: value } })} />
               <Field label={language === "zh" ? "团队经验" : "Team Experience"} badge={labels.optional} value={draft.intake.teamExperience} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, teamExperience: value } })} wide />
               <Field label={language === "zh" ? "硬约束" : "Constraints"} badge={labels.optional} value={draft.intake.constraints} onChange={(value) => setDraft({ ...draft, intake: { ...draft.intake, constraints: value } })} wide />
             </div>
@@ -698,7 +896,7 @@ function Intake({ workspace, updateWorkspace, labels, language }: { workspace: P
           <section>
             <SectionTitle title={language === "zh" ? "3. 候选平台" : "3. Candidate platforms"} />
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {ecosystems.map((platform) => {
+              {platformCatalog.map((platform) => {
                 const selected = draft.intake.candidatePlatforms.includes(platform.id);
                 return (
                   <button key={platform.id} className={`rounded-md border p-3 text-left ${selected ? "border-cyan-500 bg-cyan-50" : "border-slate-200 bg-white hover:bg-slate-50"}`} onClick={() => toggleCandidate(platform.id)}>
@@ -731,7 +929,21 @@ function Intake({ workspace, updateWorkspace, labels, language }: { workspace: P
   );
 }
 
-function Preferences({ workspace, updateWorkspace, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language]; language: Language }) {
+function Preferences({
+  workspace,
+  updateWorkspace,
+  savePreferences,
+  platformCatalog,
+  labels,
+  language,
+}: {
+  workspace: ProjectWorkspace;
+  updateWorkspace: (workspace: ProjectWorkspace) => void;
+  savePreferences: (workspace: ProjectWorkspace) => void | Promise<void>;
+  platformCatalog: PlcEcosystem[];
+  labels: (typeof copy)[Language];
+  language: Language;
+}) {
   const reasonOptions = language === "zh" ? ["以前用过", "客户指定", "团队熟悉", "供应链稳定", "成本原因"] : ["Used before", "Customer mandated", "Team familiarity", "Supply stability", "Cost reason"];
 
   function updatePreference(platformId: string, patch: { preferenceWeight?: number; userReasonNote?: string }) {
@@ -746,7 +958,7 @@ function Preferences({ workspace, updateWorkspace, labels, language }: { workspa
     <Panel title={labels.preferences} description={language === "zh" ? "技术评分保持独立；用户倾向只影响加权结果。" : "Technical scores stay independent; user preference changes only the weighted result."}>
       <div className="grid gap-4">
         {workspace.preferences.map((pref) => {
-          const platform = ecosystems.find((item) => item.id === pref.platformId) ?? ecosystems[0];
+          const platform = platformCatalog.find((item) => item.id === pref.platformId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
           const technical = averageScore(platform);
           const impact = Math.round(pref.preferenceWeight * 0.28);
           const selected = workspace.intake.candidatePlatforms.includes(pref.platformId);
@@ -778,11 +990,15 @@ function Preferences({ workspace, updateWorkspace, labels, language }: { workspa
           );
         })}
       </div>
+      <button className="mt-5 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => savePreferences(workspace)}>
+        <Save size={16} />
+        {labels.savePreferences}
+      </button>
     </Panel>
   );
 }
 
-function Attachments({ workspace, updateWorkspace, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void; labels: (typeof copy)[Language]; language: Language }) {
+function Attachments({ workspace, registerAttachment, labels, language }: { workspace: ProjectWorkspace; registerAttachment: (projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>; labels: (typeof copy)[Language]; language: Language }) {
   const [form, setForm] = useState({ fileName: "", fileType: "Requirements" as ProjectAttachment["fileType"], declaredPurpose: "" });
 
   function addAttachment() {
@@ -795,7 +1011,11 @@ function Attachments({ workspace, updateWorkspace, labels, language }: { workspa
       declaredPurpose: form.declaredPurpose.trim() || (language === "zh" ? "仅登记元信息，未解析文件内容。" : "Metadata registered only; file content is not parsed."),
       uploadedAt: today,
     };
-    updateWorkspace({ ...workspace, project: { ...workspace.project, updatedAt: today }, attachments: [...workspace.attachments, next] });
+    registerAttachment(
+      workspace.project.id,
+      { fileName: next.fileName, fileType: next.fileType, declaredPurpose: next.declaredPurpose },
+      { ...workspace, project: { ...workspace.project, updatedAt: today }, attachments: [...workspace.attachments, next] },
+    );
     setForm({ fileName: "", fileType: "Requirements", declaredPurpose: "" });
   }
 
@@ -846,12 +1066,16 @@ function Attachments({ workspace, updateWorkspace, labels, language }: { workspa
   );
 }
 
-function Benchmark({ results, workspace, labels, language }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; labels: (typeof copy)[Language]; language: Language }) {
+function Benchmark({ results, workspace, platformCatalog, labels, language, onRunBenchmark }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language; onRunBenchmark: (projectId: string) => void | Promise<void> }) {
   return (
     <Panel title={labels.benchmark} description={language === "zh" ? "咨询 dashboard：技术分 + 用户倾向 = 最终排序。" : "Consulting dashboard: technical score + user preference = final ranking."}>
+      <button className="mb-4 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => onRunBenchmark(workspace.project.id)}>
+        <RefreshCw size={16} />
+        {language === "zh" ? "运行 Benchmark" : "Run Benchmark"}
+      </button>
       <div className="grid gap-4">
         {results.map((result, index) => {
-          const platform = ecosystems.find((item) => item.id === result.platformId) ?? ecosystems[0];
+          const platform = platformCatalog.find((item) => item.id === result.platformId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
           const preference = workspace.preferences.find((item) => item.platformId === result.platformId);
           return (
             <div key={result.platformId} className={`rounded-md border p-4 ${index === 0 ? "border-cyan-400 bg-cyan-50/70 shadow-sm" : "border-slate-200 bg-white"}`}>
@@ -895,22 +1119,26 @@ function Benchmark({ results, workspace, labels, language }: { results: Benchmar
 function ReportBuilder({
   workspace,
   updateWorkspace,
+  saveReportSection,
   labels,
   language,
   activeSectionId,
   setActiveSectionId,
   benchmarkResults,
+  platformCatalog,
 }: {
   workspace: ProjectWorkspace;
   updateWorkspace: (workspace: ProjectWorkspace) => void;
+  saveReportSection: (projectId: string, section: ReportSection, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>;
   labels: (typeof copy)[Language];
   language: Language;
   activeSectionId: string;
   setActiveSectionId: (id: string) => void;
   benchmarkResults: BenchmarkResult[];
+  platformCatalog: PlcEcosystem[];
 }) {
   const section = workspace.report.sections.find((item) => item.id === activeSectionId) ?? workspace.report.sections[0];
-  const topPlatform = ecosystems.find((item) => item.id === benchmarkResults[0]?.platformId);
+  const topPlatform = platformCatalog.find((item) => item.id === benchmarkResults[0]?.platformId);
 
   function updateSection(next: ReportSection) {
     updateWorkspace({
@@ -943,11 +1171,12 @@ function ReportBuilder({
       ],
       lastGeneratedAt: today,
     };
-    updateWorkspace({
+    const fallbackWorkspace: ProjectWorkspace = {
       ...workspace,
       project: { ...workspace.project, status: "Report Ready", updatedAt: today },
       report: { ...workspace.report, sections: workspace.report.sections.map((item) => (item.id === section.id ? generated : item)), status: "Ready" },
-    });
+    };
+    saveReportSection(workspace.project.id, generated, fallbackWorkspace);
   }
 
   if (!section) {
@@ -972,6 +1201,10 @@ function ReportBuilder({
       <Panel title={labels.sectionEditor} description={localize(section.title, language)}>
         <textarea className="min-h-[440px] w-full resize-y rounded-md border border-slate-300 bg-white p-5 text-sm leading-7 shadow-inner outline-none focus:ring-2 focus:ring-cyan-400" value={localize(section.body, language)} onChange={(event) => updateSection({ ...section, body: { ...section.body, [language]: event.target.value } })} />
         <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => saveReportSection(workspace.project.id, section, workspace)}>
+            <Save size={16} />
+            {labels.save}
+          </button>
           <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={regenerateSection}>
             <RefreshCw size={16} />
             {labels.regenerateSection}
