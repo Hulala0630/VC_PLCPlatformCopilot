@@ -1,25 +1,16 @@
-from datetime import UTC, datetime
-from uuid import uuid4
-
-from app.data import ECOSYSTEMS, PROJECT_WORKSPACES
+from app.data import ECOSYSTEMS
 from app.models import (
     BenchmarkResult,
     LocalizedText,
     PlatformPreference,
     PlcEcosystem,
-    Project,
-    ProjectAttachment,
     ProjectAttachmentCreate,
     ProjectCreate,
     ProjectIntake,
     ProjectWorkspace,
-    ReportDraft,
     ReportSectionUpdate,
 )
-
-
-def now_iso_date() -> str:
-    return datetime.now(UTC).date().isoformat()
+from app import repository
 
 
 def list_platform_ids() -> set[str]:
@@ -30,35 +21,16 @@ def find_ecosystem(platform_id: str) -> PlcEcosystem | None:
     return next((platform for platform in ECOSYSTEMS if platform.id == platform_id), None)
 
 
+def list_workspaces() -> list[ProjectWorkspace]:
+    return repository.list_workspaces()
+
+
 def get_workspace(project_id: str) -> ProjectWorkspace | None:
-    return next((workspace for workspace in PROJECT_WORKSPACES if workspace.project.id == project_id), None)
+    return repository.get_workspace(project_id)
 
 
 def create_workspace(payload: ProjectCreate) -> ProjectWorkspace:
-    today = now_iso_date()
-    project_id = f"project-{uuid4().hex[:8]}"
-    workspace = ProjectWorkspace(
-        project=Project(
-            id=project_id,
-            name=payload.name,
-            industry=payload.industry,
-            goal=payload.goal,
-            status="Draft",
-            created_at=today,
-            updated_at=today,
-        ),
-        intake=ProjectIntake(candidate_platforms=[]),
-        preferences=[PlatformPreference(platform_id=platform.id, preference_weight=50) for platform in ECOSYSTEMS],
-        attachments=[],
-        report=ReportDraft(
-            project_id=project_id,
-            sections=[],
-            version=1,
-            status="Draft",
-        ),
-    )
-    PROJECT_WORKSPACES.append(workspace)
-    return workspace
+    return repository.create_workspace(payload)
 
 
 def validate_platform_ids(platform_ids: list[str], field_name: str) -> None:
@@ -70,46 +42,24 @@ def validate_platform_ids(platform_ids: list[str], field_name: str) -> None:
         raise ValueError(f"Unknown {field_name}: {unknown}. Known platforms: {known}.")
 
 
-def update_intake(workspace: ProjectWorkspace, intake: ProjectIntake) -> ProjectWorkspace:
+def update_intake(project_id: str, intake: ProjectIntake) -> ProjectWorkspace | None:
     validate_platform_ids(intake.candidate_platforms, "candidate platform")
     if intake.existing_platform:
         validate_platform_ids([intake.existing_platform], "existing platform")
-    workspace.intake = intake
-    workspace.project.updated_at = now_iso_date()
-    return workspace
+    return repository.update_intake(project_id, intake)
 
 
-def update_preferences(workspace: ProjectWorkspace, preferences: list[PlatformPreference]) -> ProjectWorkspace:
+def update_preferences(project_id: str, preferences: list[PlatformPreference]) -> ProjectWorkspace | None:
     validate_platform_ids([item.platform_id for item in preferences], "preference platform")
-    workspace.preferences = preferences
-    workspace.project.updated_at = now_iso_date()
-    return workspace
+    return repository.update_preferences(project_id, preferences)
 
 
-def add_attachment(workspace: ProjectWorkspace, payload: ProjectAttachmentCreate) -> ProjectWorkspace:
-    attachment = ProjectAttachment(
-        id=f"att-{uuid4().hex[:8]}",
-        project_id=workspace.project.id,
-        file_name=payload.file_name,
-        file_type=payload.file_type,
-        declared_purpose=payload.declared_purpose,
-        uploaded_at=now_iso_date(),
-    )
-    workspace.attachments.append(attachment)
-    workspace.project.updated_at = now_iso_date()
-    return workspace
+def add_attachment(project_id: str, payload: ProjectAttachmentCreate) -> ProjectWorkspace | None:
+    return repository.add_attachment(project_id, payload)
 
 
-def update_report_section(workspace: ProjectWorkspace, section_id: str, payload: ReportSectionUpdate) -> ProjectWorkspace | None:
-    for section in workspace.report.sections:
-        if section.id == section_id:
-            section.body = payload.body
-            section.assumptions = payload.assumptions
-            section.last_generated_at = now_iso_date()
-            workspace.report.version += 1
-            workspace.project.updated_at = now_iso_date()
-            return workspace
-    return None
+def update_report_section(project_id: str, section_id: str, payload: ReportSectionUpdate) -> ProjectWorkspace | None:
+    return repository.update_report_section(project_id, section_id, payload)
 
 
 def _average_score(values: list[int]) -> int:

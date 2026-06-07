@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.data import ECOSYSTEMS, PROJECT_WORKSPACES
+from app.data import ECOSYSTEMS
 from app.models import (
     BenchmarkResult,
     PlatformPreference,
@@ -16,6 +16,7 @@ from app.services import (
     create_benchmark,
     create_workspace,
     get_workspace,
+    list_workspaces,
     update_intake,
     update_preferences,
     update_report_section,
@@ -47,7 +48,7 @@ def list_platforms() -> list[PlcEcosystem]:
 
 @router.get("/projects", response_model=list[ProjectWorkspace])
 def list_projects() -> list[ProjectWorkspace]:
-    return PROJECT_WORKSPACES
+    return list_workspaces()
 
 
 @router.get("/projects/{project_id}", response_model=ProjectWorkspace)
@@ -62,26 +63,32 @@ def post_project(payload: ProjectCreate) -> ProjectWorkspace:
 
 @router.put("/projects/{project_id}/intake", response_model=ProjectWorkspace)
 def put_project_intake(project_id: str, payload: ProjectIntake) -> ProjectWorkspace:
-    workspace = _workspace_or_404(project_id)
     try:
-        return update_intake(workspace, payload)
+        workspace = update_intake(project_id, payload)
     except ValueError as error:
         raise _bad_request_from_value_error(error) from error
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return workspace
 
 
 @router.put("/projects/{project_id}/preferences", response_model=ProjectWorkspace)
 def put_project_preferences(project_id: str, payload: list[PlatformPreference]) -> ProjectWorkspace:
-    workspace = _workspace_or_404(project_id)
     try:
-        return update_preferences(workspace, payload)
+        workspace = update_preferences(project_id, payload)
     except ValueError as error:
         raise _bad_request_from_value_error(error) from error
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return workspace
 
 
 @router.post("/projects/{project_id}/attachments", response_model=ProjectWorkspace)
 def post_project_attachment(project_id: str, payload: ProjectAttachmentCreate) -> ProjectWorkspace:
-    workspace = _workspace_or_404(project_id)
-    return add_attachment(workspace, payload)
+    workspace = add_attachment(project_id, payload)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return workspace
 
 
 @router.post("/projects/{project_id}/benchmark", response_model=list[BenchmarkResult])
@@ -103,8 +110,9 @@ def benchmark_workspace(payload: ProjectWorkspace) -> list[BenchmarkResult]:
 
 @router.put("/projects/{project_id}/report/sections/{section_id}", response_model=ProjectWorkspace)
 def put_report_section(project_id: str, section_id: str, payload: ReportSectionUpdate) -> ProjectWorkspace:
-    workspace = _workspace_or_404(project_id)
-    updated = update_report_section(workspace, section_id, payload)
+    if get_workspace(project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    updated = update_report_section(project_id, section_id, payload)
     if updated is None:
         raise HTTPException(status_code=404, detail="Report section not found")
     return updated
