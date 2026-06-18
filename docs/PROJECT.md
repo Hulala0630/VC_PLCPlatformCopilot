@@ -67,3 +67,16 @@ Required checks contribute 70% of the score. Recommended checks contribute 30%.
 - `PUT /api/projects/{project_id}/report/sections/{section_id}`
 
 The backend uses snake_case JSON. The frontend normalizes backend snake_case into frontend camelCase.
+
+## Current Report Output / 当前报告输出
+
+- Report sections support Edit and Preview modes.
+- 报告分区支持编辑与预览模式。
+- Markdown copy and download are available.
+- 已支持 Markdown 复制和下载。
+- PDF is produced through a dedicated print view and browser Save as PDF.
+- PDF 通过专用打印视图和浏览器“另存为 PDF”生成。
+- PowerPoint is generated locally as `.pptx` from deterministic project data.
+- PowerPoint 基于确定性项目数据在本地生成 `.pptx`。
+- No export path uses real AI, RAG, or attachment parsing.
+- 所有导出路径均不使用真实 AI、RAG 或附件解析。

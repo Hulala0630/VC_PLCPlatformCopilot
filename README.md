@@ -78,6 +78,17 @@ Recommended checks contribute 30%:
 - `PUT /api/projects/{project_id}/report/sections/{section_id}`
 - `POST /api/benchmark`
 
+## Report Output / 报告输出
+
+- Markdown can be copied or downloaded directly from the Report workspace.
+- Markdown 可以从 Report 工作区直接复制或下载。
+- PDF output uses a dedicated print document and the browser's Save as PDF capability.
+- PDF 输出使用专用打印文档，并通过浏览器“另存为 PDF”完成。
+- PowerPoint output generates a local `.pptx` file from project, readiness, benchmark, and report data.
+- PowerPoint 根据项目、成熟度、benchmark 和报告数据在本地生成 `.pptx`。
+- Export remains deterministic and does not claim AI or document parsing.
+- 导出仍为确定性逻辑，不声称使用 AI 或解析文档。
+
 ## Run Locally
 
 Backend:

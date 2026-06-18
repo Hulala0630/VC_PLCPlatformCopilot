@@ -19,6 +19,8 @@ Development should stay incremental:
 - FastAPI backend uses SQLite local persistence.
 - Project deletion exists.
 - Backend now owns project readiness and status lifecycle.
+- Frontend report preview supports Markdown, browser PDF, and local PowerPoint export.
+- 前端报告预览支持 Markdown、浏览器 PDF 和本地 PowerPoint 导出。
 
 ## Product Limits
 

@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   Paperclip,
   Plus,
+  Presentation,
   Printer,
   RefreshCw,
   Save,
@@ -160,8 +161,10 @@ const copy = {
     copyMarkdown: "复制 Markdown",
     downloadMarkdown: "下载 Markdown",
     printBrowserPdf: "打印 / 浏览器另存 PDF",
-    exportPdfPlanned: "PDF 导出规划中",
-    exportPptPlanned: "PPT 导出规划中",
+    exportPdf: "生成 PDF / 打印",
+    exportPpt: "导出 PowerPoint",
+    exporting: "正在生成...",
+    exportFailed: "导出失败，请重试",
     copied: "已复制",
     projectMetadata: "项目元信息",
     benchmarkSummary: "Benchmark 摘要",
@@ -287,8 +290,10 @@ const copy = {
     copyMarkdown: "Copy Markdown",
     downloadMarkdown: "Download Markdown",
     printBrowserPdf: "Print / Browser PDF",
-    exportPdfPlanned: "Export PDF planned",
-    exportPptPlanned: "Export PPT planned",
+    exportPdf: "Generate PDF / Print",
+    exportPpt: "Export PowerPoint",
+    exporting: "Generating...",
+    exportFailed: "Export failed. Please retry.",
     copied: "Copied",
     projectMetadata: "Project Metadata",
     benchmarkSummary: "Benchmark Summary",
@@ -536,6 +541,150 @@ function buildReportMarkdown(
     `${labels.documentParsing}: ${labels.no}`,
     `${labels.sourceMode}: ${labels.deterministicSource}`,
   ].join("\n");
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function buildReportPrintHtml(
+  workspace: ProjectWorkspace,
+  benchmarkResults: BenchmarkResult[],
+  readiness: ProjectReadiness,
+  language: Language,
+  platformCatalog: PlcEcosystem[],
+) {
+  const candidatePlatforms = workspace.intake.candidatePlatforms.map((id) => platformName(id, platformCatalog)).join(", ") || "-";
+  const lead = benchmarkResults[0];
+  const leadName = lead ? platformName(lead.platformId, platformCatalog) : "-";
+  const benchmarkRows = benchmarkResults
+    .map((result, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(platformName(result.platformId, platformCatalog))}</td><td>${result.technicalScore}</td><td>${result.preferenceScore}</td><td>${result.weightedScore}</td><td>${escapeHtml(result.riskLevel)}</td></tr>`)
+    .join("");
+  const reportSectionsHtml = workspace.report.sections
+    .map((section, index) => {
+      const assumptions = section.assumptions.map((item) => `<li>${escapeHtml(localize(item, language))}</li>`).join("");
+      return `<section class="report-section"><h2><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(localize(section.title, language))}</h2><div class="body">${escapeHtml(localize(section.body, language) || "-").replace(/\n/g, "<br>")}</div><div class="evidence"><strong>${language === "zh" ? "假设" : "Assumptions"}</strong><ul>${assumptions || `<li>-</li>`}</ul><strong>${language === "zh" ? "不确定性" : "Uncertainty"}</strong><p>${escapeHtml(localize(section.uncertainty, language))}</p></div></section>`;
+    })
+    .join("");
+
+  return `<!doctype html><html lang="${language === "zh" ? "zh-CN" : "en"}"><head><meta charset="utf-8"><title>${escapeHtml(workspace.project.name)}</title><style>
+    @page { size: A4; margin: 16mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #0f172a; font-family: Inter, "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif; font-size: 10.5pt; line-height: 1.55; }
+    header { border-bottom: 3px solid #0e7490; padding-bottom: 18px; margin-bottom: 22px; }
+    .eyebrow { color: #0e7490; font-size: 9pt; font-weight: 700; text-transform: uppercase; }
+    h1 { margin: 6px 0 8px; font-size: 25pt; line-height: 1.2; }
+    h2 { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; font-size: 16pt; }
+    h2 span { color: #64748b; font-size: 9pt; }
+    .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0 24px; }
+    .fact { border: 1px solid #cbd5e1; padding: 10px; border-radius: 4px; }
+    .fact small { display: block; color: #64748b; font-weight: 700; margin-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; }
+    th, td { border-bottom: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+    th { background: #f1f5f9; font-size: 9pt; }
+    .report-section { break-inside: avoid; page-break-inside: avoid; border-top: 1px solid #cbd5e1; padding-top: 18px; margin-top: 22px; }
+    .body { white-space: normal; }
+    .evidence { margin-top: 14px; padding: 12px; background: #f8fafc; border-left: 3px solid #0891b2; font-size: 9pt; }
+    .evidence ul { margin: 4px 0 10px 18px; padding: 0; }
+    footer { margin-top: 28px; border-top: 1px solid #cbd5e1; padding-top: 10px; color: #64748b; font-size: 8.5pt; }
+  </style></head><body>
+    <header><div class="eyebrow">PLC Platform Benchmark & Migration Decision Copilot</div><h1>${escapeHtml(workspace.project.name)}</h1><div>${escapeHtml(workspace.project.goal || "-")}</div></header>
+    <div class="meta">
+      <div class="fact"><small>${language === "zh" ? "行业" : "Industry"}</small>${escapeHtml(workspace.project.industry || "-")}</div>
+      <div class="fact"><small>${language === "zh" ? "候选平台" : "Candidate Platforms"}</small>${escapeHtml(candidatePlatforms)}</div>
+      <div class="fact"><small>${language === "zh" ? "首选平台" : "Top Recommendation"}</small>${escapeHtml(leadName)}</div>
+      <div class="fact"><small>${language === "zh" ? "状态" : "Status"}</small>${escapeHtml(readiness.status)}</div>
+      <div class="fact"><small>${language === "zh" ? "成熟度" : "Readiness"}</small>${readiness.score}%</div>
+      <div class="fact"><small>${language === "zh" ? "置信度" : "Confidence"}</small>${escapeHtml(readiness.confidenceLevel)}</div>
+    </div>
+    <h2>${language === "zh" ? "平台 Benchmark" : "Platform Benchmark"}</h2>
+    <table><thead><tr><th>#</th><th>${language === "zh" ? "平台" : "Platform"}</th><th>${language === "zh" ? "技术" : "Technical"}</th><th>${language === "zh" ? "偏好" : "Preference"}</th><th>${language === "zh" ? "总分" : "Final"}</th><th>${language === "zh" ? "风险" : "Risk"}</th></tr></thead><tbody>${benchmarkRows || `<tr><td colspan="6">-</td></tr>`}</tbody></table>
+    ${reportSectionsHtml}
+    <footer>${language === "zh" ? "未使用 AI；未解析附件内容；来源为确定性项目数据与 benchmark 结果。" : "AI not used; attachment contents not parsed; source mode is deterministic project data and benchmark results."}</footer>
+  </body></html>`;
+}
+
+async function exportReportPptx(
+  workspace: ProjectWorkspace,
+  benchmarkResults: BenchmarkResult[],
+  readiness: ProjectReadiness,
+  language: Language,
+  platformCatalog: PlcEcosystem[],
+) {
+  const { default: PptxGenJS } = await import("pptxgenjs");
+  const pptx = new PptxGenJS();
+  pptx.layout = "LAYOUT_WIDE";
+  pptx.author = "PLC Platform Benchmark & Migration Decision Copilot";
+  pptx.company = "PLC Decision Copilot";
+  pptx.subject = workspace.project.goal;
+  pptx.title = workspace.project.name;
+
+  const addHeader = (slide: ReturnType<typeof pptx.addSlide>, title: string, subtitle?: string) => {
+    slide.background = { color: "F8FAFC" };
+    slide.addText(title, { x: 0.65, y: 0.45, w: 11.9, h: 0.45, fontFace: "Aptos Display", fontSize: 24, bold: true, color: "0F172A", margin: 0 });
+    if (subtitle) slide.addText(subtitle, { x: 0.65, y: 0.95, w: 11.9, h: 0.3, fontFace: "Aptos", fontSize: 10, color: "64748B", margin: 0 });
+    slide.addShape(pptx.ShapeType.line, { x: 0.65, y: 1.35, w: 12, h: 0, line: { color: "0891B2", width: 2 } });
+  };
+  const addFooter = (slide: ReturnType<typeof pptx.addSlide>) => {
+    slide.addText("PLC Platform Benchmark & Migration Decision Copilot", { x: 0.65, y: 7.15, w: 8.5, h: 0.2, fontSize: 8, color: "64748B", margin: 0 });
+    slide.addText(language === "zh" ? "确定性分析 · 未使用 AI · 未解析附件" : "Deterministic analysis · No AI · Attachments not parsed", { x: 8.8, y: 7.15, w: 3.9, h: 0.2, fontSize: 8, color: "64748B", align: "right", margin: 0 });
+  };
+
+  const titleSlide = pptx.addSlide();
+  titleSlide.background = { color: "0F172A" };
+  titleSlide.addText("PLC PLATFORM DECISION REPORT", { x: 0.75, y: 0.7, w: 8.5, h: 0.35, fontSize: 13, bold: true, color: "22D3EE", charSpacing: 1.5, margin: 0 });
+  titleSlide.addText(workspace.project.name, { x: 0.75, y: 1.4, w: 11.7, h: 1.35, fontFace: "Aptos Display", fontSize: 34, bold: true, color: "FFFFFF", breakLine: false, margin: 0 });
+  titleSlide.addText(workspace.project.goal || "-", { x: 0.75, y: 3.05, w: 10.8, h: 0.9, fontSize: 18, color: "CBD5E1", margin: 0 });
+  titleSlide.addText(`${readiness.status} · ${readiness.score}% · ${readiness.confidenceLevel}`, { x: 0.75, y: 5.8, w: 8, h: 0.35, fontSize: 15, bold: true, color: "FFFFFF", margin: 0 });
+  titleSlide.addText(new Date().toLocaleDateString(language === "zh" ? "zh-CN" : "en-US"), { x: 0.75, y: 6.35, w: 4, h: 0.25, fontSize: 10, color: "94A3B8", margin: 0 });
+
+  const overviewSlide = pptx.addSlide();
+  addHeader(overviewSlide, language === "zh" ? "项目概览" : "Project Overview", workspace.project.goal || "-");
+  const overviewFacts = [
+    [language === "zh" ? "行业" : "Industry", workspace.project.industry || "-"],
+    [language === "zh" ? "项目规模" : "Project Size", workspace.intake.projectSize],
+    ["I/O", String(workspace.intake.ioScale)],
+    [language === "zh" ? "成熟度" : "Readiness", `${readiness.score}%`],
+    [language === "zh" ? "状态" : "Status", readiness.status],
+    [language === "zh" ? "置信度" : "Confidence", readiness.confidenceLevel],
+  ];
+  overviewFacts.forEach(([label, value], index) => {
+    const col = index % 3;
+    const row = Math.floor(index / 3);
+    overviewSlide.addText(label, { x: 0.75 + col * 4.1, y: 1.75 + row * 1.65, w: 3.65, h: 0.25, fontSize: 10, bold: true, color: "64748B", margin: 0 });
+    overviewSlide.addText(value, { x: 0.75 + col * 4.1, y: 2.08 + row * 1.65, w: 3.65, h: 0.55, fontSize: 19, bold: true, color: "0F172A", margin: 0 });
+  });
+  overviewSlide.addText(language === "zh" ? "下一步" : "Next Action", { x: 0.75, y: 5.25, w: 2, h: 0.25, fontSize: 10, bold: true, color: "0891B2", margin: 0 });
+  overviewSlide.addText(localize(readiness.nextAction, language), { x: 0.75, y: 5.6, w: 11.6, h: 0.75, fontSize: 16, color: "0F172A", margin: 0 });
+  addFooter(overviewSlide);
+
+  const benchmarkSlide = pptx.addSlide();
+  addHeader(benchmarkSlide, language === "zh" ? "平台 Benchmark" : "Platform Benchmark", language === "zh" ? "技术评分、用户偏好与最终排序" : "Technical score, user preference, and final ranking");
+  const benchmarkLines = benchmarkResults.slice(0, 6).map((result, index) => `${index + 1}. ${platformName(result.platformId, platformCatalog)}   ${result.weightedScore}/100   ${result.riskLevel}`);
+  benchmarkSlide.addText(benchmarkLines.length ? benchmarkLines.join("\n") : "-", { x: 0.8, y: 1.75, w: 5.8, h: 4.65, fontSize: 20, bold: true, color: "0F172A", breakLine: false, margin: 0.08, valign: "middle" });
+  const lead = benchmarkResults[0];
+  benchmarkSlide.addText(language === "zh" ? "当前首选" : "Current Lead", { x: 7.1, y: 1.8, w: 2, h: 0.3, fontSize: 11, bold: true, color: "0891B2", margin: 0 });
+  benchmarkSlide.addText(lead ? platformName(lead.platformId, platformCatalog) : "-", { x: 7.1, y: 2.25, w: 5, h: 0.8, fontSize: 28, bold: true, color: "0F172A", margin: 0 });
+  benchmarkSlide.addText(lead ? localize(lead.rationale, language) : "-", { x: 7.1, y: 3.3, w: 5, h: 2.2, fontSize: 15, color: "334155", margin: 0 });
+  addFooter(benchmarkSlide);
+
+  workspace.report.sections.forEach((section, index) => {
+    const slide = pptx.addSlide();
+    addHeader(slide, `${String(index + 1).padStart(2, "0")}  ${localize(section.title, language)}`, `${readiness.status} · ${readiness.score}%`);
+    const body = localize(section.body, language) || "-";
+    slide.addText(body.length > 1800 ? `${body.slice(0, 1797)}...` : body, { x: 0.75, y: 1.7, w: 8.1, h: 4.9, fontSize: 15, color: "1E293B", margin: 0.08, breakLine: false, valign: "top" });
+    slide.addText(language === "zh" ? "假设与不确定性" : "Assumptions & Uncertainty", { x: 9.25, y: 1.7, w: 3.3, h: 0.35, fontSize: 12, bold: true, color: "0891B2", margin: 0 });
+    const context = [...section.assumptions.map((item) => `• ${localize(item, language)}`), `• ${localize(section.uncertainty, language)}`].join("\n");
+    slide.addText(context || "-", { x: 9.25, y: 2.15, w: 3.3, h: 3.85, fontSize: 11, color: "475569", margin: 0.06, breakLine: false, valign: "top" });
+    addFooter(slide);
+  });
+
+  await pptx.writeFile({ fileName: `${safeFileName(workspace.project.name)}.pptx` });
 }
 
 export default function App() {
@@ -1640,6 +1789,7 @@ function ReportBuilder({
   const { readiness } = getWorkspaceReadiness(workspace);
   const [reportMode, setReportMode] = useState<"edit" | "preview">("edit");
   const [markdownCopied, setMarkdownCopied] = useState(false);
+  const [exportState, setExportState] = useState<"idle" | "ppt" | "failed">("idle");
   const markdown = useMemo(() => buildReportMarkdown(workspace, benchmarkResults, readiness, language, platformCatalog), [benchmarkResults, language, platformCatalog, readiness, workspace]);
   const missingInputs = missingInputLabels(readiness, language);
   const deliveryDataSources = uniqueStrings([
@@ -1679,6 +1829,31 @@ function ReportBuilder({
     anchor.click();
     URL.revokeObjectURL(url);
     setMarkdownCopied(false);
+  }
+
+  function printReportPdf() {
+    const printWindow = window.open("", "_blank", "width=1100,height=820");
+    if (!printWindow) {
+      setExportState("failed");
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(buildReportPrintHtml(workspace, benchmarkResults, readiness, language, platformCatalog));
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 300);
+    setExportState("idle");
+  }
+
+  async function downloadPowerPoint() {
+    setExportState("ppt");
+    try {
+      await exportReportPptx(workspace, benchmarkResults, readiness, language, platformCatalog);
+      setExportState("idle");
+    } catch (error) {
+      console.error("PowerPoint export failed.", error);
+      setExportState("failed");
+    }
   }
 
   function updateSection(next: ReportSection) {
@@ -1755,17 +1930,16 @@ function ReportBuilder({
             <Download size={15} />
             {labels.downloadMarkdown}
           </button>
-          <button className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => window.print()}>
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={printReportPdf}>
             <Printer size={15} />
-            {labels.printBrowserPdf}
+            {labels.exportPdf}
+          </button>
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-900 hover:bg-cyan-100 disabled:cursor-wait disabled:opacity-60" onClick={() => void downloadPowerPoint()} disabled={exportState === "ppt"}>
+            <Presentation size={15} />
+            {exportState === "ppt" ? labels.exporting : labels.exportPpt}
           </button>
           {markdownCopied ? <p className="text-center text-xs font-semibold text-emerald-700">{labels.copied}</p> : null}
-          <button className="w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-400" disabled>
-            {labels.exportPdfPlanned}
-          </button>
-          <button className="w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-400" disabled>
-            {labels.exportPptPlanned}
-          </button>
+          {exportState === "failed" ? <p className="text-center text-xs font-semibold text-red-700">{labels.exportFailed}</p> : null}
         </div>
       </Panel>
       <Panel title={reportMode === "edit" ? labels.sectionEditor : labels.reportPreview} description={reportMode === "edit" ? localize(section.title, language) : reportStatusNotice(readiness.status, labels)}>
