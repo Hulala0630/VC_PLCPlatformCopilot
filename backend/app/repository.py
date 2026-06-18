@@ -143,6 +143,29 @@ def delete_workspace(project_id: str) -> bool:
         return True
 
 
+def update_project_status(project_id: str, status: str) -> ProjectWorkspace | None:
+    with get_connection() as connection:
+        if not _project_exists(connection, project_id):
+            return None
+        connection.execute(
+            "UPDATE projects SET status = ?, updated_at = ? WHERE id = ?",
+            (status, now_iso_date(), project_id),
+        )
+        return _workspace_from_project_id(connection, project_id)
+
+
+def update_report_status(project_id: str, status: str) -> ProjectWorkspace | None:
+    with get_connection() as connection:
+        if not _project_exists(connection, project_id):
+            return None
+        connection.execute(
+            "UPDATE report_drafts SET status = ? WHERE project_id = ?",
+            (status, project_id),
+        )
+        _touch_project(connection, project_id)
+        return _workspace_from_project_id(connection, project_id)
+
+
 def update_intake(project_id: str, intake: ProjectIntake) -> ProjectWorkspace | None:
     with get_connection() as connection:
         if not _project_exists(connection, project_id):
@@ -256,7 +279,7 @@ def update_report_section(project_id: str, section_id: str, payload: ReportSecti
             ),
         )
         connection.execute(
-            "UPDATE report_drafts SET version = version + 1 WHERE project_id = ?",
+            "UPDATE report_drafts SET version = version + 1, status = 'Ready' WHERE project_id = ?",
             (project_id,),
         )
         _touch_project(connection, project_id)

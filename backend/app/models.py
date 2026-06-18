@@ -8,6 +8,7 @@ RiskLevel = Literal["Low", "Medium", "High"]
 ProjectStatus = Literal["Draft", "Analyzing", "Report Ready", "Finalized"]
 ProjectSize = Literal["Small", "Medium", "Large"]
 AttachmentType = Literal["Electrical List", "I/O List", "Requirements", "Architecture", "Other"]
+ConfidenceLevel = Literal["Low", "Medium", "High"]
 
 
 class LocalizedText(BaseModel):
@@ -99,12 +100,35 @@ class ReportDraft(BaseModel):
     status: Literal["Draft", "Ready"] = "Draft"
 
 
+class ProjectReadiness(BaseModel):
+    score: int = Field(ge=0, le=100)
+    status: ProjectStatus
+    missing_required: list[LocalizedText] = Field(default_factory=list)
+    recommended_missing: list[LocalizedText] = Field(default_factory=list)
+    next_action: LocalizedText
+    confidence_level: ConfidenceLevel
+    reasons: list[LocalizedText] = Field(default_factory=list)
+
+
+def default_project_readiness() -> ProjectReadiness:
+    return ProjectReadiness(
+        score=0,
+        status="Draft",
+        missing_required=[],
+        recommended_missing=[],
+        next_action=LocalizedText(zh="完善项目基础信息。", en="Complete basic project information."),
+        confidence_level="Low",
+        reasons=[],
+    )
+
+
 class ProjectWorkspace(BaseModel):
     project: Project
     intake: ProjectIntake
     preferences: list[PlatformPreference]
     attachments: list[ProjectAttachment]
     report: ReportDraft
+    readiness: ProjectReadiness = Field(default_factory=default_project_readiness)
 
 
 class ChatMessage(BaseModel):
@@ -127,3 +151,7 @@ class ProjectAttachmentCreate(BaseModel):
 class ReportSectionUpdate(BaseModel):
     body: LocalizedText
     assumptions: list[LocalizedText] = Field(default_factory=list)
+
+
+class ProjectStatusUpdate(BaseModel):
+    status: ProjectStatus
