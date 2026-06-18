@@ -68,6 +68,31 @@ Required checks contribute 70% of the score. Recommended checks contribute 30%.
 
 The backend uses snake_case JSON. The frontend normalizes backend snake_case into frontend camelCase.
 
+## Intelligence Contract / 智能化接口契约
+
+The intelligence layer has one provider boundary and currently uses `DeterministicPlaceholderProvider` only.
+
+智能化层通过统一 provider 边界工作，当前仅使用 `DeterministicPlaceholderProvider`。
+
+Supported scopes:
+
+支持的业务范围：
+
+- Global platform-profile chat / 全局平台 profile 问答
+- Project chat / 项目问答
+- Project analysis / 项目分析
+- Benchmark explanation / Benchmark 解释
+- Full report draft suggestions / 完整报告建议稿
+- Report section rewrite suggestions / 报告分区改写建议
+
+Project intelligence is grounded in structured intake, preferences, deterministic benchmark results, readiness, report status, existing report sections, and attachment metadata. Attachment file content is never treated as parsed.
+
+项目智能化仅基于结构化输入、偏好、确定性 benchmark、成熟度、报告状态、现有报告分区和附件元信息。系统绝不会声称已解析附件文件内容。
+
+Provider output is advisory and is not persisted. Users remain responsible for applying report changes.
+
+Provider 输出仅作为建议且不持久化，报告修改仍由用户确认和应用。
+
 ## Current Report Output / 当前报告输出
 
 - Report sections support Edit and Preview modes.
