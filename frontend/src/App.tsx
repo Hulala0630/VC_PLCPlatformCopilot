@@ -113,6 +113,20 @@ const copy = {
     saved: "已保存",
     saveFailed: "保存失败，已使用本地状态",
     savePreferences: "保存偏好",
+    global: "全局",
+    projectScope: "当前项目",
+    globalQuery: "全局 Query",
+    projectQuery: "当前项目 Query",
+    globalPlaceholder: "询问 PLC 生态选型、平台比较、供应商锁定或长期维护问题",
+    projectPlaceholder: "询问当前项目的推荐原因、缺失信息或报告改写",
+    currentWorkResults: "当前工作结果",
+    workspaceOverview: "工作台总览",
+    createPLCDecisionProject: "创建 PLC 决策项目",
+    noProjects: "还没有项目。",
+    noProjectsHint: "创建第一个 PLC 决策项目，开始平台选型与迁移分析。",
+    backToWorkspace: "返回工作台",
+    lastUpdated: "最近更新",
+    recommendedNextAction: "推荐下一步",
   },
   en: {
     title: "PLC Platform Benchmark & Migration Decision Copilot",
@@ -182,6 +196,20 @@ const copy = {
     saved: "Saved",
     saveFailed: "Save failed, using local state",
     savePreferences: "Save Preferences",
+    global: "Global",
+    projectScope: "Project",
+    globalQuery: "Global Query",
+    projectQuery: "Project Query",
+    globalPlaceholder: "Ask about PLC ecosystem selection, platform comparison, vendor lock-in, or maintainability",
+    projectPlaceholder: "Ask about this project's recommendation, missing inputs, or report wording",
+    currentWorkResults: "Current Work Results",
+    workspaceOverview: "Workspace Overview",
+    createPLCDecisionProject: "Create PLC Decision Project",
+    noProjects: "No projects yet.",
+    noProjectsHint: "Create your first PLC decision project to begin platform selection and migration analysis.",
+    backToWorkspace: "Back to Workspace",
+    lastUpdated: "Last Updated",
+    recommendedNextAction: "Recommended Next Action",
   },
 } as const;
 
@@ -288,15 +316,26 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState<ProjectWorkspace[]>(seedWorkspaces);
   const [selectedProjectId, setSelectedProjectId] = useState(seedWorkspaces[0].project.id);
   const [selectedEcosystemId, setSelectedEcosystemId] = useState("siemens-tia");
+  const [workspaceView, setWorkspaceView] = useState<"home" | "project">("home");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
   const [projectHomeView, setProjectHomeView] = useState<"list" | "type">("list");
   const [activeReportSectionId, setActiveReportSectionId] = useState("executive-summary");
   const [apiMode, setApiMode] = useState<"checking" | "connected" | "fallback">("checking");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [benchmarkByProject, setBenchmarkByProject] = useState<Record<string, BenchmarkResult[]>>({});
+  const [queryScope, setQueryScope] = useState<"global" | "project">("project");
+  const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content: {
+        zh: "全局 Query 用于讨论 PLC 生态选型、平台比较、供应商锁定、人才可得性、成本和长期维护。",
+        en: "Global Query is for PLC ecosystem selection, platform comparison, vendor lock-in, talent availability, cost, and long-term maintainability.",
+      },
+    },
+  ]);
   const [draft, setDraft] = useState("");
   const [draftError, setDraftError] = useState("");
-  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>(initialMessages);
+  const [projectThreads, setProjectThreads] = useState<Record<string, ChatMessage[]>>({});
 
   const t = copy[language];
   const workspace = workspaces.find((item) => item.project.id === selectedProjectId) ?? workspaces[0];
@@ -305,7 +344,8 @@ export default function App() {
   const benchmarkResults = benchmarkByProject[selectedProjectId] ?? fallbackBenchmarkResults;
   const topResult = benchmarkResults[0];
   const topPlatform = platformCatalog.find((item) => item.id === topResult?.platformId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
-  const messages = threads[selectedProjectId] ?? initialMessages[selectedEcosystemId] ?? [];
+  const projectMessages = projectThreads[selectedProjectId] ?? initialMessages[selectedEcosystemId] ?? [];
+  const messages = queryScope === "global" ? globalMessages : projectMessages;
   const completeness = calculateCompleteness(workspace);
 
   useEffect(() => {
@@ -407,6 +447,7 @@ export default function App() {
       setSelectedProjectId(id);
       noteFailed();
     } finally {
+      setWorkspaceView("project");
       setActiveTab("intake");
       setActiveReportSectionId("executive-summary");
     }
@@ -418,15 +459,26 @@ export default function App() {
       setDraftError(t.emptyQuestion);
       return;
     }
-    const assistant: ChatMessage = {
-      role: "assistant",
-      content: {
-        zh: `已记录。当前建议：${nextStepFor(workspace, "zh")} 目前排名第一的是 ${topPlatform.name}。`,
-        en: `Noted. Recommended next step: ${nextStepFor(workspace, "en")} Current lead is ${topPlatform.name}.`,
-      },
-    };
     const user: ChatMessage = { role: "user", content: { zh: question, en: question } };
-    setThreads({ ...threads, [selectedProjectId]: [...messages, user, assistant] });
+    if (queryScope === "global") {
+      const assistant: ChatMessage = {
+        role: "assistant",
+        content: {
+          zh: "全局选型说明：建议按运动控制、安全、开放性、人才可得性、成本、供应链稳定性和长期维护性比较 PLC 生态。这个回答不绑定任何单个项目。",
+          en: "Global selection note: compare ecosystems by motion, safety, openness, talent availability, cost, supply stability, and long-term maintainability. This answer is not tied to a single project.",
+        },
+      };
+      setGlobalMessages([...globalMessages, user, assistant]);
+    } else {
+      const assistant: ChatMessage = {
+        role: "assistant",
+        content: {
+          zh: `项目说明：这个建议基于当前项目 Intake、平台偏好、确定性 Benchmark 和已登记附件元信息。当前下一步：${nextStepFor(workspace, "zh")} 当前首选为 ${topPlatform.name}。`,
+          en: `Project note: this recommendation is based on the current intake, platform preferences, deterministic benchmark, and registered attachment metadata. Next step: ${nextStepFor(workspace, "en")} Current lead is ${topPlatform.name}.`,
+        },
+      };
+      setProjectThreads({ ...projectThreads, [selectedProjectId]: [...projectMessages, user, assistant] });
+    }
     setDraft("");
     setDraftError("");
   }
@@ -567,14 +619,31 @@ export default function App() {
             </section>
 
             <section className="flex min-h-0 flex-1 flex-col p-4">
-              <div className="flex items-center gap-2">
-                <MessageSquareText className="text-cyan-300" size={18} />
-                <h2 className="text-sm font-semibold">{t.query}</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquareText className="text-cyan-300" size={18} />
+                  <h2 className="text-sm font-semibold">{queryScope === "global" ? t.globalQuery : t.projectQuery}</h2>
+                </div>
+                <div className="inline-flex rounded-md bg-white/10 p-1">
+                  <button className={`rounded px-2 py-1 text-xs font-semibold ${queryScope === "global" ? "bg-white text-slate-950" : "text-slate-300 hover:text-white"}`} onClick={() => setQueryScope("global")}>
+                    {t.global}
+                  </button>
+                  <button className={`rounded px-2 py-1 text-xs font-semibold ${queryScope === "project" ? "bg-white text-slate-950" : "text-slate-300 hover:text-white"}`} onClick={() => setQueryScope("project")}>
+                    {t.projectScope}
+                  </button>
+                </div>
               </div>
-              <div className="mt-3 rounded-md border border-white/10 bg-white/5 p-3">
-                <p className="text-sm font-semibold">{workspace.project.name}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">{workspace.project.goal || nextStepFor(workspace, language)}</p>
-              </div>
+              {queryScope === "project" ? (
+                <div className="mt-3 rounded-md border border-white/10 bg-white/5 p-3">
+                  <p className="text-sm font-semibold">{workspace.project.name}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">{workspace.project.goal || nextStepFor(workspace, language)}</p>
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-white/10 bg-white/5 p-3">
+                  <p className="text-sm font-semibold">{language === "zh" ? "PLC 生态选型" : "PLC ecosystem selection"}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">{language === "zh" ? "跨项目讨论平台比较、风险、成本和长期维护。" : "Cross-project discussion for platform comparison, risk, cost, and maintainability."}</p>
+                </div>
+              )}
               <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                 {messages.map((message, index) => (
                   <div key={`${message.role}-${index}`} className={`rounded-md p-3 text-sm leading-6 ${message.role === "assistant" ? "bg-cyan-400/10 text-cyan-50" : "bg-white text-slate-900"}`}>
@@ -586,7 +655,7 @@ export default function App() {
               <div className="mt-3">
                 {draftError ? <p className="mb-2 text-xs font-medium text-amber-300">{draftError}</p> : null}
                 <div className="flex gap-2">
-                  <textarea className="h-20 min-w-0 flex-1 resize-none rounded-md border border-white/10 bg-slate-900 p-3 text-sm text-white outline-none ring-cyan-400 placeholder:text-slate-500 focus:ring-2" placeholder={t.askPlaceholder} value={draft} onChange={(event) => setDraft(event.target.value)} />
+                  <textarea className="h-20 min-w-0 flex-1 resize-none rounded-md border border-white/10 bg-slate-900 p-3 text-sm text-white outline-none ring-cyan-400 placeholder:text-slate-500 focus:ring-2" placeholder={queryScope === "global" ? t.globalPlaceholder : t.projectPlaceholder} value={draft} onChange={(event) => setDraft(event.target.value)} />
                   <button className="inline-flex w-12 items-center justify-center rounded-md bg-cyan-500 text-slate-950 hover:bg-cyan-400" onClick={sendMessage} aria-label={t.send}>
                     <Send size={18} />
                   </button>
@@ -598,12 +667,16 @@ export default function App() {
       </aside>
 
       <section className="min-w-0 flex-1 overflow-y-auto">
-        {activeTab !== "overview" ? (
+        {workspaceView === "project" ? (
         <header className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">{t.subtitle}</p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button className="inline-flex items-center gap-2 rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => setWorkspaceView("home")}>
+                  <ChevronRight className="rotate-180" size={16} />
+                  {t.backToWorkspace}
+                </button>
                 <select className="max-w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-lg font-semibold" value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)}>
                   {workspaces.map((item) => (
                     <option key={item.project.id} value={item.project.id}>
@@ -639,12 +712,14 @@ export default function App() {
         ) : null}
 
         <div className="p-5 lg:p-6">
-          {activeTab === "overview" ? (
+          {workspaceView === "home" ? (
             <ProjectHome
               workspaces={workspaces}
               selectedProjectId={selectedProjectId}
               setSelectedProjectId={setSelectedProjectId}
               setActiveTab={setActiveTab}
+              setWorkspaceView={setWorkspaceView}
+              createProject={createProject}
               language={language}
               labels={t}
               apiMode={apiMode}
@@ -654,11 +729,12 @@ export default function App() {
               setView={setProjectHomeView}
             />
           ) : null}
-          {activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
-          {activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
-          {activeTab === "attachments" ? <Attachments workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} /> : null}
-          {activeTab === "benchmark" ? <Benchmark results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} /> : null}
-          {activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} /> : null}
+          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} setActiveTab={setActiveTab} /> : null}
+          {workspaceView === "project" && activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
+          {workspaceView === "project" && activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
+          {workspaceView === "project" && activeTab === "attachments" ? <Attachments workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} /> : null}
+          {workspaceView === "project" && activeTab === "benchmark" ? <Benchmark results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} /> : null}
+          {workspaceView === "project" && activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} /> : null}
         </div>
       </section>
     </main>
@@ -701,6 +777,8 @@ function ProjectHome({
   selectedProjectId,
   setSelectedProjectId,
   setActiveTab,
+  setWorkspaceView,
+  createProject,
   language,
   labels,
   apiMode,
@@ -713,6 +791,8 @@ function ProjectHome({
   selectedProjectId: string;
   setSelectedProjectId: (id: string) => void;
   setActiveTab: (tab: WorkspaceTab) => void;
+  setWorkspaceView: (view: "home" | "project") => void;
+  createProject: () => void | Promise<void>;
   language: Language;
   labels: (typeof copy)[Language];
   apiMode: "checking" | "connected" | "fallback";
@@ -729,29 +809,44 @@ function ProjectHome({
 
   return (
     <div className="grid gap-5">
-      <Panel title={labels.projectEntrance} description={labels.portfolioIntro}>
+      <Panel title={labels.currentWorkResults} description={labels.workspaceOverview}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="grid gap-3 md:grid-cols-3">
             <Kpi label={labels.project} value={`${workspaces.length}`} />
             <Kpi label={labels.status} value={`${workspaces.filter((item) => item.project.status === "Report Ready").length} Ready`} />
             <Kpi label={labels.byType} value={`${Object.keys(groups).length}`} />
           </div>
-          <div className="inline-flex w-fit rounded-md border border-slate-200 bg-slate-50 p-1">
-            <button className={`rounded px-3 py-2 text-sm font-semibold ${view === "list" ? "bg-white text-cyan-800 shadow-sm" : "text-slate-600 hover:text-slate-900"}`} onClick={() => setView("list")}>
-              {labels.listView}
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={createProject}>
+              <FolderPlus size={16} />
+              {labels.createPLCDecisionProject}
             </button>
-            <button className={`rounded px-3 py-2 text-sm font-semibold ${view === "type" ? "bg-white text-cyan-800 shadow-sm" : "text-slate-600 hover:text-slate-900"}`} onClick={() => setView("type")}>
-              {labels.typeView}
-            </button>
+            <div className="inline-flex w-fit rounded-md border border-slate-200 bg-slate-50 p-1">
+              <button className={`rounded px-3 py-2 text-sm font-semibold ${view === "list" ? "bg-white text-cyan-800 shadow-sm" : "text-slate-600 hover:text-slate-900"}`} onClick={() => setView("list")}>
+                {labels.listView}
+              </button>
+              <button className={`rounded px-3 py-2 text-sm font-semibold ${view === "type" ? "bg-white text-cyan-800 shadow-sm" : "text-slate-600 hover:text-slate-900"}`} onClick={() => setView("type")}>
+                {labels.typeView}
+              </button>
+            </div>
+            <StatusPill apiMode={apiMode} saveState={saveState} labels={labels} />
           </div>
-          <StatusPill apiMode={apiMode} saveState={saveState} labels={labels} />
         </div>
       </Panel>
+
+      {workspaces.length === 0 ? (
+        <Panel title={labels.noProjects} description={labels.noProjectsHint}>
+          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={createProject}>
+            <FolderPlus size={16} />
+            {labels.newProject}
+          </button>
+        </Panel>
+      ) : null}
 
       {view === "list" ? (
         <div className="grid gap-4">
           {workspaces.map((item) => (
-            <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
+            <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} setWorkspaceView={setWorkspaceView} />
           ))}
         </div>
       ) : (
@@ -760,7 +855,7 @@ function ProjectHome({
             <Panel key={type} title={type} description={`${items.length} ${language === "zh" ? "个项目" : "projects"}`}>
               <div className="grid gap-4">
                 {items.map((item) => (
-                  <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} />
+                  <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} setWorkspaceView={setWorkspaceView} />
                 ))}
               </div>
             </Panel>
@@ -779,6 +874,7 @@ function ProjectEntryCard({
   platformCatalog,
   setSelectedProjectId,
   setActiveTab,
+  setWorkspaceView,
 }: {
   workspace: ProjectWorkspace;
   selected: boolean;
@@ -787,6 +883,7 @@ function ProjectEntryCard({
   platformCatalog: PlcEcosystem[];
   setSelectedProjectId: (id: string) => void;
   setActiveTab: (tab: WorkspaceTab) => void;
+  setWorkspaceView: (view: "home" | "project") => void;
 }) {
   const completeness = calculateCompleteness(workspace);
   const benchmark = calculateBenchmark(workspace, platformCatalog);
@@ -795,6 +892,7 @@ function ProjectEntryCard({
 
   function open(tab: WorkspaceTab) {
     setSelectedProjectId(workspace.project.id);
+    setWorkspaceView("project");
     setActiveTab(tab);
   }
 
@@ -806,7 +904,11 @@ function ProjectEntryCard({
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{workspace.project.industry || labels.byType}</p>
               <h3 className="mt-1 text-lg font-semibold">{workspace.project.name}</h3>
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{workspace.project.goal || nextStepFor(workspace, language)}</p>
+              <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+                <p><span className="font-semibold text-slate-800">{labels.lastUpdated}: </span>{workspace.project.updatedAt}</p>
+                <p><span className="font-semibold text-slate-800">{labels.candidatePlatforms}: </span>{workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id).join(", ") || "-"}</p>
+                <p className="md:col-span-2"><span className="font-semibold text-slate-800">{labels.recommendedNextAction}: </span>{nextStepFor(workspace, language)}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{workspace.project.status}</span>
@@ -815,7 +917,7 @@ function ProjectEntryCard({
           </div>
           {selected ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => open("intake")}>
+              <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => open("overview")}>
                 {labels.openProject}
               </button>
               <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("benchmark")}>
@@ -836,6 +938,52 @@ function ProjectEntryCard({
         ) : null}
       </div>
     </section>
+  );
+}
+
+function ProjectOverview({
+  workspace,
+  topPlatform,
+  topResult,
+  language,
+  labels,
+  setActiveTab,
+}: {
+  workspace: ProjectWorkspace;
+  topPlatform: PlcEcosystem;
+  topResult?: BenchmarkResult;
+  language: Language;
+  labels: (typeof copy)[Language];
+  setActiveTab: (tab: WorkspaceTab) => void;
+}) {
+  const completeness = calculateCompleteness(workspace);
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <Panel title={workspace.project.name} description={workspace.project.goal || nextStepFor(workspace, language)}>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Info title={labels.status} value={workspace.project.status} />
+          <Info title={labels.lastUpdated} value={workspace.project.updatedAt} />
+          <ScoreDial label={labels.completion} value={completeness.percent} />
+        </div>
+        <div className="mt-5 rounded-md border border-cyan-100 bg-cyan-50 p-4">
+          <p className="text-sm font-semibold text-cyan-900">{labels.recommendedNextAction}</p>
+          <p className="mt-2 text-sm leading-6 text-cyan-950">{nextStepFor(workspace, language)}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => setActiveTab("intake")}>
+              Intake
+            </button>
+            <button className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-cyan-800 ring-1 ring-cyan-200 hover:bg-cyan-50" onClick={() => setActiveTab("benchmark")}>
+              Benchmark
+            </button>
+          </div>
+        </div>
+      </Panel>
+      <Panel title={labels.topRecommendation} description={topPlatform.name}>
+        <MetricBar label={labels.technicalScore} value={topResult?.technicalScore ?? 0} tone="slate" />
+        <MetricBar label={labels.preferenceScore} value={topResult?.preferenceScore ?? 0} tone="cyan" />
+        <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
+      </Panel>
+    </div>
   );
 }
 
