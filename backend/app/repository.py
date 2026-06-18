@@ -135,6 +135,14 @@ def create_workspace(payload: ProjectCreate) -> ProjectWorkspace:
     return workspace
 
 
+def delete_workspace(project_id: str) -> bool:
+    with get_connection() as connection:
+        if not _project_exists(connection, project_id):
+            return False
+        connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        return True
+
+
 def update_intake(project_id: str, intake: ProjectIntake) -> ProjectWorkspace | None:
     with get_connection() as connection:
         if not _project_exists(connection, project_id):

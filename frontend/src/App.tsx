@@ -19,11 +19,13 @@ import {
   Send,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   addProjectAttachment,
   createProject as apiCreateProject,
+  deleteProject as apiDeleteProject,
   getEcosystems,
   getProjects,
   runProjectBenchmark,
@@ -113,6 +115,8 @@ const copy = {
     saved: "已保存",
     saveFailed: "保存失败，已使用本地状态",
     savePreferences: "保存偏好",
+    deleteProject: "删除项目",
+    deleteProjectConfirm: "确认删除这个项目？该操作会删除本地 SQLite 中的项目数据。",
     global: "全局",
     projectScope: "当前项目",
     globalQuery: "全局 Query",
@@ -196,6 +200,8 @@ const copy = {
     saved: "Saved",
     saveFailed: "Save failed, using local state",
     savePreferences: "Save Preferences",
+    deleteProject: "Delete Project",
+    deleteProjectConfirm: "Delete this project? This removes the project data from local SQLite.",
     global: "Global",
     projectScope: "Project",
     globalQuery: "Global Query",
@@ -338,7 +344,7 @@ export default function App() {
   const [projectThreads, setProjectThreads] = useState<Record<string, ChatMessage[]>>({});
 
   const t = copy[language];
-  const workspace = workspaces.find((item) => item.project.id === selectedProjectId) ?? workspaces[0];
+  const workspace = workspaces.find((item) => item.project.id === selectedProjectId) ?? workspaces[0] ?? seedWorkspaces[0];
   const selectedEcosystem = platformCatalog.find((item) => item.id === selectedEcosystemId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
   const fallbackBenchmarkResults = useMemo(() => calculateBenchmark(workspace, platformCatalog), [workspace, platformCatalog]);
   const benchmarkResults = benchmarkByProject[selectedProjectId] ?? fallbackBenchmarkResults;
@@ -389,6 +395,31 @@ export default function App() {
     setWorkspaces((current) => {
       const exists = current.some((item) => item.project.id === next.project.id);
       return exists ? current.map((item) => (item.project.id === next.project.id ? next : item)) : [next, ...current];
+    });
+  }
+
+  function removeWorkspaceLocal(projectId: string) {
+    setWorkspaces((current) => {
+      const next = current.filter((item) => item.project.id !== projectId);
+      setSelectedProjectId((selected) => {
+        if (selected !== projectId) return selected;
+        return next[0]?.project.id ?? "";
+      });
+      if (next.length === 0) {
+        setWorkspaceView("home");
+        setQueryScope("global");
+      }
+      return next;
+    });
+    setBenchmarkByProject((current) => {
+      const nextMap = { ...current };
+      delete nextMap[projectId];
+      return nextMap;
+    });
+    setProjectThreads((current) => {
+      const nextMap = { ...current };
+      delete nextMap[projectId];
+      return nextMap;
     });
   }
 
@@ -450,6 +481,25 @@ export default function App() {
       setWorkspaceView("project");
       setActiveTab("intake");
       setActiveReportSectionId("executive-summary");
+    }
+  }
+
+  async function deleteProject(projectId: string) {
+    const project = workspaces.find((item) => item.project.id === projectId);
+    if (!project) return;
+    const confirmed = window.confirm(t.deleteProjectConfirm);
+    if (!confirmed) return;
+
+    setSaveState("saving");
+    try {
+      if (apiMode !== "connected") throw new Error("API unavailable");
+      await apiDeleteProject(projectId);
+      removeWorkspaceLocal(projectId);
+      noteSaved();
+    } catch (error) {
+      console.warn("Project deletion used local fallback.", error);
+      removeWorkspaceLocal(projectId);
+      noteFailed();
     }
   }
 
@@ -720,6 +770,7 @@ export default function App() {
               setActiveTab={setActiveTab}
               setWorkspaceView={setWorkspaceView}
               createProject={createProject}
+              deleteProject={deleteProject}
               language={language}
               labels={t}
               apiMode={apiMode}
@@ -779,6 +830,7 @@ function ProjectHome({
   setActiveTab,
   setWorkspaceView,
   createProject,
+  deleteProject,
   language,
   labels,
   apiMode,
@@ -793,6 +845,7 @@ function ProjectHome({
   setActiveTab: (tab: WorkspaceTab) => void;
   setWorkspaceView: (view: "home" | "project") => void;
   createProject: () => void | Promise<void>;
+  deleteProject: (projectId: string) => void | Promise<void>;
   language: Language;
   labels: (typeof copy)[Language];
   apiMode: "checking" | "connected" | "fallback";
@@ -846,7 +899,7 @@ function ProjectHome({
       {view === "list" ? (
         <div className="grid gap-4">
           {workspaces.map((item) => (
-            <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} setWorkspaceView={setWorkspaceView} />
+            <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} setWorkspaceView={setWorkspaceView} deleteProject={deleteProject} />
           ))}
         </div>
       ) : (
@@ -855,7 +908,7 @@ function ProjectHome({
             <Panel key={type} title={type} description={`${items.length} ${language === "zh" ? "个项目" : "projects"}`}>
               <div className="grid gap-4">
                 {items.map((item) => (
-                  <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} setWorkspaceView={setWorkspaceView} />
+                  <ProjectEntryCard key={item.project.id} workspace={item} selected={item.project.id === selectedProjectId} language={language} labels={labels} platformCatalog={platformCatalog} setSelectedProjectId={setSelectedProjectId} setActiveTab={setActiveTab} setWorkspaceView={setWorkspaceView} deleteProject={deleteProject} />
                 ))}
               </div>
             </Panel>
@@ -875,6 +928,7 @@ function ProjectEntryCard({
   setSelectedProjectId,
   setActiveTab,
   setWorkspaceView,
+  deleteProject,
 }: {
   workspace: ProjectWorkspace;
   selected: boolean;
@@ -884,6 +938,7 @@ function ProjectEntryCard({
   setSelectedProjectId: (id: string) => void;
   setActiveTab: (tab: WorkspaceTab) => void;
   setWorkspaceView: (view: "home" | "project") => void;
+  deleteProject: (projectId: string) => void | Promise<void>;
 }) {
   const completeness = calculateCompleteness(workspace);
   const benchmark = calculateBenchmark(workspace, platformCatalog);
@@ -925,6 +980,16 @@ function ProjectEntryCard({
               </button>
               <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("report")}>
                 Report
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-100 hover:bg-red-100"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  deleteProject(workspace.project.id);
+                }}
+              >
+                <Trash2 size={15} />
+                {labels.deleteProject}
               </button>
             </div>
           ) : null}

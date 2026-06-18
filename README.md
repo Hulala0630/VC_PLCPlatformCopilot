@@ -87,6 +87,7 @@ The existing API shape is preserved:
 - `GET /api/projects`
 - `GET /api/projects/{project_id}`
 - `POST /api/projects`
+- `DELETE /api/projects/{project_id}`
 - `PUT /api/projects/{project_id}/intake`
 - `PUT /api/projects/{project_id}/preferences`
 - `POST /api/projects/{project_id}/attachments`

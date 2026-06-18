@@ -15,6 +15,7 @@ from app.services import (
     add_attachment,
     create_benchmark,
     create_workspace,
+    delete_workspace,
     get_workspace,
     list_workspaces,
     update_intake,
@@ -59,6 +60,13 @@ def get_project(project_id: str) -> ProjectWorkspace:
 @router.post("/projects", response_model=ProjectWorkspace, status_code=201)
 def post_project(payload: ProjectCreate) -> ProjectWorkspace:
     return create_workspace(payload)
+
+
+@router.delete("/projects/{project_id}", status_code=204)
+def delete_project(project_id: str) -> None:
+    deleted = delete_workspace(project_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Project not found")
 
 
 @router.put("/projects/{project_id}/intake", response_model=ProjectWorkspace)

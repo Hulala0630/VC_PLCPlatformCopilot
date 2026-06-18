@@ -107,6 +107,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(`API ${response.status} ${response.statusText}: ${detail}`);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 }
 
@@ -250,6 +254,12 @@ export async function createProject(payload: ProjectCreatePayload): Promise<Proj
       body: JSON.stringify(payload),
     }),
   );
+}
+
+export async function deleteProject(projectId: string): Promise<void> {
+  await request<void>(`/api/projects/${projectId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function updateProjectIntake(projectId: string, intake: ProjectIntake): Promise<ProjectWorkspace> {

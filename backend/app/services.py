@@ -33,6 +33,10 @@ def create_workspace(payload: ProjectCreate) -> ProjectWorkspace:
     return repository.create_workspace(payload)
 
 
+def delete_workspace(project_id: str) -> bool:
+    return repository.delete_workspace(project_id)
+
+
 def validate_platform_ids(platform_ids: list[str], field_name: str) -> None:
     known_ids = list_platform_ids()
     unknown_ids = sorted({platform_id for platform_id in platform_ids if platform_id not in known_ids})

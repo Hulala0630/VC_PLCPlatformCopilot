@@ -77,6 +77,7 @@ The backend uses snake_case JSON. The frontend normalizes backend snake_case int
 - `GET /api/projects`
 - `GET /api/projects/{project_id}`
 - `POST /api/projects`
+- `DELETE /api/projects/{project_id}`
 - `PUT /api/projects/{project_id}/intake`
 - `PUT /api/projects/{project_id}/preferences`
 - `POST /api/projects/{project_id}/attachments`
