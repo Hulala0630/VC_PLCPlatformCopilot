@@ -6,6 +6,8 @@ import type {
   Project,
   ProjectAttachment,
   ProjectIntake,
+  ProjectReadiness,
+  ProjectStatus,
   ProjectWorkspace,
   ReportSection,
 } from "../types";
@@ -68,6 +70,16 @@ type BackendReportSection = {
   last_generated_at: string;
 };
 
+type BackendProjectReadiness = {
+  score: number;
+  status: ProjectStatus;
+  missing_required: LocalizedText[];
+  recommended_missing: LocalizedText[];
+  next_action: LocalizedText;
+  confidence_level: ProjectReadiness["confidenceLevel"];
+  reasons: LocalizedText[];
+};
+
 type BackendProjectWorkspace = {
   project: BackendProject;
   intake: BackendProjectIntake;
@@ -79,6 +91,7 @@ type BackendProjectWorkspace = {
     version: number;
     status: ProjectWorkspace["report"]["status"];
   };
+  readiness?: BackendProjectReadiness;
 };
 
 export type ProjectCreatePayload = {
@@ -210,6 +223,18 @@ function normalizeReportSection(section: BackendReportSection): ReportSection {
   };
 }
 
+function normalizeReadiness(readiness: BackendProjectReadiness): ProjectReadiness {
+  return {
+    score: readiness.score,
+    status: readiness.status,
+    missingRequired: readiness.missing_required,
+    recommendedMissing: readiness.recommended_missing,
+    nextAction: readiness.next_action,
+    confidenceLevel: readiness.confidence_level,
+    reasons: readiness.reasons,
+  };
+}
+
 function normalizeWorkspace(workspace: BackendProjectWorkspace): ProjectWorkspace {
   return {
     project: {
@@ -230,6 +255,7 @@ function normalizeWorkspace(workspace: BackendProjectWorkspace): ProjectWorkspac
       version: workspace.report.version,
       status: workspace.report.status,
     },
+    readiness: workspace.readiness ? normalizeReadiness(workspace.readiness) : undefined,
   };
 }
 
@@ -247,6 +273,10 @@ export async function getProject(projectId: string): Promise<ProjectWorkspace> {
   return normalizeWorkspace(await request<BackendProjectWorkspace>(`/api/projects/${projectId}`));
 }
 
+export async function getProjectReadiness(projectId: string): Promise<ProjectReadiness> {
+  return normalizeReadiness(await request<BackendProjectReadiness>(`/api/projects/${projectId}/readiness`));
+}
+
 export async function createProject(payload: ProjectCreatePayload): Promise<ProjectWorkspace> {
   return normalizeWorkspace(
     await request<BackendProjectWorkspace>("/api/projects", {
@@ -260,6 +290,23 @@ export async function deleteProject(projectId: string): Promise<void> {
   await request<void>(`/api/projects/${projectId}`, {
     method: "DELETE",
   });
+}
+
+export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<ProjectWorkspace> {
+  return normalizeWorkspace(
+    await request<BackendProjectWorkspace>(`/api/projects/${projectId}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
+  );
+}
+
+export async function finalizeProject(projectId: string): Promise<ProjectWorkspace> {
+  return updateProjectStatus(projectId, "Finalized");
+}
+
+export async function reopenProject(projectId: string): Promise<ProjectWorkspace> {
+  return updateProjectStatus(projectId, "Analyzing");
 }
 
 export async function updateProjectIntake(projectId: string, intake: ProjectIntake): Promise<ProjectWorkspace> {

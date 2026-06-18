@@ -1,6 +1,7 @@
 export type Language = "zh" | "en";
 export type ProjectStatus = "Draft" | "Analyzing" | "Report Ready" | "Finalized";
 export type RiskLevel = "Low" | "Medium" | "High";
+export type ConfidenceLevel = "Low" | "Medium" | "High";
 export type WorkspaceTab = "overview" | "intake" | "preferences" | "attachments" | "benchmark" | "report";
 
 export interface LocalizedText {
@@ -92,6 +93,16 @@ export interface ReportDraft {
   status: "Draft" | "Ready";
 }
 
+export interface ProjectReadiness {
+  score: number;
+  status: ProjectStatus;
+  missingRequired: LocalizedText[];
+  recommendedMissing: LocalizedText[];
+  nextAction: LocalizedText;
+  confidenceLevel: ConfidenceLevel;
+  reasons: LocalizedText[];
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: LocalizedText;
@@ -103,4 +114,5 @@ export interface ProjectWorkspace {
   preferences: PlatformPreference[];
   attachments: ProjectAttachment[];
   report: ReportDraft;
+  readiness?: ProjectReadiness;
 }

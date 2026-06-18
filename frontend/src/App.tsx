@@ -5,7 +5,9 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
+  Copy as CopyIcon,
   Cpu,
+  Download,
   FileText,
   FolderPlus,
   Languages,
@@ -14,6 +16,7 @@ import {
   PanelLeftOpen,
   Paperclip,
   Plus,
+  Printer,
   RefreshCw,
   Save,
   Send,
@@ -26,11 +29,14 @@ import {
   addProjectAttachment,
   createProject as apiCreateProject,
   deleteProject as apiDeleteProject,
+  finalizeProject,
   getEcosystems,
   getProjects,
+  reopenProject,
   runProjectBenchmark,
   updateProjectIntake,
   updateProjectPreferences,
+  updateProjectStatus as apiUpdateProjectStatus,
   updateReportSection as apiUpdateReportSection,
 } from "./api/client";
 import { ecosystems as fallbackEcosystems, initialMessages, reportSections, workspaces as seedWorkspaces } from "./data/platforms";
@@ -41,6 +47,8 @@ import type {
   LocalizedText,
   PlcEcosystem,
   ProjectAttachment,
+  ProjectReadiness,
+  ProjectStatus,
   ProjectWorkspace,
   ReportSection,
   WorkspaceTab,
@@ -131,6 +139,48 @@ const copy = {
     backToWorkspace: "返回工作台",
     lastUpdated: "最近更新",
     recommendedNextAction: "推荐下一步",
+    lifecycleStatus: "生命周期状态",
+    readiness: "成熟度",
+    missingRequired: "缺失必填",
+    recommendedInputs: "建议补充",
+    confidence: "置信度",
+    reasons: "原因",
+    missingItems: "缺失",
+    localReadiness: "当前成熟度由前端本地估算。",
+    finalizedReport: "已确认最终版报告",
+    markFinalized: "标记为最终版",
+    reopenAnalysis: "重新进入分析",
+    statusWillUpdate: "保存后状态和成熟度会根据后端规则更新。",
+    reportMode: "报告模式",
+    edit: "编辑",
+    preview: "预览",
+    deliveryContext: "交付上下文",
+    reportPreview: "报告预览",
+    exportPreparation: "导出准备",
+    copyMarkdown: "复制 Markdown",
+    downloadMarkdown: "下载 Markdown",
+    printBrowserPdf: "打印 / 浏览器另存 PDF",
+    exportPdfPlanned: "PDF 导出规划中",
+    exportPptPlanned: "PPT 导出规划中",
+    copied: "已复制",
+    projectMetadata: "项目元信息",
+    benchmarkSummary: "Benchmark 摘要",
+    preferenceImpact: "偏好影响",
+    riskAssessment: "风险评估",
+    roadmapNextSteps: "路线图 / 下一步",
+    attachmentMetadata: "附件元信息",
+    missingInputs: "缺失输入",
+    aiUsed: "AI 使用",
+    documentParsing: "文档解析",
+    sourceMode: "来源模式",
+    no: "否",
+    deterministicSource: "确定性项目数据 + Benchmark 结果",
+    reportDraftWarning: "当前报告仍是草稿，因为项目必填信息尚未完整。",
+    reportAnalyzingWarning: "分析正在进行中。报告可以审阅，但推荐置信度仍可能变化。",
+    reportReadyNotice: "报告已准备好进入审阅。",
+    finalizedReportNotice: "已定稿报告。",
+    sectionContext: "分区上下文",
+    noMissingInputs: "当前没有影响该分区的缺失输入。",
   },
   en: {
     title: "PLC Platform Benchmark & Migration Decision Copilot",
@@ -175,7 +225,7 @@ const copy = {
     required: "Required",
     optional: "Optional",
     complete: "Complete",
-    missing: "Missing",
+    missingItems: "Missing",
     validation: "Input Completeness",
     reason: "Preference Reason",
     registeredOnly: "Registered only",
@@ -216,6 +266,48 @@ const copy = {
     backToWorkspace: "Back to Workspace",
     lastUpdated: "Last Updated",
     recommendedNextAction: "Recommended Next Action",
+    lifecycleStatus: "Lifecycle Status",
+    readiness: "Readiness",
+    missingRequired: "Missing Required",
+    recommendedInputs: "Recommended Inputs",
+    confidence: "Confidence",
+    reasons: "Reasons",
+    missing: "Missing",
+    localReadiness: "Readiness is estimated locally.",
+    finalizedReport: "Finalized report",
+    markFinalized: "Mark as Finalized",
+    reopenAnalysis: "Reopen for Analysis",
+    statusWillUpdate: "Status and readiness will update from backend rules after save.",
+    reportMode: "Report Mode",
+    edit: "Edit",
+    preview: "Preview",
+    deliveryContext: "Delivery Context",
+    reportPreview: "Report Preview",
+    exportPreparation: "Export Preparation",
+    copyMarkdown: "Copy Markdown",
+    downloadMarkdown: "Download Markdown",
+    printBrowserPdf: "Print / Browser PDF",
+    exportPdfPlanned: "Export PDF planned",
+    exportPptPlanned: "Export PPT planned",
+    copied: "Copied",
+    projectMetadata: "Project Metadata",
+    benchmarkSummary: "Benchmark Summary",
+    preferenceImpact: "Preference Impact",
+    riskAssessment: "Risk Assessment",
+    roadmapNextSteps: "Roadmap / Next Steps",
+    attachmentMetadata: "Attachment Metadata",
+    missingInputs: "Missing Inputs",
+    aiUsed: "AI used",
+    documentParsing: "Document parsing",
+    sourceMode: "Source mode",
+    no: "No",
+    deterministicSource: "deterministic project data + benchmark result",
+    reportDraftWarning: "This report is still a draft because required project inputs are missing.",
+    reportAnalyzingWarning: "Analysis is in progress. Report can be reviewed, but recommendation confidence may still change.",
+    reportReadyNotice: "Report is ready for review.",
+    finalizedReportNotice: "Finalized report.",
+    sectionContext: "Section Context",
+    noMissingInputs: "No missing inputs are currently affecting this section.",
   },
 } as const;
 
@@ -242,6 +334,13 @@ const riskLabel = {
   zh: { Low: "低", Medium: "中", High: "高" },
   en: { Low: "Low", Medium: "Medium", High: "High" },
 } as const;
+
+const statusClass: Record<ProjectStatus, string> = {
+  Draft: "bg-slate-100 text-slate-700 ring-slate-200",
+  Analyzing: "bg-cyan-50 text-cyan-800 ring-cyan-200",
+  "Report Ready": "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  Finalized: "bg-slate-900 text-white ring-slate-900",
+};
 
 function localize(value: LocalizedText, language: Language): string {
   return value[language];
@@ -288,6 +387,38 @@ function nextStepFor(workspace: ProjectWorkspace, language: Language): string {
   return language === "zh" ? "进入 Benchmark 与 Report，检查首选平台、风险和假设。" : "Review Benchmark and Report for the lead platform, risks, and assumptions.";
 }
 
+function getWorkspaceReadiness(workspace: ProjectWorkspace): { readiness: ProjectReadiness; isLocal: boolean } {
+  if (workspace.readiness) {
+    return { readiness: workspace.readiness, isLocal: false };
+  }
+
+  const completeness = calculateCompleteness(workspace);
+  const missingRequired: LocalizedText[] = [];
+  const recommendedMissing: LocalizedText[] = [];
+
+  if (!workspace.project.industry.trim()) missingRequired.push({ zh: "行业", en: "Industry" });
+  if (!workspace.project.goal.trim()) missingRequired.push({ zh: "项目目标", en: "Project goal" });
+  if (workspace.intake.candidatePlatforms.length < 2) missingRequired.push({ zh: "至少两个候选 PLC 生态", en: "At least two candidate PLC ecosystems" });
+  if (!workspace.intake.teamExperience.trim()) recommendedMissing.push({ zh: "团队经验", en: "Team experience" });
+  if (!workspace.intake.constraints.trim()) recommendedMissing.push({ zh: "项目约束", en: "Project constraints" });
+  if (workspace.attachments.length === 0) recommendedMissing.push({ zh: "附件元信息", en: "Attachment metadata" });
+
+  return {
+    isLocal: true,
+    readiness: {
+      score: completeness.percent,
+      status: workspace.project.status,
+      missingRequired,
+      recommendedMissing,
+      nextAction: { zh: nextStepFor(workspace, "zh"), en: nextStepFor(workspace, "en") },
+      confidenceLevel: completeness.percent >= 80 ? "High" : completeness.percent >= 50 ? "Medium" : "Low",
+      reasons: [
+        { zh: "后端 readiness 不可用，前端使用本地字段完整度估算。", en: "Backend readiness is unavailable; frontend estimated readiness from local field completeness." },
+      ],
+    },
+  };
+}
+
 function calculateBenchmark(workspace: ProjectWorkspace, platformCatalog: PlcEcosystem[] = fallbackEcosystems): BenchmarkResult[] {
   return platformCatalog
     .filter((platform) => workspace.intake.candidatePlatforms.includes(platform.id))
@@ -313,6 +444,98 @@ function calculateBenchmark(workspace: ProjectWorkspace, platformCatalog: PlcEco
       } satisfies BenchmarkResult;
     })
     .sort((a, b) => b.weightedScore - a.weightedScore);
+}
+
+function platformName(platformId: string, platformCatalog: PlcEcosystem[]) {
+  return platformCatalog.find((platform) => platform.id === platformId)?.name ?? platformId;
+}
+
+function uniqueStrings(items: string[]) {
+  return Array.from(new Set(items.filter((item) => item.trim().length > 0)));
+}
+
+function missingInputLabels(readiness: ProjectReadiness, language: Language) {
+  return uniqueStrings([...readiness.missingRequired, ...readiness.recommendedMissing].map((item) => localize(item, language)));
+}
+
+function reportStatusNotice(status: ProjectStatus, labels: (typeof copy)[Language]) {
+  if (status === "Draft") return labels.reportDraftWarning;
+  if (status === "Analyzing") return labels.reportAnalyzingWarning;
+  if (status === "Report Ready") return labels.reportReadyNotice;
+  return labels.finalizedReportNotice;
+}
+
+function safeFileName(value: string) {
+  return value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").toLowerCase() || "plc-decision-report";
+}
+
+function buildReportMarkdown(
+  workspace: ProjectWorkspace,
+  benchmarkResults: BenchmarkResult[],
+  readiness: ProjectReadiness,
+  language: Language,
+  platformCatalog: PlcEcosystem[],
+) {
+  const labels = copy[language];
+  const candidatePlatforms = workspace.intake.candidatePlatforms.map((id) => platformName(id, platformCatalog));
+  const lead = benchmarkResults[0];
+  const leadName = lead ? platformName(lead.platformId, platformCatalog) : "-";
+  const sectionById = (id: string) => workspace.report.sections.find((section) => section.id === id);
+  const executiveSummary = sectionById("executive-summary") ?? workspace.report.sections[0];
+  const risks = uniqueStrings(benchmarkResults.flatMap((result) => result.assumptions.map((item) => localize(item, language))));
+  const preferenceLines = workspace.preferences
+    .filter((preference) => workspace.intake.candidatePlatforms.includes(preference.platformId))
+    .map((preference) => `- ${platformName(preference.platformId, platformCatalog)}: ${preference.preferenceWeight}/100${preference.userReasonNote ? ` - ${preference.userReasonNote}` : ""}`);
+  const attachmentLines = workspace.attachments.length
+    ? workspace.attachments.map((attachment) => `- ${attachment.fileName} | ${attachment.fileType} | ${attachment.declaredPurpose || "-"} | Registered only`)
+    : [`- ${language === "zh" ? "暂无附件元信息" : "No attachment metadata registered"}`];
+
+  return [
+    `# ${workspace.project.name}`,
+    "",
+    `## ${language === "zh" ? "执行摘要" : "Executive Summary"}`,
+    executiveSummary ? localize(executiveSummary.body, language) : "-",
+    "",
+    `## ${labels.projectInputs}`,
+    `- ${labels.project}: ${workspace.project.name}`,
+    `- ${language === "zh" ? "行业" : "Industry"}: ${workspace.project.industry || "-"}`,
+    `- ${language === "zh" ? "目标" : "Goal"}: ${workspace.project.goal || "-"}`,
+    `- ${labels.candidatePlatforms}: ${candidatePlatforms.join(", ") || "-"}`,
+    `- ${labels.status}: ${readiness.status}`,
+    `- ${labels.readiness}: ${readiness.score}%`,
+    `- ${labels.confidence}: ${readiness.confidenceLevel}`,
+    "",
+    `## ${labels.benchmarkSummary}`,
+    ...(benchmarkResults.length
+      ? benchmarkResults.map((result, index) => `- ${index + 1}. ${platformName(result.platformId, platformCatalog)}: ${labels.technicalScore} ${result.technicalScore}, ${labels.preferenceScore} ${result.preferenceScore}, ${labels.finalScore} ${result.weightedScore}, ${labels.risk} ${result.riskLevel}`)
+      : [`- ${language === "zh" ? "暂无 Benchmark 结果" : "No benchmark result available"}`]),
+    "",
+    `## ${labels.preferenceImpact}`,
+    ...(preferenceLines.length ? preferenceLines : [`- ${language === "zh" ? "暂无用户倾向说明" : "No user preference notes yet"}`]),
+    "",
+    `## ${labels.riskAssessment}`,
+    `- ${labels.topRecommendation}: ${leadName}`,
+    ...(risks.length ? risks.map((item) => `- ${item}`) : [`- ${language === "zh" ? "风险仍需根据真实供应商、成本和交付约束确认。" : "Risks still need confirmation against real vendor, cost, and delivery constraints."}`]),
+    "",
+    `## ${labels.roadmapNextSteps}`,
+    `- ${localize(readiness.nextAction, language)}`,
+    "",
+    `## ${labels.assumptions}`,
+    ...(workspace.report.sections.flatMap((section) => section.assumptions.map((item) => `- ${localize(item, language)}`)).length
+      ? workspace.report.sections.flatMap((section) => section.assumptions.map((item) => `- ${localize(item, language)}`))
+      : [`- ${language === "zh" ? "使用当前项目输入和确定性 Benchmark 结果。" : "Uses current project inputs and deterministic benchmark results."}`]),
+    "",
+    `## ${labels.uncertainty}`,
+    ...workspace.report.sections.map((section) => `- ${localize(section.title, language)}: ${localize(section.uncertainty, language)}`),
+    "",
+    `## ${labels.attachmentMetadata}`,
+    ...attachmentLines,
+    "",
+    "---",
+    `${labels.aiUsed}: ${labels.no}`,
+    `${labels.documentParsing}: ${labels.no}`,
+    `${labels.sourceMode}: ${labels.deterministicSource}`,
+  ].join("\n");
 }
 
 export default function App() {
@@ -353,6 +576,7 @@ export default function App() {
   const projectMessages = projectThreads[selectedProjectId] ?? initialMessages[selectedEcosystemId] ?? [];
   const messages = queryScope === "global" ? globalMessages : projectMessages;
   const completeness = calculateCompleteness(workspace);
+  const currentReadiness = getWorkspaceReadiness(workspace).readiness;
 
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
@@ -619,6 +843,18 @@ export default function App() {
     }
   }
 
+  async function updateLifecycleStatus(projectId: string, status: ProjectStatus) {
+    setSaveState("saving");
+    try {
+      const saved = status === "Finalized" ? await finalizeProject(projectId) : status === "Analyzing" ? await reopenProject(projectId) : await apiUpdateProjectStatus(projectId, status);
+      replaceWorkspace(saved);
+      noteSaved();
+    } catch (error) {
+      console.warn("Project status update failed.", error);
+      noteFailed();
+    }
+  }
+
   return (
     <main className="flex h-screen min-h-[760px] overflow-hidden bg-slate-100 text-slate-950">
       <aside className={`${sidebarOpen ? "w-full max-w-[400px]" : "w-[76px]"} flex shrink-0 flex-col border-r border-slate-200 bg-slate-950 text-white transition-all duration-300`}>
@@ -743,7 +979,7 @@ export default function App() {
             </div>
             <div className="grid grid-cols-3 gap-3 text-sm">
               <Kpi label={t.status} value={workspace.project.status} />
-              <Kpi label={t.completion} value={`${completeness.percent}%`} />
+              <Kpi label={t.readiness} value={`${currentReadiness.score}%`} />
               <Kpi label={t.weightedScore} value={`${topResult?.weightedScore ?? 0}/100`} />
             </div>
           </div>
@@ -785,7 +1021,7 @@ export default function App() {
           {workspaceView === "project" && activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "attachments" ? <Attachments workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "benchmark" ? <Benchmark results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} /> : null}
-          {workspaceView === "project" && activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} /> : null}
+          {workspaceView === "project" && activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} updateLifecycleStatus={updateLifecycleStatus} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} /> : null}
         </div>
       </section>
     </main>
@@ -819,6 +1055,27 @@ function StatusPill({ apiMode, saveState, labels }: { apiMode: "checking" | "con
     <div className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold ring-1 ${tone}`}>
       <span>{apiText}</span>
       {saveText ? <span className="border-l border-current/20 pl-2">{saveText}</span> : null}
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: ProjectStatus }) {
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusClass[status]}`}>{status}</span>;
+}
+
+function ReadinessList({ title, items, language, empty }: { title: string; items: LocalizedText[]; language: Language; empty: string }) {
+  return (
+    <div className="rounded-md bg-slate-50 p-4">
+      <p className="text-sm font-semibold">{title}</p>
+      {items.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-sm leading-6 text-slate-600">
+          {items.map((item) => (
+            <li key={localize(item, language)}>{localize(item, language)}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-slate-500">{empty}</p>
+      )}
     </div>
   );
 }
@@ -940,7 +1197,7 @@ function ProjectEntryCard({
   setWorkspaceView: (view: "home" | "project") => void;
   deleteProject: (projectId: string) => void | Promise<void>;
 }) {
-  const completeness = calculateCompleteness(workspace);
+  const { readiness, isLocal } = getWorkspaceReadiness(workspace);
   const benchmark = calculateBenchmark(workspace, platformCatalog);
   const topResult = benchmark[0];
   const topPlatform = platformCatalog.find((item) => item.id === topResult?.platformId);
@@ -962,12 +1219,15 @@ function ProjectEntryCard({
               <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
                 <p><span className="font-semibold text-slate-800">{labels.lastUpdated}: </span>{workspace.project.updatedAt}</p>
                 <p><span className="font-semibold text-slate-800">{labels.candidatePlatforms}: </span>{workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id).join(", ") || "-"}</p>
-                <p className="md:col-span-2"><span className="font-semibold text-slate-800">{labels.recommendedNextAction}: </span>{nextStepFor(workspace, language)}</p>
+                <p><span className="font-semibold text-slate-800">{labels.missingItems}: </span>{readiness.missingRequired.map((item) => localize(item, language)).join(", ") || "-"}</p>
+                <p><span className="font-semibold text-slate-800">{labels.confidence}: </span>{readiness.confidenceLevel}</p>
+                <p className="md:col-span-2"><span className="font-semibold text-slate-800">{labels.recommendedNextAction}: </span>{localize(readiness.nextAction, language)}</p>
+                {isLocal ? <p className="text-xs text-amber-700 md:col-span-2">{labels.localReadiness}</p> : null}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{workspace.project.status}</span>
-              <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">{completeness.percent}%</span>
+              <StatusBadge status={readiness.status} />
+              <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">{readiness.score}%</span>
             </div>
           </div>
           {selected ? (
@@ -996,7 +1256,7 @@ function ProjectEntryCard({
         </div>
         {selected ? (
           <div className="grid gap-3">
-            <MetricBar label={labels.completion} value={completeness.percent} tone="cyan" />
+            <MetricBar label={labels.readiness} value={readiness.score} tone="cyan" />
             <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
             <Info title={labels.topRecommendation} value={topPlatform?.name ?? "-"} />
           </div>
@@ -1021,18 +1281,32 @@ function ProjectOverview({
   labels: (typeof copy)[Language];
   setActiveTab: (tab: WorkspaceTab) => void;
 }) {
-  const completeness = calculateCompleteness(workspace);
+  const { readiness, isLocal } = getWorkspaceReadiness(workspace);
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <Panel title={workspace.project.name} description={workspace.project.goal || nextStepFor(workspace, language)}>
+      <Panel title={labels.lifecycleStatus} description={workspace.project.name}>
         <div className="grid gap-4 md:grid-cols-3">
-          <Info title={labels.status} value={workspace.project.status} />
+          <div className="rounded-md bg-slate-50 p-4">
+            <p className="text-sm font-semibold">{labels.status}</p>
+            <div className="mt-2"><StatusBadge status={readiness.status} /></div>
+          </div>
           <Info title={labels.lastUpdated} value={workspace.project.updatedAt} />
-          <ScoreDial label={labels.completion} value={completeness.percent} />
+          <ScoreDial label={labels.readiness} value={readiness.score} />
+        </div>
+        {isLocal ? <p className="mt-3 text-sm font-semibold text-amber-700">{labels.localReadiness}</p> : null}
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <ReadinessList title={labels.reasons} items={readiness.reasons} language={language} empty="-" />
+          <ReadinessList title={labels.missingRequired} items={readiness.missingRequired} language={language} empty="-" />
+          <ReadinessList title={labels.recommendedInputs} items={readiness.recommendedMissing} language={language} empty="-" />
+          <div className="rounded-md bg-cyan-50 p-4">
+            <p className="text-sm font-semibold text-cyan-900">{labels.nextStep}</p>
+            <p className="mt-2 text-sm leading-6 text-cyan-950">{localize(readiness.nextAction, language)}</p>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-cyan-800">{labels.confidence}: {readiness.confidenceLevel}</p>
+          </div>
         </div>
         <div className="mt-5 rounded-md border border-cyan-100 bg-cyan-50 p-4">
           <p className="text-sm font-semibold text-cyan-900">{labels.recommendedNextAction}</p>
-          <p className="mt-2 text-sm leading-6 text-cyan-950">{nextStepFor(workspace, language)}</p>
+          <p className="mt-2 text-sm leading-6 text-cyan-950">{localize(readiness.nextAction, language)}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => setActiveTab("intake")}>
               Intake
@@ -1054,6 +1328,7 @@ function ProjectOverview({
 
 function Intake({ workspace, updateWorkspace, platformCatalog, labels, language }: { workspace: ProjectWorkspace; updateWorkspace: (workspace: ProjectWorkspace) => void | Promise<void>; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language }) {
   const [draft, setDraft] = useState(workspace);
+  const { readiness, isLocal } = getWorkspaceReadiness(workspace);
 
   useEffect(() => {
     setDraft(workspace);
@@ -1133,9 +1408,17 @@ function Intake({ workspace, updateWorkspace, platformCatalog, labels, language 
       </Panel>
 
       <Panel title={labels.validation} description={`${completion}%`}>
+        <p className="mb-4 rounded-md bg-cyan-50 p-3 text-sm font-medium text-cyan-900">{labels.statusWillUpdate}</p>
+        {isLocal ? <p className="mb-4 rounded-md bg-amber-50 p-3 text-sm font-medium text-amber-800">{labels.localReadiness}</p> : null}
+        <ReadinessList title={labels.missingRequired} items={readiness.missingRequired} language={language} empty="-" />
+        <div className="mt-4">
+          <ReadinessList title={labels.recommendedInputs} items={readiness.recommendedMissing} language={language} empty="-" />
+        </div>
+        <div className="mt-5 border-t border-slate-200 pt-5">
         <ValidationList title={labels.required} items={required} labels={labels} />
         <div className="mt-5">
           <ValidationList title={labels.optional} items={optional} labels={labels} />
+        </div>
         </div>
       </Panel>
     </div>
@@ -1333,6 +1616,7 @@ function ReportBuilder({
   workspace,
   updateWorkspace,
   saveReportSection,
+  updateLifecycleStatus,
   labels,
   language,
   activeSectionId,
@@ -1343,6 +1627,7 @@ function ReportBuilder({
   workspace: ProjectWorkspace;
   updateWorkspace: (workspace: ProjectWorkspace) => void;
   saveReportSection: (projectId: string, section: ReportSection, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>;
+  updateLifecycleStatus: (projectId: string, status: ProjectStatus) => void | Promise<void>;
   labels: (typeof copy)[Language];
   language: Language;
   activeSectionId: string;
@@ -1352,6 +1637,49 @@ function ReportBuilder({
 }) {
   const section = workspace.report.sections.find((item) => item.id === activeSectionId) ?? workspace.report.sections[0];
   const topPlatform = platformCatalog.find((item) => item.id === benchmarkResults[0]?.platformId);
+  const { readiness } = getWorkspaceReadiness(workspace);
+  const [reportMode, setReportMode] = useState<"edit" | "preview">("edit");
+  const [markdownCopied, setMarkdownCopied] = useState(false);
+  const markdown = useMemo(() => buildReportMarkdown(workspace, benchmarkResults, readiness, language, platformCatalog), [benchmarkResults, language, platformCatalog, readiness, workspace]);
+  const missingInputs = missingInputLabels(readiness, language);
+  const deliveryDataSources = uniqueStrings([
+    ...workspace.report.sections.flatMap((item) => item.dataSourcesUsed.map((source) => localize(source, language))),
+    labels.deterministicSource,
+  ]);
+  const deliveryAssumptions = uniqueStrings([
+    ...workspace.report.sections.flatMap((item) => item.assumptions.map((assumption) => localize(assumption, language))),
+    ...readiness.reasons.map((reason) => localize(reason, language)),
+  ]);
+  const deliveryUncertainty = uniqueStrings(workspace.report.sections.map((item) => localize(item.uncertainty, language)));
+
+  async function copyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(markdown);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = markdown;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setMarkdownCopied(true);
+  }
+
+  function downloadMarkdown() {
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${safeFileName(workspace.project.name)}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setMarkdownCopied(false);
+  }
 
   function updateSection(next: ReportSection) {
     updateWorkspace({
@@ -1399,6 +1727,16 @@ function ReportBuilder({
   return (
     <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
       <Panel title={labels.reportSections} description={`v${workspace.report.version} · ${workspace.report.status}`}>
+        <div className="mb-4 rounded-md bg-slate-50 p-2">
+          <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.reportMode}</p>
+          <div className="grid grid-cols-2 gap-1">
+            {(["edit", "preview"] as const).map((mode) => (
+              <button key={mode} className={`rounded-md px-3 py-2 text-sm font-semibold ${reportMode === mode ? "bg-white text-cyan-800 shadow-sm ring-1 ring-cyan-200" : "text-slate-600 hover:bg-white/70"}`} onClick={() => setReportMode(mode)}>
+                {mode === "edit" ? labels.edit : labels.preview}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="space-y-2">
           {workspace.report.sections.map((item, index) => (
             <button key={item.id} className={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${item.id === section.id ? "bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200" : "bg-slate-50 text-slate-700 hover:bg-slate-100"}`} onClick={() => setActiveSectionId(item.id)}>
@@ -1407,29 +1745,176 @@ function ReportBuilder({
             </button>
           ))}
         </div>
-        <button className="mt-4 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-500" disabled>
-          {labels.futureExport}
-        </button>
-      </Panel>
-      <Panel title={labels.sectionEditor} description={localize(section.title, language)}>
-        <textarea className="min-h-[440px] w-full resize-y rounded-md border border-slate-300 bg-white p-5 text-sm leading-7 shadow-inner outline-none focus:ring-2 focus:ring-cyan-400" value={localize(section.body, language)} onChange={(event) => updateSection({ ...section, body: { ...section.body, [language]: event.target.value } })} />
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => saveReportSection(workspace.project.id, section, workspace)}>
-            <Save size={16} />
-            {labels.save}
+        <div className="mt-5 space-y-2 rounded-md border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.exportPreparation}</p>
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => void copyMarkdown()}>
+            <CopyIcon size={15} />
+            {labels.copyMarkdown}
           </button>
-          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={regenerateSection}>
-            <RefreshCw size={16} />
-            {labels.regenerateSection}
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={downloadMarkdown}>
+            <Download size={15} />
+            {labels.downloadMarkdown}
           </button>
-          <p className="text-xs text-slate-500">{labels.updated}: {section.lastGeneratedAt}</p>
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => window.print()}>
+            <Printer size={15} />
+            {labels.printBrowserPdf}
+          </button>
+          {markdownCopied ? <p className="text-center text-xs font-semibold text-emerald-700">{labels.copied}</p> : null}
+          <button className="w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-400" disabled>
+            {labels.exportPdfPlanned}
+          </button>
+          <button className="w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-400" disabled>
+            {labels.exportPptPlanned}
+          </button>
         </div>
       </Panel>
-      <Panel title={labels.rightPanel} description={labels.assumptions}>
+      <Panel title={reportMode === "edit" ? labels.sectionEditor : labels.reportPreview} description={reportMode === "edit" ? localize(section.title, language) : reportStatusNotice(readiness.status, labels)}>
+        <div className={`mb-4 rounded-md p-3 text-sm font-semibold ${readiness.status === "Draft" ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200" : readiness.status === "Finalized" ? "bg-slate-900 text-white" : "bg-cyan-50 text-cyan-900 ring-1 ring-cyan-200"}`}>
+          {reportStatusNotice(readiness.status, labels)}
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md bg-slate-50 p-3">
+          <StatusBadge status={readiness.status} />
+          <span className="text-sm font-semibold text-slate-700">{labels.readiness}: {readiness.score}%</span>
+          <span className="text-sm font-semibold text-slate-700">{labels.confidence}: {readiness.confidenceLevel}</span>
+          {readiness.status === "Finalized" ? <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">{labels.finalizedReport}</span> : null}
+          {readiness.status === "Report Ready" ? (
+            <button className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => updateLifecycleStatus(workspace.project.id, "Finalized")}>
+              {labels.markFinalized}
+            </button>
+          ) : null}
+          {readiness.status === "Finalized" ? (
+            <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => updateLifecycleStatus(workspace.project.id, "Analyzing")}>
+              {labels.reopenAnalysis}
+            </button>
+          ) : null}
+        </div>
+        {reportMode === "edit" ? (
+          <>
+            <textarea className="min-h-[420px] w-full resize-y rounded-md border border-slate-300 bg-white p-5 text-sm leading-7 shadow-inner outline-none focus:ring-2 focus:ring-cyan-400" value={localize(section.body, language)} onChange={(event) => updateSection({ ...section, body: { ...section.body, [language]: event.target.value } })} />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => saveReportSection(workspace.project.id, section, workspace)}>
+                <Save size={16} />
+                {labels.save}
+              </button>
+              <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={regenerateSection}>
+                <RefreshCw size={16} />
+                {labels.regenerateSection}
+              </button>
+              <p className="text-xs text-slate-500">{labels.updated}: {section.lastGeneratedAt}</p>
+            </div>
+            <SectionContextPanel section={section} readiness={readiness} labels={labels} language={language} />
+          </>
+        ) : (
+          <ReportPreview workspace={workspace} benchmarkResults={benchmarkResults} readiness={readiness} platformCatalog={platformCatalog} labels={labels} language={language} />
+        )}
+      </Panel>
+      <Panel title={labels.deliveryContext} description={labels.deterministicSource}>
+        <div className="mb-5 space-y-2 rounded-md bg-slate-50 p-3">
+          <FactRow label={labels.status} value={readiness.status} />
+          <FactRow label={labels.readiness} value={`${readiness.score}%`} />
+          <FactRow label={labels.confidence} value={readiness.confidenceLevel} />
+          <FactRow label={labels.aiUsed} value={labels.no} />
+          <FactRow label={labels.documentParsing} value={labels.no} />
+        </div>
+        <EvidenceBlock title={labels.dataSources} items={deliveryDataSources} />
+        <EvidenceBlock title={labels.assumptions} items={deliveryAssumptions} />
+        <EvidenceBlock title={labels.uncertainty} items={deliveryUncertainty} />
+        <EvidenceBlock title={labels.missingInputs} items={missingInputs.length ? missingInputs : [labels.noMissingInputs]} />
+      </Panel>
+    </div>
+  );
+}
+
+function ReportPreview({
+  workspace,
+  benchmarkResults,
+  readiness,
+  platformCatalog,
+  labels,
+  language,
+}: {
+  workspace: ProjectWorkspace;
+  benchmarkResults: BenchmarkResult[];
+  readiness: ProjectReadiness;
+  platformCatalog: PlcEcosystem[];
+  labels: (typeof copy)[Language];
+  language: Language;
+}) {
+  const lead = benchmarkResults[0];
+  const candidatePlatforms = workspace.intake.candidatePlatforms.map((id) => platformName(id, platformCatalog)).join(", ");
+
+  return (
+    <article className="rounded-md border border-slate-200 bg-white">
+      <div className="border-b border-slate-200 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">{labels.reportPreview}</p>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-950">{workspace.project.name}</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{workspace.project.goal || "-"}</p>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <FactCard label={language === "zh" ? "行业" : "Industry"} value={workspace.project.industry || "-"} />
+          <FactCard label={labels.candidatePlatforms} value={candidatePlatforms || "-"} />
+          <FactCard label={labels.topRecommendation} value={lead ? platformName(lead.platformId, platformCatalog) : "-"} />
+          <FactCard label={labels.status} value={readiness.status} />
+          <FactCard label={labels.readiness} value={`${readiness.score}%`} />
+          <FactCard label={labels.confidence} value={readiness.confidenceLevel} />
+        </div>
+      </div>
+      <div className="space-y-6 p-6">
+        {workspace.report.sections.map((section, index) => (
+          <section key={section.id} className="rounded-md border border-slate-200 p-5">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">{String(index + 1).padStart(2, "0")}</span>
+              <h2 className="text-lg font-semibold text-slate-950">{localize(section.title, language)}</h2>
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(section.body, language) || "-"}</p>
+            <SectionContextPanel section={section} readiness={readiness} labels={labels} language={language} compact />
+          </section>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function SectionContextPanel({
+  section,
+  readiness,
+  labels,
+  language,
+  compact = false,
+}: {
+  section: ReportSection;
+  readiness: ProjectReadiness;
+  labels: (typeof copy)[Language];
+  language: Language;
+  compact?: boolean;
+}) {
+  const missingInputs = missingInputLabels(readiness, language);
+  return (
+    <div className={`${compact ? "mt-4" : "mt-5"} rounded-md bg-slate-50 p-4`}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.sectionContext}</p>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <EvidenceBlock title={labels.dataSources} items={section.dataSourcesUsed.map((item) => localize(item, language))} />
         <EvidenceBlock title={labels.assumptions} items={section.assumptions.map((item) => localize(item, language))} />
         <EvidenceBlock title={labels.uncertainty} items={[localize(section.uncertainty, language)]} />
-        <EvidenceBlock title={labels.dataSources} items={section.dataSourcesUsed.map((item) => localize(item, language))} />
-      </Panel>
+        <EvidenceBlock title={labels.missingInputs} items={missingInputs.length ? missingInputs : [labels.noMissingInputs]} />
+      </div>
+    </div>
+  );
+}
+
+function FactCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-slate-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function FactRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="text-slate-500">{label}</span>
+      <span className="text-right font-semibold text-slate-900">{value}</span>
     </div>
   );
 }
