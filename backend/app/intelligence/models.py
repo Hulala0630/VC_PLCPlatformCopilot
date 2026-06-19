@@ -13,7 +13,9 @@ SafeProviderError = Literal[
     "rate_limit",
     "provider_server_error",
     "invalid_response",
+    "invalid_request",
     "unsupported_model",
+    "unsupported_response_format",
     "connection_error",
     "configuration_error",
 ]

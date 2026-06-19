@@ -207,7 +207,7 @@ class OpenAIProvider:
                     model=model,
                     instructions=prompt.instructions,
                     input=prompt.input,
-                    max_output_tokens=8,
+                    max_output_tokens=64,
                     store=False,
                     timeout=self._settings.ai_request_timeout_seconds,
                 ),
@@ -328,13 +328,27 @@ def _error_category(error: Exception) -> SafeProviderError:
         return "rate_limit"
     if isinstance(error, openai.InternalServerError):
         return "provider_server_error"
-    if isinstance(error, (openai.BadRequestError, openai.NotFoundError)):
+    if isinstance(error, openai.BadRequestError):
+        if _provider_error_param(error) == "text.format":
+            return "unsupported_response_format"
+        return "invalid_request"
+    if isinstance(error, openai.NotFoundError):
         return "unsupported_model"
     if isinstance(error, openai.APIConnectionError):
         return "connection_error"
     if isinstance(error, openai.APIStatusError) and error.status_code >= 500:
         return "provider_server_error"
     return "connection_error"
+
+
+def _provider_error_param(error: openai.BadRequestError) -> str | None:
+    body = getattr(error, "body", None)
+    if not isinstance(body, dict):
+        return None
+    nested = body.get("error")
+    source = nested if isinstance(nested, dict) else body
+    param = source.get("param")
+    return str(param) if param else None
 
 
 def _retryable(category: SafeProviderError) -> bool:
