@@ -111,6 +111,7 @@ The backend exposes a frozen intelligence contract backed by `DeterministicPlace
 后端提供由 `DeterministicPlaceholderProvider` 实现的固定智能化契约。它是确定性建议服务，不是 AI provider。
 
 - `POST /api/intelligence/global/chat`
+- `GET /api/intelligence/status`
 - `POST /api/projects/{project_id}/intelligence/chat`
 - `POST /api/projects/{project_id}/intelligence/analyze`
 - `POST /api/projects/{project_id}/benchmark/explain`
@@ -129,6 +130,20 @@ All responses are bilingual and include sources, assumptions, uncertainty, missi
 - Benchmark explanation never changes deterministic scores.
 
 聊天、分析、报告建议稿和改写建议均不持久化；报告生成与改写不会自动修改报告分区；Benchmark 解释不会改变确定性评分。
+
+## Backend AI Configuration / 后端 AI 配置
+
+AI provider configuration is loaded only by the backend. The repository-root `.env.local` is loaded explicitly, while process environment variables take precedence. `OPENAI_API_KEY` is held as `SecretStr` and is never returned by the status endpoint.
+
+AI provider 配置仅由后端加载。系统显式读取仓库根目录 `.env.local`，且进程环境变量具有更高优先级。`OPENAI_API_KEY` 使用 `SecretStr` 保存，status endpoint 绝不会返回密钥。
+
+Quality profiles are configured independently through `AI_MODEL_FAST`, `AI_MODEL_BALANCED`, and `AI_MODEL_QUALITY`. `GET /api/intelligence/status` returns profile names only, never concrete model IDs.
+
+三档质量配置分别由 `AI_MODEL_FAST`、`AI_MODEL_BALANCED` 和 `AI_MODEL_QUALITY` 管理。`GET /api/intelligence/status` 只返回 profile 名称，不返回具体 model ID。
+
+This phase does not call OpenAI or any other model. `DeterministicPlaceholderProvider` remains active, and deterministic benchmark scoring remains the source of truth.
+
+本阶段不会调用 OpenAI 或任何其他模型。当前仍使用 `DeterministicPlaceholderProvider`，确定性 benchmark 评分继续作为事实来源。
 
 ## Report Output / 报告输出
 

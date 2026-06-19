@@ -24,6 +24,7 @@ IntelligenceSourceType = Literal[
     "attachment_metadata",
 ]
 ReportAudience = Literal["executive", "technical", "management", "sales"]
+QualityProfile = Literal["fast", "balanced", "quality"]
 
 
 def _non_empty(value: str) -> str:
@@ -119,3 +120,11 @@ class ReportGenerationResponse(BaseModel):
     ai_used: Literal[False] = False
     document_parsing_used: Literal[False] = False
     generated_at: str
+
+
+class AIConfigurationStatus(BaseModel):
+    configured: bool
+    provider: str
+    quality_profiles: list[QualityProfile]
+    fallback_enabled: bool
+    configuration_errors: list[str]

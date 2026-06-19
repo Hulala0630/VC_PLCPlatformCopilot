@@ -93,6 +93,28 @@ Provider output is advisory and is not persisted. Users remain responsible for a
 
 Provider 输出仅作为建议且不持久化，报告修改仍由用户确认和应用。
 
+## Secure AI Configuration / 安全 AI 配置
+
+The backend owns all provider configuration and explicitly loads `.env.local` from the repository root. Process environment variables override local-file values. Frontend code never receives or manages `OPENAI_API_KEY`.
+
+所有 provider 配置都由后端负责，并从仓库根目录显式加载 `.env.local`。进程环境变量覆盖本地文件值。前端代码不会接收或管理 `OPENAI_API_KEY`。
+
+The future OpenAI provider has three named quality profiles:
+
+未来 OpenAI provider 使用三档命名质量配置：
+
+- `fast` via `AI_MODEL_FAST`
+- `balanced` via `AI_MODEL_BALANCED`
+- `quality` via `AI_MODEL_QUALITY`
+
+The public status contract exposes only provider name, configured state, available profile names, fallback state, and safe errors. It never exposes the API key or concrete model IDs.
+
+公开 status 契约只暴露 provider 名称、配置状态、可用 profile 名称、fallback 状态和安全错误；绝不暴露 API key 或具体 model ID。
+
+Phase 1 adds configuration only. It performs no real model calls. Deterministic benchmark scoring remains the authoritative source of truth.
+
+Phase 1 只增加配置基础，不执行真实模型调用。确定性 benchmark 评分继续作为权威事实来源。
+
 ## Current Report Output / 当前报告输出
 
 - Report sections support Edit and Preview modes.

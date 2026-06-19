@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.intelligence.dependencies import get_ai_configuration_status
 from app.intelligence.models import (
+    AIConfigurationStatus,
     BenchmarkExplanationRequest,
     GlobalChatRequest,
     IntelligenceResponse,
@@ -34,6 +36,13 @@ def _run(action):
         raise HTTPException(status_code=404, detail="Report section not found") from error
     except (IntelligencePlatformError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/intelligence/status", response_model=AIConfigurationStatus)
+def get_intelligence_status(
+    status: AIConfigurationStatus = Depends(get_ai_configuration_status),
+) -> AIConfigurationStatus:
+    return status
 
 
 @router.post("/intelligence/global/chat", response_model=IntelligenceResponse)

@@ -98,3 +98,25 @@ Frontend compatibility should be checked with `npm.cmd run build` when feasible.
 - 不持久化聊天历史、分析结果、生成建议稿或改写建议。
 - Provider 输出不得替代 benchmark 计算，也不得自动修改 intake 或 report。
 - 必须明确说明附件只登记 metadata，文件内容未被解析。
+
+## AI Configuration Safety / AI 配置安全
+
+- Business services must not read `os.environ` directly; use the cached settings dependency.
+- Load repository-root `.env.local` explicitly so behavior does not depend on shell working directory.
+- Process environment variables override `.env.local`.
+- Keep `OPENAI_API_KEY` as `SecretStr` and exclude it from serialization and logs.
+- Public status responses may expose only provider, configured state, profile names, fallback state, and safe errors.
+- Never expose API key value, fragments, length, authorization headers, model IDs, or environment dumps.
+- Tests must use fake process values or temporary env files only.
+- This phase must not instantiate a real OpenAI provider or send model requests.
+- Deterministic benchmark calculations remain the source of truth and must not be replaced by provider output.
+
+- 业务 service 不得直接读取 `os.environ`，必须使用缓存的 settings dependency。
+- 必须显式加载仓库根目录 `.env.local`，不能依赖 shell 工作目录。
+- 进程环境变量优先于 `.env.local`。
+- `OPENAI_API_KEY` 必须使用 `SecretStr`，并从序列化和日志中排除。
+- 公开状态只能包含 provider、configured、profile 名称、fallback 和安全错误。
+- 禁止暴露 key 内容、片段、长度、Authorization header、model ID 或完整环境变量。
+- 测试只能使用 fake process values 或临时 env 文件。
+- 本阶段不得实例化真实 OpenAI provider，也不得发起模型请求。
+- 确定性 benchmark 始终是事实来源，provider 输出不得替代其计算。
