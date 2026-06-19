@@ -4,6 +4,7 @@ from app.intelligence.dependencies import get_ai_configuration_status
 from app.intelligence.models import (
     AIConfigurationStatus,
     BenchmarkExplanationRequest,
+    ConnectionTestResponse,
     GlobalChatRequest,
     IntelligenceResponse,
     ProjectAnalysisRequest,
@@ -14,6 +15,7 @@ from app.intelligence.models import (
 )
 from app.intelligence.service import (
     IntelligencePlatformError,
+    IntelligenceProviderUnavailableError,
     IntelligenceProjectNotFoundError,
     IntelligenceSectionNotFoundError,
     analyze_project,
@@ -22,6 +24,7 @@ from app.intelligence.service import (
     global_chat,
     project_chat,
     rewrite_report_section,
+    test_connection,
 )
 
 router = APIRouter()
@@ -36,6 +39,11 @@ def _run(action):
         raise HTTPException(status_code=404, detail="Report section not found") from error
     except (IntelligencePlatformError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except IntelligenceProviderUnavailableError as error:
+        raise HTTPException(
+            status_code=502,
+            detail={"error_category": error.category},
+        ) from error
 
 
 @router.get("/intelligence/status", response_model=AIConfigurationStatus)
@@ -43,6 +51,11 @@ def get_intelligence_status(
     status: AIConfigurationStatus = Depends(get_ai_configuration_status),
 ) -> AIConfigurationStatus:
     return status
+
+
+@router.post("/intelligence/connection-test", response_model=ConnectionTestResponse)
+def post_connection_test() -> ConnectionTestResponse:
+    return test_connection()
 
 
 @router.post("/intelligence/global/chat", response_model=IntelligenceResponse)

@@ -145,6 +145,28 @@ This phase does not call OpenAI or any other model. `DeterministicPlaceholderPro
 
 本阶段不会调用 OpenAI 或任何其他模型。当前仍使用 `DeterministicPlaceholderProvider`，确定性 benchmark 评分继续作为事实来源。
 
+## OpenAI Provider And Routing / OpenAI Provider 与路由
+
+When `AI_PROVIDER=openai` and the backend configuration is complete, the provider factory selects `OpenAIProvider`, which uses the official Python SDK and Responses API structured outputs. Incomplete configuration continues safely with the placeholder.
+
+当 `AI_PROVIDER=openai` 且后端配置完整时，provider factory 会选择使用官方 Python SDK 与 Responses API structured outputs 的 `OpenAIProvider`。配置不完整时会安全地继续使用 placeholder。
+
+Default quality routing:
+
+- Global chat and connection test: `fast`
+- Project chat, project analysis, and benchmark explanation: `balanced`
+- Report generation and report section rewrite: `quality`
+
+客户端只能看到 `fast/balanced/quality` profile，具体 model ID 永不出现在公开响应或日志中。
+
+If an OpenAI call fails and fallback is enabled, responses are explicitly marked `mode=deterministic_fallback`, `provider=placeholder`, and include a sanitized `fallback_reason`. With fallback disabled, the API returns only a safe error category.
+
+OpenAI 调用失败且启用 fallback 时，响应会明确标记为 `deterministic_fallback` 和 `provider=placeholder`，并包含脱敏后的 `fallback_reason`。关闭 fallback 时，API 只返回安全错误类别。
+
+- `POST /api/intelligence/connection-test`
+- The connection response never includes model output, model ID, API key, headers, or raw SDK errors.
+- Connection test 响应绝不包含模型输出、model ID、API key、headers 或原始 SDK 错误。
+
 ## Report Output / 报告输出
 
 - Markdown can be copied or downloaded directly from the Report workspace.

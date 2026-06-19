@@ -120,3 +120,27 @@ Frontend compatibility should be checked with `npm.cmd run build` when feasible.
 - 测试只能使用 fake process values 或临时 env 文件。
 - 本阶段不得实例化真实 OpenAI provider，也不得发起模型请求。
 - 确定性 benchmark 始终是事实来源，provider 输出不得替代其计算。
+
+## OpenAI Provider Runtime Rules / OpenAI Provider 运行规则
+
+- Keep all SDK-specific calls inside `openai_provider.py`.
+- Use `ModelRouter`; never branch on concrete model IDs in routes or business services.
+- Use Responses API structured parsing and validate every parsed result.
+- Retry only safe transient categories according to `AI_MAX_RETRIES`.
+- Never expose raw SDK errors; map them to safe categories.
+- Fallback responses must use `deterministic_fallback`, `provider=placeholder`, and a safe reason.
+- Fallback-disabled failures return a sanitized API error only.
+- Report generation/rewrite must not mutate SQLite automatically.
+- Automated tests mock every SDK call and use fake credentials only.
+- Live tests may use an already-present ignored local configuration but must never print or copy its secrets.
+
+- 所有 SDK 调用必须隔离在 `openai_provider.py`。
+- 必须通过 `ModelRouter` 路由；route/business service 不得依赖具体 model ID。
+- 使用 Responses API structured parsing，并校验每个解析结果。
+- 仅按 `AI_MAX_RETRIES` 重试安全的瞬时错误。
+- 原始 SDK 错误不得暴露，必须映射为安全类别。
+- Fallback 响应必须明确标记 `deterministic_fallback`、`provider=placeholder` 和安全原因。
+- 关闭 fallback 时只能返回脱敏 API 错误。
+- 报告生成和改写不得自动修改 SQLite。
+- 自动测试必须 mock 所有 SDK 调用，并只使用 fake credential。
+- Live test 只能使用已存在且被忽略的本地配置，绝不打印或复制 secret。

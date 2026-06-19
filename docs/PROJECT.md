@@ -115,6 +115,32 @@ Phase 1 adds configuration only. It performs no real model calls. Deterministic 
 
 Phase 1 只增加配置基础，不执行真实模型调用。确定性 benchmark 评分继续作为权威事实来源。
 
+## OpenAI Provider Runtime / OpenAI Provider 运行时
+
+The provider factory selects one runtime safely:
+
+- `AI_PROVIDER=placeholder`: deterministic placeholder.
+- Configured `AI_PROVIDER=openai`: real OpenAI Responses API provider.
+- Invalid or incomplete OpenAI configuration: deterministic placeholder.
+- Provider failure with fallback enabled: explicitly labeled deterministic fallback.
+- Provider failure with fallback disabled: sanitized API error category.
+
+Provider factory 会根据配置安全选择运行时；fallback 输出不会伪装成真实 AI 输出。
+
+Task routing uses profile names only:
+
+- `fast`: global chat and connection test.
+- `balanced`: project chat, project analysis, benchmark explanation.
+- `quality`: report generation and section rewrite.
+
+Structured responses are validated before return. Report generation preserves the existing section IDs and titles. Rewrite requests return only one section suggestion and never persist automatically.
+
+所有 structured response 都在返回前通过 Pydantic 校验。报告生成保留既有 section ID/title；分区改写只返回目标分区建议且不会自动持久化。
+
+Deterministic benchmark scores remain immutable source data. OpenAI may explain them but cannot recalculate or replace them. Attachments remain metadata-only.
+
+确定性 benchmark 分数是不可变事实数据；OpenAI 只能解释，不能重新计算或替代。附件仍仅作为 metadata 使用。
+
 ## Current Report Output / 当前报告输出
 
 - Report sections support Edit and Preview modes.

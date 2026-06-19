@@ -197,8 +197,10 @@ class DeterministicPlaceholderProvider:
             )
             for section in workspace.report.sections
         ]
+        response_id = self._id(f"report-generation:{workspace.project.id}:{request.audience}:{workspace.report.version}")
         return ReportGenerationResponse(
-            id=self._id(f"report-generation:{workspace.project.id}:{request.audience}:{workspace.report.version}"),
+            id=response_id,
+            request_id=response_id,
             audience=request.audience,
             sections=sections,
             sources=self._project_sources(workspace, benchmark, include_report=True),
@@ -248,8 +250,10 @@ class DeterministicPlaceholderProvider:
         missing_inputs: list[LocalizedText],
         follow_up_questions: list[LocalizedText],
     ) -> IntelligenceResponse:
+        response_id = self._id(key)
         return IntelligenceResponse(
-            id=self._id(key),
+            id=response_id,
+            request_id=response_id,
             scope=scope,
             answer=answer,
             sources=sources,

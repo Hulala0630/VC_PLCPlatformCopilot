@@ -1,11 +1,22 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 from app.models import Language, LocalizedText
 
 
-IntelligenceMode = Literal["deterministic_placeholder"]
+IntelligenceMode = Literal["deterministic_placeholder", "openai", "deterministic_fallback"]
+IntelligenceProviderName = Literal["openai", "placeholder"]
+SafeProviderError = Literal[
+    "timeout",
+    "authentication",
+    "rate_limit",
+    "provider_server_error",
+    "invalid_response",
+    "unsupported_model",
+    "connection_error",
+    "configuration_error",
+]
 IntelligenceScope = Literal[
     "global",
     "project",
@@ -38,6 +49,10 @@ class GlobalChatRequest(BaseModel):
     question: str
     language: Language
     platform_ids: list[str] = Field(default_factory=list)
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
 
     @field_validator("question")
     @classmethod
@@ -48,6 +63,10 @@ class GlobalChatRequest(BaseModel):
 class ProjectChatRequest(BaseModel):
     question: str
     language: Language
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
 
     @field_validator("question")
     @classmethod
@@ -57,21 +76,37 @@ class ProjectChatRequest(BaseModel):
 
 class ProjectAnalysisRequest(BaseModel):
     language: Language
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
 
 
 class BenchmarkExplanationRequest(BaseModel):
     language: Language
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
 
 
 class ReportGenerationRequest(BaseModel):
     language: Language
     audience: ReportAudience
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
 
 
 class ReportSectionRewriteRequest(BaseModel):
     instruction: str
     language: Language
     audience: ReportAudience
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
 
     @field_validator("instruction")
     @classmethod
@@ -89,6 +124,10 @@ class IntelligenceSource(BaseModel):
 class IntelligenceResponse(BaseModel):
     id: str
     mode: IntelligenceMode = "deterministic_placeholder"
+    provider: IntelligenceProviderName = "placeholder"
+    model_profile: QualityProfile | None = None
+    fallback_reason: SafeProviderError | None = None
+    request_id: str
     scope: IntelligenceScope
     answer: LocalizedText
     sources: list[IntelligenceSource]
@@ -96,7 +135,7 @@ class IntelligenceResponse(BaseModel):
     uncertainty: list[LocalizedText]
     missing_inputs: list[LocalizedText]
     follow_up_questions: list[LocalizedText]
-    ai_used: Literal[False] = False
+    ai_used: bool = False
     document_parsing_used: Literal[False] = False
     generated_at: str
 
@@ -110,6 +149,10 @@ class GeneratedReportSection(BaseModel):
 class ReportGenerationResponse(BaseModel):
     id: str
     mode: IntelligenceMode = "deterministic_placeholder"
+    provider: IntelligenceProviderName = "placeholder"
+    model_profile: QualityProfile | None = None
+    fallback_reason: SafeProviderError | None = None
+    request_id: str
     scope: Literal["report_generation"] = "report_generation"
     audience: ReportAudience
     sections: list[GeneratedReportSection]
@@ -117,7 +160,7 @@ class ReportGenerationResponse(BaseModel):
     assumptions: list[LocalizedText]
     uncertainty: list[LocalizedText]
     missing_inputs: list[LocalizedText]
-    ai_used: Literal[False] = False
+    ai_used: bool = False
     document_parsing_used: Literal[False] = False
     generated_at: str
 
@@ -128,3 +171,11 @@ class AIConfigurationStatus(BaseModel):
     quality_profiles: list[QualityProfile]
     fallback_enabled: bool
     configuration_errors: list[str]
+
+
+class ConnectionTestResponse(BaseModel):
+    connected: bool
+    provider: IntelligenceProviderName
+    model_profile: QualityProfile | None
+    latency_ms: int
+    error_category: SafeProviderError | None

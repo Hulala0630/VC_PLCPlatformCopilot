@@ -1,6 +1,10 @@
+from datetime import UTC, datetime
+from uuid import uuid4
+
 from app.data import ECOSYSTEMS
 from app.intelligence.models import (
     BenchmarkExplanationRequest,
+    ConnectionTestResponse,
     GlobalChatRequest,
     IntelligenceResponse,
     ProjectAnalysisRequest,
@@ -8,8 +12,10 @@ from app.intelligence.models import (
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
+    SafeProviderError,
 )
-from app.intelligence.provider import DeterministicPlaceholderProvider, IntelligenceProvider
+from app.intelligence.openai_provider import OpenAIProvider, ProviderCallError
+from app.intelligence.provider_factory import get_provider_selection
 from app.models import PlcEcosystem, ProjectWorkspace, ReportSection
 from app.services import create_benchmark, get_workspace
 
@@ -26,32 +32,35 @@ class IntelligencePlatformError(ValueError):
     pass
 
 
-provider: IntelligenceProvider = DeterministicPlaceholderProvider()
+class IntelligenceProviderUnavailableError(Exception):
+    def __init__(self, category: SafeProviderError) -> None:
+        super().__init__(category)
+        self.category = category
 
 
 def global_chat(request: GlobalChatRequest) -> IntelligenceResponse:
     platforms = _platforms(request.platform_ids)
-    return provider.global_chat(request, platforms)
+    return _execute("global_chat", request, platforms)
 
 
 def project_chat(project_id: str, request: ProjectChatRequest) -> IntelligenceResponse:
     workspace = _workspace(project_id)
-    return provider.project_chat(request, workspace, create_benchmark(workspace))
+    return _execute("project_chat", request, workspace, create_benchmark(workspace))
 
 
 def analyze_project(project_id: str, request: ProjectAnalysisRequest) -> IntelligenceResponse:
     workspace = _workspace(project_id)
-    return provider.analyze_project(request, workspace, create_benchmark(workspace))
+    return _execute("analyze_project", request, workspace, create_benchmark(workspace))
 
 
 def explain_benchmark(project_id: str, request: BenchmarkExplanationRequest) -> IntelligenceResponse:
     workspace = _workspace(project_id)
-    return provider.explain_benchmark(request, workspace, create_benchmark(workspace))
+    return _execute("explain_benchmark", request, workspace, create_benchmark(workspace))
 
 
 def generate_report(project_id: str, request: ReportGenerationRequest) -> ReportGenerationResponse:
     workspace = _workspace(project_id)
-    return provider.generate_report(request, workspace, create_benchmark(workspace))
+    return _execute("generate_report", request, workspace, create_benchmark(workspace))
 
 
 def rewrite_report_section(
@@ -61,7 +70,52 @@ def rewrite_report_section(
 ) -> IntelligenceResponse:
     workspace = _workspace(project_id)
     section = _section(workspace, section_id)
-    return provider.rewrite_report_section(request, workspace, section, create_benchmark(workspace))
+    return _execute(
+        "rewrite_report_section",
+        request,
+        workspace,
+        section,
+        create_benchmark(workspace),
+    )
+
+
+def test_connection() -> ConnectionTestResponse:
+    selection = get_provider_selection()
+    if selection.openai_active and isinstance(selection.primary, OpenAIProvider):
+        return selection.primary.connection_test()
+    return ConnectionTestResponse(
+        connected=False,
+        provider="placeholder",
+        model_profile=None,
+        latency_ms=0,
+        error_category="configuration_error",
+    )
+
+
+def _execute(method_name: str, *args):
+    selection = get_provider_selection()
+    method = getattr(selection.primary, method_name)
+    try:
+        return method(*args)
+    except ProviderCallError as error:
+        if selection.openai_active and selection.fallback_enabled:
+            fallback = getattr(selection.placeholder, method_name)(*args)
+            return _mark_fallback(fallback, error)
+        raise IntelligenceProviderUnavailableError(error.category) from None
+
+
+def _mark_fallback(response, error: ProviderCallError):
+    return response.model_copy(
+        update={
+            "mode": "deterministic_fallback",
+            "provider": "placeholder",
+            "model_profile": error.profile,
+            "fallback_reason": error.category,
+            "request_id": f"fallback-{uuid4().hex}",
+            "ai_used": False,
+            "generated_at": datetime.now(UTC).isoformat(),
+        }
+    )
 
 
 def _workspace(project_id: str) -> ProjectWorkspace:
