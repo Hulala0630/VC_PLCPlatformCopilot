@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.intelligence.routes import router as intelligence_router
 from app.repository import initialize_repository
 from app.routes import router
 
@@ -36,3 +37,4 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(router, prefix="/api")
+app.include_router(intelligence_router, prefix="/api")

@@ -104,6 +104,32 @@ Recommended checks contribute 30%:
 - `PUT /api/projects/{project_id}/report/sections/{section_id}`
 - `POST /api/benchmark`
 
+## Intelligence Provider Foundation / 智能化 Provider 基础
+
+The backend exposes a frozen intelligence contract backed by `DeterministicPlaceholderProvider`. It is a deterministic suggestion service, not an AI provider.
+
+后端提供由 `DeterministicPlaceholderProvider` 实现的固定智能化契约。它是确定性建议服务，不是 AI provider。
+
+- `POST /api/intelligence/global/chat`
+- `POST /api/projects/{project_id}/intelligence/chat`
+- `POST /api/projects/{project_id}/intelligence/analyze`
+- `POST /api/projects/{project_id}/benchmark/explain`
+- `POST /api/projects/{project_id}/report/generate`
+- `POST /api/projects/{project_id}/report/sections/{section_id}/rewrite`
+
+All responses are bilingual and include sources, assumptions, uncertainty, missing inputs, and explicit provider metadata.
+
+所有响应均包含中英双语内容、来源、假设、不确定性、缺失输入和明确的 provider 元数据。
+
+- `mode = deterministic_placeholder`
+- `ai_used = false`
+- `document_parsing_used = false`
+- Chat, analysis, generated drafts, and rewrite suggestions are not persisted.
+- Report generation and rewrite endpoints never mutate report sections automatically.
+- Benchmark explanation never changes deterministic scores.
+
+聊天、分析、报告建议稿和改写建议均不持久化；报告生成与改写不会自动修改报告分区；Benchmark 解释不会改变确定性评分。
+
 ## Report Output / 报告输出
 
 - Markdown can be copied or downloaded directly from the Report workspace.
