@@ -332,6 +332,18 @@ class FallbackAndRouteTests(unittest.TestCase):
         self.assertEqual(result.fallback_reason, "timeout")
         self.assertFalse(result.ai_used)
 
+    def test_chat_use_ai_false_bypasses_openai_provider(self) -> None:
+        selection = self.selection(fallback=True, effects=[])
+        with patch("app.intelligence.service.get_provider_selection", return_value=selection):
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/intelligence/global/chat",
+                    json={"question": "Compare", "language": "en", "platform_ids": [], "use_ai": False},
+                )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["mode"], "deterministic_placeholder")
+        self.assertFalse(response.json()["ai_used"])
+
     def test_fallback_disabled_returns_sanitized_api_error(self) -> None:
         raw_error = "raw detail with fake-phase-two-key and private-fast-model-id"
         selection = self.selection(fallback=False, effects=[rate_limit_error(raw_error), rate_limit_error(raw_error)])

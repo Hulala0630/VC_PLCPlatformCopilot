@@ -94,11 +94,14 @@ def test_connection() -> ConnectionTestResponse:
 
 def _execute(method_name: str, *args):
     selection = get_provider_selection()
-    method = getattr(selection.primary, method_name)
+    request = args[0] if args else None
+    use_ai = getattr(request, "use_ai", True)
+    provider = selection.primary if use_ai else selection.placeholder
+    method = getattr(provider, method_name)
     try:
         return method(*args)
     except ProviderCallError as error:
-        if selection.openai_active and selection.fallback_enabled:
+        if use_ai and selection.openai_active and selection.fallback_enabled:
             fallback = getattr(selection.placeholder, method_name)(*args)
             return _mark_fallback(fallback, error)
         raise IntelligenceProviderUnavailableError(error.category) from None

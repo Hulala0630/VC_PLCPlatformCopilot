@@ -2,6 +2,8 @@ export type Language = "zh" | "en";
 export type ProjectStatus = "Draft" | "Analyzing" | "Report Ready" | "Finalized";
 export type RiskLevel = "Low" | "Medium" | "High";
 export type ConfidenceLevel = "Low" | "Medium" | "High";
+export type IntelligenceMode = "openai" | "deterministic_placeholder" | "deterministic_fallback";
+export type IntelligenceQuality = "fast" | "balanced" | "quality";
 export type WorkspaceTab = "overview" | "intake" | "preferences" | "attachments" | "benchmark" | "report";
 
 export interface LocalizedText {
@@ -103,9 +105,32 @@ export interface ProjectReadiness {
   reasons: LocalizedText[];
 }
 
+export interface IntelligenceSource {
+  id: string;
+  type: string;
+  label: LocalizedText;
+  detail: LocalizedText;
+}
+
+export interface IntelligenceResult {
+  id: string;
+  mode: IntelligenceMode;
+  qualityProfile: IntelligenceQuality;
+  answer: LocalizedText;
+  sources: IntelligenceSource[];
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  missingInputs: LocalizedText[];
+  followUpQuestions: LocalizedText[];
+  aiUsed: boolean;
+  documentParsingUsed: false;
+  generatedAt: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: LocalizedText;
+  intelligence?: IntelligenceResult;
 }
 
 export interface ProjectWorkspace {

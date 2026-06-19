@@ -25,9 +25,11 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addProjectAttachment,
+  chatGlobalIntelligence,
+  chatProjectIntelligence,
   createProject as apiCreateProject,
   deleteProject as apiDeleteProject,
   finalizeProject,
@@ -40,7 +42,7 @@ import {
   updateProjectStatus as apiUpdateProjectStatus,
   updateReportSection as apiUpdateReportSection,
 } from "./api/client";
-import { ecosystems as fallbackEcosystems, initialMessages, reportSections, workspaces as seedWorkspaces } from "./data/platforms";
+import { ecosystems as fallbackEcosystems, reportSections, workspaces as seedWorkspaces } from "./data/platforms";
 import type {
   BenchmarkResult,
   ChatMessage,
@@ -132,6 +134,25 @@ const copy = {
     projectQuery: "当前项目 Query",
     globalPlaceholder: "询问 PLC 生态选型、平台比较、供应商锁定或长期维护问题",
     projectPlaceholder: "询问当前项目的推荐原因、缺失信息或报告改写",
+    aiToggle: "AI",
+    aiEnabled: "AI 已开启",
+    aiDisabled: "AI 已关闭",
+    globalAiToggle: "切换全局 Query 的 AI 分析",
+    projectAiToggle: "切换当前项目 Query 的 AI 分析",
+    queryEmpty: "还没有对话。输入问题以获得后端分析结果。",
+    queryLoading: "正在分析...",
+    queryFailed: "请求失败。用户问题已保留，请重试。",
+    retry: "重试",
+    aiAnalysis: "AI 智能分析",
+    deterministic: "确定性结果",
+    fallback: "智能服务回退",
+    qualityProfile: "质量档位",
+    fastQuality: "快速",
+    balancedQuality: "平衡",
+    qualityQuality: "高质量",
+    responseContext: "假设与不确定性",
+    attachmentsNotParsed: "附件未解析，仅使用已登记的元信息。",
+    missingInputsQuery: "缺失输入",
     currentWorkResults: "当前工作结果",
     workspaceOverview: "工作台总览",
     createPLCDecisionProject: "创建 PLC 决策项目",
@@ -261,6 +282,25 @@ const copy = {
     projectQuery: "Project Query",
     globalPlaceholder: "Ask about PLC ecosystem selection, platform comparison, vendor lock-in, or maintainability",
     projectPlaceholder: "Ask about this project's recommendation, missing inputs, or report wording",
+    aiToggle: "AI",
+    aiEnabled: "AI on",
+    aiDisabled: "AI off",
+    globalAiToggle: "Toggle AI analysis for Global Query",
+    projectAiToggle: "Toggle AI analysis for this Project Query",
+    queryEmpty: "No conversation yet. Ask a question to receive a backend analysis result.",
+    queryLoading: "Analyzing...",
+    queryFailed: "The request failed. Your question is preserved; please retry.",
+    retry: "Retry",
+    aiAnalysis: "AI Analysis",
+    deterministic: "Deterministic",
+    fallback: "Fallback",
+    qualityProfile: "Quality profile",
+    fastQuality: "Fast",
+    balancedQuality: "Balanced",
+    qualityQuality: "Quality",
+    responseContext: "Assumptions & uncertainty",
+    attachmentsNotParsed: "Attachments were not parsed; only registered metadata was used.",
+    missingInputsQuery: "Missing inputs",
     currentWorkResults: "Current Work Results",
     workspaceOverview: "Workspace Overview",
     createPLCDecisionProject: "Create PLC Decision Project",
@@ -349,6 +389,34 @@ const statusClass: Record<ProjectStatus, string> = {
 
 function localize(value: LocalizedText, language: Language): string {
   return value[language];
+}
+
+const GLOBAL_AI_STORAGE_KEY = "plc-copilot-global-ai-enabled";
+const PROJECT_AI_STORAGE_KEY = "plc-copilot-project-ai-enabled";
+
+function readStoredGlobalAi() {
+  try {
+    return window.localStorage.getItem(GLOBAL_AI_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function readStoredProjectAi() {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(PROJECT_AI_STORAGE_KEY) ?? "{}") as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(stored).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"));
+  } catch {
+    return {};
+  }
+}
+
+function persistStorage(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
+  }
 }
 
 function averageScore(platform: PlcEcosystem) {
@@ -702,18 +770,15 @@ export default function App() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [benchmarkByProject, setBenchmarkByProject] = useState<Record<string, BenchmarkResult[]>>({});
   const [queryScope, setQueryScope] = useState<"global" | "project">("project");
-  const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: {
-        zh: "全局 Query 用于讨论 PLC 生态选型、平台比较、供应商锁定、人才可得性、成本和长期维护。",
-        en: "Global Query is for PLC ecosystem selection, platform comparison, vendor lock-in, talent availability, cost, and long-term maintainability.",
-      },
-    },
-  ]);
+  const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [draftError, setDraftError] = useState("");
   const [projectThreads, setProjectThreads] = useState<Record<string, ChatMessage[]>>({});
+  const [globalAiEnabled, setGlobalAiEnabled] = useState(readStoredGlobalAi);
+  const [projectAiEnabled, setProjectAiEnabled] = useState<Record<string, boolean>>(readStoredProjectAi);
+  const [queryLoadingKey, setQueryLoadingKey] = useState("");
+  const [queryErrors, setQueryErrors] = useState<Record<string, { question: string }>>({});
+  const queryRequestInFlight = useRef(false);
 
   const t = copy[language];
   const workspace = workspaces.find((item) => item.project.id === selectedProjectId) ?? workspaces[0] ?? seedWorkspaces[0];
@@ -722,14 +787,27 @@ export default function App() {
   const benchmarkResults = benchmarkByProject[selectedProjectId] ?? fallbackBenchmarkResults;
   const topResult = benchmarkResults[0];
   const topPlatform = platformCatalog.find((item) => item.id === topResult?.platformId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
-  const projectMessages = projectThreads[selectedProjectId] ?? initialMessages[selectedEcosystemId] ?? [];
+  const projectMessages = projectThreads[selectedProjectId] ?? [];
   const messages = queryScope === "global" ? globalMessages : projectMessages;
+  const activeQueryKey = queryScope === "global" ? "global" : `project:${selectedProjectId}`;
+  const activeAiEnabled = queryScope === "global" ? globalAiEnabled : Boolean(projectAiEnabled[selectedProjectId]);
+  const queryBusy = Boolean(queryLoadingKey);
+  const queryLoading = queryLoadingKey === activeQueryKey;
+  const activeQueryError = queryErrors[activeQueryKey];
   const completeness = calculateCompleteness(workspace);
   const currentReadiness = getWorkspaceReadiness(workspace).readiness;
 
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
   }, [language]);
+
+  useEffect(() => {
+    persistStorage(GLOBAL_AI_STORAGE_KEY, String(globalAiEnabled));
+  }, [globalAiEnabled]);
+
+  useEffect(() => {
+    persistStorage(PROJECT_AI_STORAGE_KEY, JSON.stringify(projectAiEnabled));
+  }, [projectAiEnabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -792,6 +870,16 @@ export default function App() {
     setProjectThreads((current) => {
       const nextMap = { ...current };
       delete nextMap[projectId];
+      return nextMap;
+    });
+    setProjectAiEnabled((current) => {
+      const nextMap = { ...current };
+      delete nextMap[projectId];
+      return nextMap;
+    });
+    setQueryErrors((current) => {
+      const nextMap = { ...current };
+      delete nextMap[`project:${projectId}`];
       return nextMap;
     });
   }
@@ -876,34 +964,60 @@ export default function App() {
     }
   }
 
+  async function submitMessage(question: string, appendUser: boolean) {
+    if (queryRequestInFlight.current) return;
+
+    const requestScope = queryScope;
+    const requestProjectId = selectedProjectId;
+    const requestKey = requestScope === "global" ? "global" : `project:${requestProjectId}`;
+    const useAi = requestScope === "global" ? globalAiEnabled : Boolean(projectAiEnabled[requestProjectId]);
+    const user: ChatMessage = { role: "user", content: { zh: question, en: question } };
+
+    if (appendUser) {
+      if (requestScope === "global") {
+        setGlobalMessages((current) => [...current, user]);
+      } else {
+        setProjectThreads((current) => ({ ...current, [requestProjectId]: [...(current[requestProjectId] ?? []), user] }));
+      }
+    }
+
+    queryRequestInFlight.current = true;
+    setQueryLoadingKey(requestKey);
+    setQueryErrors((current) => {
+      const next = { ...current };
+      delete next[requestKey];
+      return next;
+    });
+    setDraft("");
+    setDraftError("");
+
+    try {
+      const result = requestScope === "global"
+        ? await chatGlobalIntelligence({ question, language, platformIds: [], quality: "fast", useAi })
+        : await chatProjectIntelligence(requestProjectId, { question, language, quality: "balanced", useAi });
+      const assistant: ChatMessage = { role: "assistant", content: result.answer, intelligence: result };
+
+      if (requestScope === "global") {
+        setGlobalMessages((current) => [...current, assistant]);
+      } else {
+        setProjectThreads((current) => ({ ...current, [requestProjectId]: [...(current[requestProjectId] ?? []), assistant] }));
+      }
+    } catch (error) {
+      console.warn("Intelligence request failed.", error);
+      setQueryErrors((current) => ({ ...current, [requestKey]: { question } }));
+    } finally {
+      queryRequestInFlight.current = false;
+      setQueryLoadingKey((current) => (current === requestKey ? "" : current));
+    }
+  }
+
   function sendMessage() {
     const question = draft.trim();
     if (!question) {
       setDraftError(t.emptyQuestion);
       return;
     }
-    const user: ChatMessage = { role: "user", content: { zh: question, en: question } };
-    if (queryScope === "global") {
-      const assistant: ChatMessage = {
-        role: "assistant",
-        content: {
-          zh: "全局选型说明：建议按运动控制、安全、开放性、人才可得性、成本、供应链稳定性和长期维护性比较 PLC 生态。这个回答不绑定任何单个项目。",
-          en: "Global selection note: compare ecosystems by motion, safety, openness, talent availability, cost, supply stability, and long-term maintainability. This answer is not tied to a single project.",
-        },
-      };
-      setGlobalMessages([...globalMessages, user, assistant]);
-    } else {
-      const assistant: ChatMessage = {
-        role: "assistant",
-        content: {
-          zh: `项目说明：这个建议基于当前项目 Intake、平台偏好、确定性 Benchmark 和已登记附件元信息。当前下一步：${nextStepFor(workspace, "zh")} 当前首选为 ${topPlatform.name}。`,
-          en: `Project note: this recommendation is based on the current intake, platform preferences, deterministic benchmark, and registered attachment metadata. Next step: ${nextStepFor(workspace, "en")} Current lead is ${topPlatform.name}.`,
-        },
-      };
-      setProjectThreads({ ...projectThreads, [selectedProjectId]: [...projectMessages, user, assistant] });
-    }
-    setDraft("");
-    setDraftError("");
+    void submitMessage(question, true);
   }
 
   async function saveIntake(next: ProjectWorkspace) {
@@ -1054,18 +1168,38 @@ export default function App() {
             </section>
 
             <section className="flex min-h-0 flex-1 flex-col p-4">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <MessageSquareText className="text-cyan-300" size={18} />
                   <h2 className="text-sm font-semibold">{queryScope === "global" ? t.globalQuery : t.projectQuery}</h2>
                 </div>
-                <div className="inline-flex rounded-md bg-white/10 p-1">
-                  <button className={`rounded px-2 py-1 text-xs font-semibold ${queryScope === "global" ? "bg-white text-slate-950" : "text-slate-300 hover:text-white"}`} onClick={() => setQueryScope("global")}>
-                    {t.global}
-                  </button>
-                  <button className={`rounded px-2 py-1 text-xs font-semibold ${queryScope === "project" ? "bg-white text-slate-950" : "text-slate-300 hover:text-white"}`} onClick={() => setQueryScope("project")}>
-                    {t.projectScope}
-                  </button>
+                <div className="flex items-center gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-white/10 px-2 py-1.5 text-xs font-semibold text-slate-200">
+                    <span>{t.aiToggle}</span>
+                    <input
+                      className="peer sr-only"
+                      type="checkbox"
+                      checked={activeAiEnabled}
+                      onChange={(event) => {
+                        if (queryScope === "global") {
+                          setGlobalAiEnabled(event.target.checked);
+                        } else {
+                          setProjectAiEnabled((current) => ({ ...current, [selectedProjectId]: event.target.checked }));
+                        }
+                      }}
+                      aria-label={queryScope === "global" ? t.globalAiToggle : t.projectAiToggle}
+                    />
+                    <span className="relative h-5 w-9 rounded-full bg-slate-600 transition after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform after:content-[''] peer-checked:bg-cyan-400 peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-cyan-300" />
+                    <span className="sr-only">{activeAiEnabled ? t.aiEnabled : t.aiDisabled}</span>
+                  </label>
+                  <div className="inline-flex rounded-md bg-white/10 p-1">
+                    <button className={`rounded px-2 py-1 text-xs font-semibold ${queryScope === "global" ? "bg-white text-slate-950" : "text-slate-300 hover:text-white"}`} onClick={() => setQueryScope("global")}>
+                      {t.global}
+                    </button>
+                    <button className={`rounded px-2 py-1 text-xs font-semibold ${queryScope === "project" ? "bg-white text-slate-950" : "text-slate-300 hover:text-white"}`} onClick={() => setQueryScope("project")}>
+                      {t.projectScope}
+                    </button>
+                  </div>
                 </div>
               </div>
               {queryScope === "project" ? (
@@ -1080,18 +1214,25 @@ export default function App() {
                 </div>
               )}
               <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                {messages.length === 0 ? <p className="rounded-md border border-dashed border-white/15 p-3 text-xs leading-5 text-slate-400">{t.queryEmpty}</p> : null}
                 {messages.map((message, index) => (
-                  <div key={`${message.role}-${index}`} className={`rounded-md p-3 text-sm leading-6 ${message.role === "assistant" ? "bg-cyan-400/10 text-cyan-50" : "bg-white text-slate-900"}`}>
-                    <p className="mb-1 text-xs font-semibold opacity-70">{message.role === "assistant" ? "Copilot" : "You"}</p>
-                    {localize(message.content, language)}
-                  </div>
+                  <ChatMessageCard key={message.intelligence?.id ?? `${message.role}-${index}`} message={message} labels={t} language={language} />
                 ))}
+                {queryLoading ? <div className="rounded-md bg-cyan-400/10 p-3 text-sm font-semibold text-cyan-100">{t.queryLoading}</div> : null}
               </div>
               <div className="mt-3">
                 {draftError ? <p className="mb-2 text-xs font-medium text-amber-300">{draftError}</p> : null}
+                {activeQueryError ? (
+                  <div className="mb-2 flex items-center justify-between gap-3 rounded-md border border-rose-400/30 bg-rose-400/10 p-2 text-xs text-rose-100">
+                    <span>{t.queryFailed}</span>
+                    <button className="shrink-0 rounded-md bg-white px-2 py-1 font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => void submitMessage(activeQueryError.question, false)} disabled={queryBusy}>
+                      {t.retry}
+                    </button>
+                  </div>
+                ) : null}
                 <div className="flex gap-2">
-                  <textarea className="h-20 min-w-0 flex-1 resize-none rounded-md border border-white/10 bg-slate-900 p-3 text-sm text-white outline-none ring-cyan-400 placeholder:text-slate-500 focus:ring-2" placeholder={queryScope === "global" ? t.globalPlaceholder : t.projectPlaceholder} value={draft} onChange={(event) => setDraft(event.target.value)} />
-                  <button className="inline-flex w-12 items-center justify-center rounded-md bg-cyan-500 text-slate-950 hover:bg-cyan-400" onClick={sendMessage} aria-label={t.send}>
+                  <textarea className="h-20 min-w-0 flex-1 resize-none rounded-md border border-white/10 bg-slate-900 p-3 text-sm text-white outline-none ring-cyan-400 placeholder:text-slate-500 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60" placeholder={queryScope === "global" ? t.globalPlaceholder : t.projectPlaceholder} value={draft} onChange={(event) => { setDraft(event.target.value); setDraftError(""); }} disabled={queryBusy} />
+                  <button className="inline-flex w-12 items-center justify-center rounded-md bg-cyan-500 text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300" onClick={sendMessage} aria-label={t.send} disabled={queryBusy || !draft.trim()}>
                     <Send size={18} />
                   </button>
                 </div>
@@ -1758,6 +1899,66 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
         })}
       </div>
     </Panel>
+  );
+}
+
+function ChatMessageCard({ message, labels, language }: { message: ChatMessage; labels: (typeof copy)[Language]; language: Language }) {
+  if (message.role === "user") {
+    return (
+      <div className="rounded-md bg-white p-3 text-sm leading-6 text-slate-900">
+        <p className="mb-1 text-xs font-semibold text-slate-500">You</p>
+        {localize(message.content, language)}
+      </div>
+    );
+  }
+
+  if (!message.intelligence) {
+    return <div className="rounded-md bg-cyan-400/10 p-3 text-sm leading-6 text-cyan-50">{localize(message.content, language)}</div>;
+  }
+
+  const result = message.intelligence;
+  const modeLabel = result.mode === "openai" ? labels.aiAnalysis : result.mode === "deterministic_fallback" ? labels.fallback : labels.deterministic;
+  const modeClass = result.mode === "openai"
+    ? "bg-cyan-300 text-slate-950"
+    : result.mode === "deterministic_fallback"
+      ? "bg-amber-300 text-amber-950"
+      : "bg-slate-200 text-slate-800";
+  const qualityLabel = result.qualityProfile === "fast" ? labels.fastQuality : result.qualityProfile === "balanced" ? labels.balancedQuality : labels.qualityQuality;
+  const assumptions = result.assumptions.map((item) => localize(item, language));
+  const uncertainty = result.uncertainty.map((item) => localize(item, language));
+  const missingInputs = result.missingInputs.map((item) => localize(item, language));
+
+  return (
+    <div className="rounded-md border border-white/10 bg-cyan-400/10 p-3 text-sm leading-6 text-cyan-50">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="mr-auto text-xs font-semibold text-cyan-100">Copilot</p>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${modeClass}`}>{modeLabel}</span>
+        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-slate-200">{labels.qualityProfile}: {qualityLabel}</span>
+      </div>
+      <p>{localize(message.content, language)}</p>
+      {!result.documentParsingUsed ? <p className="mt-3 rounded-md bg-slate-950/40 px-2 py-1.5 text-xs text-slate-300">{labels.attachmentsNotParsed}</p> : null}
+      <details className="mt-3 rounded-md border border-white/10 bg-slate-950/30 p-2">
+        <summary className="cursor-pointer text-xs font-semibold text-cyan-100">{labels.responseContext}</summary>
+        <div className="mt-3 space-y-3 text-xs leading-5 text-slate-300">
+          <QueryContextList title={labels.assumptions} items={assumptions} />
+          <QueryContextList title={labels.uncertainty} items={uncertainty} />
+          {missingInputs.length ? <QueryContextList title={labels.missingInputsQuery} items={missingInputs} /> : null}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function QueryContextList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <p className="font-semibold text-slate-100">{title}</p>
+      {items.length ? (
+        <ul className="mt-1 list-disc space-y-1 pl-4">
+          {items.map((item) => <li key={item}>{item}</li>)}
+        </ul>
+      ) : <p className="mt-1">-</p>}
+    </div>
   );
 }
 

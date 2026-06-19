@@ -1,5 +1,10 @@
 import type {
   BenchmarkResult,
+  IntelligenceMode,
+  IntelligenceQuality,
+  IntelligenceResult,
+  IntelligenceSource,
+  Language,
   LocalizedText,
   PlatformPreference,
   PlcEcosystem,
@@ -94,10 +99,47 @@ type BackendProjectWorkspace = {
   readiness?: BackendProjectReadiness;
 };
 
+type BackendIntelligenceSource = {
+  id: string;
+  type: string;
+  label: LocalizedText;
+  detail: LocalizedText;
+};
+
+type BackendIntelligenceResponse = {
+  id: string;
+  mode: IntelligenceMode;
+  model_profile: IntelligenceQuality | null;
+  answer: LocalizedText;
+  sources: BackendIntelligenceSource[];
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  missing_inputs: LocalizedText[];
+  follow_up_questions: LocalizedText[];
+  ai_used: boolean;
+  document_parsing_used: false;
+  generated_at: string;
+};
+
 export type ProjectCreatePayload = {
   name: string;
   industry: string;
   goal: string;
+};
+
+export type GlobalIntelligenceChatPayload = {
+  question: string;
+  language: Language;
+  platformIds: string[];
+  quality: IntelligenceQuality;
+  useAi: boolean;
+};
+
+export type ProjectIntelligenceChatPayload = {
+  question: string;
+  language: Language;
+  quality: IntelligenceQuality;
+  useAi: boolean;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -235,6 +277,32 @@ function normalizeReadiness(readiness: BackendProjectReadiness): ProjectReadines
   };
 }
 
+function normalizeIntelligenceSource(source: BackendIntelligenceSource): IntelligenceSource {
+  return {
+    id: source.id,
+    type: source.type,
+    label: source.label,
+    detail: source.detail,
+  };
+}
+
+function normalizeIntelligenceResponse(response: BackendIntelligenceResponse, requestedQuality: IntelligenceQuality): IntelligenceResult {
+  return {
+    id: response.id,
+    mode: response.mode,
+    qualityProfile: response.model_profile ?? requestedQuality,
+    answer: response.answer,
+    sources: response.sources.map(normalizeIntelligenceSource),
+    assumptions: response.assumptions,
+    uncertainty: response.uncertainty,
+    missingInputs: response.missing_inputs,
+    followUpQuestions: response.follow_up_questions,
+    aiUsed: response.ai_used,
+    documentParsingUsed: response.document_parsing_used,
+    generatedAt: response.generated_at,
+  };
+}
+
 function normalizeWorkspace(workspace: BackendProjectWorkspace): ProjectWorkspace {
   return {
     project: {
@@ -275,6 +343,33 @@ export async function getProject(projectId: string): Promise<ProjectWorkspace> {
 
 export async function getProjectReadiness(projectId: string): Promise<ProjectReadiness> {
   return normalizeReadiness(await request<BackendProjectReadiness>(`/api/projects/${projectId}/readiness`));
+}
+
+export async function chatGlobalIntelligence(payload: GlobalIntelligenceChatPayload): Promise<IntelligenceResult> {
+  const response = await request<BackendIntelligenceResponse>("/api/intelligence/global/chat", {
+    method: "POST",
+    body: JSON.stringify({
+      question: payload.question,
+      language: payload.language,
+      platform_ids: payload.platformIds,
+      quality: payload.quality,
+      use_ai: payload.useAi,
+    }),
+  });
+  return normalizeIntelligenceResponse(response, payload.quality);
+}
+
+export async function chatProjectIntelligence(projectId: string, payload: ProjectIntelligenceChatPayload): Promise<IntelligenceResult> {
+  const response = await request<BackendIntelligenceResponse>(`/api/projects/${projectId}/intelligence/chat`, {
+    method: "POST",
+    body: JSON.stringify({
+      question: payload.question,
+      language: payload.language,
+      quality: payload.quality,
+      use_ai: payload.useAi,
+    }),
+  });
+  return normalizeIntelligenceResponse(response, payload.quality);
 }
 
 export async function createProject(payload: ProjectCreatePayload): Promise<ProjectWorkspace> {
