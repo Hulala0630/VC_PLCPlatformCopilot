@@ -9,8 +9,18 @@ dist/
 .vite/
 *.tsbuildinfo
 
+# Local environment and secret files. Keep examples tracked.
 .env
-.env.local
+.env.*
+!.env.example
+!*.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+**/secrets/
+
 *.db
 *.sqlite
 .logs/

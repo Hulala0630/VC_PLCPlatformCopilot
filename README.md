@@ -1,5 +1,31 @@
 # PLC Platform Benchmark & Migration Decision Copilot
 
+## API Key Setup / API 密钥配置
+
+Never paste an API key into source code, frontend environment variables, Git commits, issues, or chat messages. Create a local `.env.local` file in the repository root and keep the real key only on your machine.
+
+请勿将 API Key 粘贴到源代码、前端环境变量、Git 提交、Issue 或聊天消息中。请在仓库根目录创建本地 `.env.local` 文件，真实密钥只保存在你的电脑上。
+
+```powershell
+Copy-Item .env.example .env.local
+notepad .env.local
+```
+
+Set these values in `.env.local` / 在 `.env.local` 中填写：
+
+```dotenv
+AI_PROVIDER=openai
+OPENAI_API_KEY=replace-with-your-local-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+AI_MODEL_FAST=your-fast-model
+AI_MODEL_BALANCED=your-balanced-model
+AI_MODEL_QUALITY=your-quality-model
+```
+
+`.env.local` and common private-key formats are excluded by `.gitignore`. Only `.env.example`, containing empty or non-secret example values, may be committed. If a real key is ever committed or shared, revoke it immediately and create a replacement.
+
+`.env.local` 和常见私钥格式已被 `.gitignore` 排除。只能提交不含秘密信息的 `.env.example`。如果真实密钥曾被提交或分享，请立即撤销并重新创建密钥。
+
 Local-first consulting workspace for PLC ecosystem selection, migration decision support, deterministic benchmarking, and report drafting.
 
 ## Product Boundary
