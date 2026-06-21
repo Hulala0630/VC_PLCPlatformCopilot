@@ -16,6 +16,7 @@ export interface PlcEcosystem {
   name: string;
   vendor: string;
   software: string;
+  officialUrl: string;
   regionStrength: LocalizedText;
   summary: LocalizedText;
   strengths: LocalizedText[];

@@ -19,7 +19,8 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
-type BackendPlcEcosystem = Omit<PlcEcosystem, "regionStrength"> & {
+type BackendPlcEcosystem = Omit<PlcEcosystem, "regionStrength" | "officialUrl"> & {
+  official_url: string;
   region_strength: LocalizedText;
 };
 
@@ -175,6 +176,7 @@ function normalizeEcosystem(item: BackendPlcEcosystem): PlcEcosystem {
     name: item.name,
     vendor: item.vendor,
     software: item.software,
+    officialUrl: item.official_url,
     regionStrength: item.region_strength,
     summary: item.summary,
     strengths: item.strengths,

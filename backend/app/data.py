@@ -18,6 +18,7 @@ ECOSYSTEMS: list[PlcEcosystem] = [
         name="Siemens TIA Portal",
         vendor="Siemens",
         software="TIA Portal / SIMATIC",
+        official_url="https://www.siemens.com/en-us/products/tia-portal/",
         region_strength=LocalizedText(zh="欧洲、中国及大型制造业基础强", en="Strong base in Europe, China, and large manufacturing"),
         summary=LocalizedText(
             zh="适合标准化工厂、长期生命周期管理和大型组织的端到端自动化生态。",
@@ -38,6 +39,7 @@ ECOSYSTEMS: list[PlcEcosystem] = [
         name="CODESYS",
         vendor="CODESYS Group / OEM",
         software="CODESYS Development System",
+        official_url="https://www.codesys.com/products/engineering/",
         region_strength=LocalizedText(zh="跨厂商 OEM 与开放控制器生态", en="Cross-vendor OEM and open controller ecosystem"),
         summary=LocalizedText(
             zh="适合开放硬件策略、多硬件路线和 OEM 控制平台。",
@@ -58,6 +60,7 @@ ECOSYSTEMS: list[PlcEcosystem] = [
         name="Beckhoff TwinCAT",
         vendor="Beckhoff",
         software="TwinCAT 3",
+        official_url="https://www.beckhoff.com/en-en/products/automation/twincat/",
         region_strength=LocalizedText(zh="高性能机器控制与 PC-based control", en="High-performance machine control and PC-based control"),
         summary=LocalizedText(
             zh="适合高速运动控制、虚拟调试和软件定义自动化。",
@@ -78,6 +81,7 @@ ECOSYSTEMS: list[PlcEcosystem] = [
         name="Rockwell Studio 5000",
         vendor="Rockwell Automation",
         software="Studio 5000 / ControlLogix",
+        official_url="https://www.rockwellautomation.com/en-us/products/software/factorytalk/designsuite/studio-5000.html",
         region_strength=LocalizedText(zh="北美大型工厂与资产密集型行业", en="Large North American plants and asset-intensive industries"),
         summary=LocalizedText(
             zh="适合北美装机基础、大型产线和混合自动化场景。",
@@ -98,6 +102,7 @@ ECOSYSTEMS: list[PlcEcosystem] = [
         name="Mitsubishi GX Works",
         vendor="Mitsubishi Electric",
         software="GX Works / MELSEC",
+        official_url="https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/",
         region_strength=LocalizedText(zh="亚洲设备制造与离散自动化", en="Asian machine building and discrete automation"),
         summary=LocalizedText(
             zh="适合成本敏感、设备制造导向和亚洲供应链强相关的项目。",
@@ -117,6 +122,7 @@ ECOSYSTEMS: list[PlcEcosystem] = [
         name="Omron Sysmac",
         vendor="Omron",
         software="Sysmac Studio",
+        official_url="https://automation.omron.com/en/us/products/family/SYSSTDIO",
         region_strength=LocalizedText(zh="机器自动化、视觉和运动控制集成", en="Machine automation, vision, and motion integration"),
         summary=LocalizedText(
             zh="适合机器自动化、运动控制、视觉检测与紧凑型产线控制。",

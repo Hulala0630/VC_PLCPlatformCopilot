@@ -8,6 +8,7 @@ import {
   Copy as CopyIcon,
   Cpu,
   Download,
+  ExternalLink,
   FileText,
   FolderPlus,
   Languages,
@@ -64,6 +65,7 @@ const copy = {
     language: "English",
     newProject: "新建项目",
     ecosystems: "PLC 生态侧边栏",
+    officialWebsite: "打开官方产品页",
     query: "当前项目 Query",
     send: "发送",
     askPlaceholder: "输入项目约束、选型问题或报告修改意见",
@@ -212,6 +214,7 @@ const copy = {
     language: "中文",
     newProject: "New Project",
     ecosystems: "PLC Ecosystems",
+    officialWebsite: "Open official product page",
     query: "Current Project Query",
     send: "Send",
     askPlaceholder: "Enter project constraints, selection questions, or report revision requests",
@@ -1150,19 +1153,33 @@ export default function App() {
               </div>
               <div className="mt-4 grid max-h-[250px] gap-2 overflow-y-auto pr-1">
                 {platformCatalog.map((platform) => (
-                  <button
+                  <div
                     key={platform.id}
-                    className={`rounded-md border p-3 text-left transition ${selectedEcosystemId === platform.id ? "border-cyan-400 bg-cyan-400/15" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
-                    onClick={() => setSelectedEcosystemId(platform.id)}
+                    className={`flex min-h-[66px] items-stretch rounded-md border transition ${selectedEcosystemId === platform.id ? "border-cyan-400 bg-cyan-400/15" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{platform.name}</p>
-                        <p className="truncate text-xs text-slate-400">{platform.software}</p>
+                    <button
+                      className="min-w-0 flex-1 p-3 text-left"
+                      onClick={() => setSelectedEcosystemId(platform.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Cpu className="shrink-0 text-cyan-300" size={18} />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">{platform.name}</p>
+                          <p className="truncate text-xs text-slate-400">{platform.software}</p>
+                        </div>
                       </div>
-                      <Cpu className="shrink-0 text-cyan-300" size={18} />
-                    </div>
-                  </button>
+                    </button>
+                    <a
+                      className="inline-flex w-11 shrink-0 items-center justify-center border-l border-white/10 text-slate-300 hover:bg-white/10 hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
+                      href={platform.officialUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`${t.officialWebsite}: ${platform.name}`}
+                      title={`${t.officialWebsite}: ${platform.name}`}
+                    >
+                      <ExternalLink size={17} />
+                    </a>
+                  </div>
                 ))}
               </div>
             </section>

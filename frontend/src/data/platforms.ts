@@ -6,6 +6,7 @@ export const ecosystems: PlcEcosystem[] = [
     name: "Siemens TIA Portal",
     vendor: "Siemens",
     software: "TIA Portal / SIMATIC",
+    officialUrl: "https://www.siemens.com/en-us/products/tia-portal/",
     regionStrength: { zh: "欧洲与中国制造业基础强", en: "Strong base in Europe and China manufacturing" },
     summary: {
       zh: "适合标准化工厂、长期生命周期管理和大型组织的端到端自动化生态。",
@@ -27,6 +28,7 @@ export const ecosystems: PlcEcosystem[] = [
     name: "CODESYS",
     vendor: "CODESYS Group / OEM",
     software: "CODESYS Development System",
+    officialUrl: "https://www.codesys.com/products/engineering/",
     regionStrength: { zh: "跨厂商 OEM 与开放控制器生态", en: "Cross-vendor OEM and open controller ecosystem" },
     summary: {
       zh: "适合希望降低厂商绑定、采用多硬件策略或构建 OEM 控制平台的团队。",
@@ -48,6 +50,7 @@ export const ecosystems: PlcEcosystem[] = [
     name: "Beckhoff TwinCAT",
     vendor: "Beckhoff",
     software: "TwinCAT 3",
+    officialUrl: "https://www.beckhoff.com/en-en/products/automation/twincat/",
     regionStrength: { zh: "高性能机器控制和 PC-based control", en: "High-performance machine control and PC-based control" },
     summary: {
       zh: "适合高速运动控制、软件定义自动化、虚拟调试和复杂机器控制项目。",
@@ -69,6 +72,7 @@ export const ecosystems: PlcEcosystem[] = [
     name: "Rockwell Studio 5000",
     vendor: "Rockwell Automation",
     software: "Studio 5000 / ControlLogix",
+    officialUrl: "https://www.rockwellautomation.com/en-us/products/software/factorytalk/designsuite/studio-5000.html",
     regionStrength: { zh: "北美大型工厂与资产密集型行业", en: "Large North American plants and asset-intensive industries" },
     summary: {
       zh: "适合北美装机基础、大型产线、过程与离散混合自动化场景。",
@@ -90,6 +94,7 @@ export const ecosystems: PlcEcosystem[] = [
     name: "Mitsubishi GX Works",
     vendor: "Mitsubishi Electric",
     software: "GX Works / MELSEC",
+    officialUrl: "https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/",
     regionStrength: { zh: "亚洲设备制造与离散自动化", en: "Asian machine building and discrete automation" },
     summary: {
       zh: "适合成本敏感、设备制造导向、亚洲供应链强相关的项目。",
@@ -109,6 +114,7 @@ export const ecosystems: PlcEcosystem[] = [
     name: "Omron Sysmac",
     vendor: "Omron",
     software: "Sysmac Studio",
+    officialUrl: "https://automation.omron.com/en/us/products/family/SYSSTDIO",
     regionStrength: { zh: "机器自动化、视觉和运动控制集成", en: "Machine automation, vision, and motion integration" },
     summary: {
       zh: "适合机器自动化、运动控制、视觉检测与紧凑型产线控制。",

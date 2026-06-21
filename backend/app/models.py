@@ -31,6 +31,7 @@ class PlcEcosystem(BaseModel):
     name: str
     vendor: str
     software: str
+    official_url: str
     region_strength: LocalizedText
     summary: LocalizedText
     strengths: list[LocalizedText]
