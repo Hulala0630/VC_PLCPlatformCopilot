@@ -29,14 +29,18 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addProjectAttachment,
+  analyzeProjectIntelligence,
   chatGlobalIntelligence,
   chatProjectIntelligence,
   createProject as apiCreateProject,
   deleteProject as apiDeleteProject,
   finalizeProject,
+  explainProjectBenchmark,
+  generateProjectReport,
   getEcosystems,
   getProjects,
   reopenProject,
+  rewriteProjectReportSection,
   runProjectBenchmark,
   updateProjectIntake,
   updateProjectPreferences,
@@ -47,6 +51,7 @@ import { ecosystems as fallbackEcosystems, reportSections, workspaces as seedWor
 import type {
   BenchmarkResult,
   ChatMessage,
+  IntelligenceResult,
   Language,
   LocalizedText,
   PlcEcosystem,
@@ -54,6 +59,7 @@ import type {
   ProjectReadiness,
   ProjectStatus,
   ProjectWorkspace,
+  ReportGenerationResult,
   ReportSection,
   WorkspaceTab,
 } from "./types";
@@ -88,9 +94,9 @@ const copy = {
     finalScore: "最终评分",
     weightedScore: "加权总分",
     risk: "风险",
-    assumptions: "Assumptions",
-    uncertainty: "Uncertainty",
-    dataSources: "Data sources used",
+    assumptions: "假设",
+    uncertainty: "不确定性",
+    dataSources: "使用的数据来源",
     reportSections: "报告目录",
     sectionEditor: "文档编辑器",
     rightPanel: "依据面板",
@@ -155,6 +161,28 @@ const copy = {
     responseContext: "假设与不确定性",
     attachmentsNotParsed: "附件未解析，仅使用已登记的元信息。",
     missingInputsQuery: "缺失输入",
+    analyzeRegisteredInfo: "分析已登记资料",
+    explainRanking: "解释排名",
+    generateReportDraft: "生成报告草稿",
+    analysisResult: "分析结果",
+    followUpQuestions: "后续问题",
+    actionFailed: "操作失败，请重试。已有结果未被修改。",
+    intelligenceUsesProjectSwitch: "使用当前项目 AI 开关",
+    reportSuggestions: "报告草稿建议",
+    suggestionsNotSaved: "建议尚未保存。只有接受后才会写入报告分区。",
+    acceptSection: "接受此分区",
+    acceptAll: "接受全部",
+    discardSuggestions: "放弃建议",
+    currentContent: "当前内容",
+    suggestedContent: "建议内容",
+    rewriteInstruction: "改写要求",
+    rewritePlaceholder: "例如：更精炼地面向管理层说明推荐理由和主要风险",
+    suggestRewrite: "生成改写建议",
+    accept: "接受",
+    discard: "放弃",
+    sectionRewrite: "分区改写建议",
+    noPersistenceBeforeAccept: "生成建议不会自动覆盖或保存当前报告。",
+    accepted: "已接受",
     currentWorkResults: "当前工作结果",
     workspaceOverview: "工作台总览",
     createPLCDecisionProject: "创建 PLC 决策项目",
@@ -304,6 +332,28 @@ const copy = {
     responseContext: "Assumptions & uncertainty",
     attachmentsNotParsed: "Attachments were not parsed; only registered metadata was used.",
     missingInputsQuery: "Missing inputs",
+    analyzeRegisteredInfo: "Analyze registered information",
+    explainRanking: "Explain ranking",
+    generateReportDraft: "Generate report draft",
+    analysisResult: "Analysis result",
+    followUpQuestions: "Follow-up questions",
+    actionFailed: "The action failed. Retry without changing the existing result.",
+    intelligenceUsesProjectSwitch: "Uses the current project AI switch",
+    reportSuggestions: "Report draft suggestions",
+    suggestionsNotSaved: "Suggestions are not saved. Only accepted sections are written to the report.",
+    acceptSection: "Accept section",
+    acceptAll: "Accept all",
+    discardSuggestions: "Discard suggestions",
+    currentContent: "Current content",
+    suggestedContent: "Suggested content",
+    rewriteInstruction: "Rewrite instruction",
+    rewritePlaceholder: "Example: explain the recommendation and key risks more concisely for management",
+    suggestRewrite: "Suggest rewrite",
+    accept: "Accept",
+    discard: "Discard",
+    sectionRewrite: "Section rewrite suggestion",
+    noPersistenceBeforeAccept: "Generating a suggestion never overwrites or saves the current report automatically.",
+    accepted: "Accepted",
     currentWorkResults: "Current Work Results",
     workspaceOverview: "Workspace Overview",
     createPLCDecisionProject: "Create PLC Decision Project",
@@ -799,6 +849,7 @@ export default function App() {
   const activeQueryError = queryErrors[activeQueryKey];
   const completeness = calculateCompleteness(workspace);
   const currentReadiness = getWorkspaceReadiness(workspace).readiness;
+  const currentProjectAiEnabled = Boolean(projectAiEnabled[workspace.project.id]);
 
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
@@ -1102,10 +1153,12 @@ export default function App() {
       });
       replaceWorkspace(saved);
       noteSaved();
+      return saved;
     } catch (error) {
       console.warn("Report section save used local fallback.", error);
       updateWorkspace(fallbackWorkspace);
       noteFailed();
+      return fallbackWorkspace;
     }
   }
 
@@ -1326,9 +1379,9 @@ export default function App() {
           {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} setActiveTab={setActiveTab} /> : null}
           {workspaceView === "project" && activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
-          {workspaceView === "project" && activeTab === "attachments" ? <Attachments workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} /> : null}
-          {workspaceView === "project" && activeTab === "benchmark" ? <Benchmark results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} /> : null}
-          {workspaceView === "project" && activeTab === "report" ? <ReportBuilder workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} updateLifecycleStatus={updateLifecycleStatus} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} /> : null}
+          {workspaceView === "project" && activeTab === "attachments" ? <Attachments key={workspace.project.id} workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} useAi={currentProjectAiEnabled} /> : null}
+          {workspaceView === "project" && activeTab === "benchmark" ? <Benchmark key={workspace.project.id} results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} useAi={currentProjectAiEnabled} /> : null}
+          {workspaceView === "project" && activeTab === "report" ? <ReportBuilder key={workspace.project.id} workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} updateLifecycleStatus={updateLifecycleStatus} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} /> : null}
         </div>
       </section>
     </main>
@@ -1801,8 +1854,95 @@ function Preferences({
   );
 }
 
-function Attachments({ workspace, registerAttachment, labels, language }: { workspace: ProjectWorkspace; registerAttachment: (projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>; labels: (typeof copy)[Language]; language: Language }) {
+function useIntelligenceAction<T>() {
+  const [result, setResult] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const lastAction = useRef<(() => Promise<T>) | null>(null);
+  const busy = useRef(false);
+
+  async function run(action: () => Promise<T>) {
+    if (busy.current) return undefined;
+    busy.current = true;
+    lastAction.current = action;
+    setLoading(true);
+    setError(false);
+    try {
+      const next = await action();
+      setResult(next);
+      return next;
+    } catch (actionError) {
+      console.warn("Project intelligence action failed.", actionError);
+      setError(true);
+      return undefined;
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  }
+
+  function retry() {
+    if (lastAction.current) void run(lastAction.current);
+  }
+
+  function reset() {
+    setResult(null);
+    setError(false);
+    lastAction.current = null;
+  }
+
+  return { result, setResult, loading, error, run, retry, reset };
+}
+
+function IntelligenceModeBadge({ result, labels }: { result: Pick<IntelligenceResult, "mode" | "qualityProfile">; labels: (typeof copy)[Language] }) {
+  const modeLabel = result.mode === "openai" ? labels.aiAnalysis : result.mode === "deterministic_fallback" ? labels.fallback : labels.deterministic;
+  const modeClass = result.mode === "openai" ? "bg-cyan-100 text-cyan-900" : result.mode === "deterministic_fallback" ? "bg-amber-100 text-amber-900" : "bg-slate-200 text-slate-800";
+  const qualityLabel = result.qualityProfile === "fast" ? labels.fastQuality : result.qualityProfile === "balanced" ? labels.balancedQuality : labels.qualityQuality;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${modeClass}`}>{modeLabel}</span>
+      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{labels.qualityProfile}: {qualityLabel}</span>
+    </div>
+  );
+}
+
+function IntelligenceResultPanel({ result, labels, language }: { result: IntelligenceResult; labels: (typeof copy)[Language]; language: Language }) {
+  return (
+    <div className="rounded-md border border-cyan-200 bg-cyan-50/60 p-4">
+      <IntelligenceModeBadge result={result} labels={labels} />
+      <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-800">{localize(result.answer, language)}</p>
+      {!result.documentParsingUsed ? <p className="mt-4 rounded-md bg-white px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.attachmentsNotParsed}</p> : null}
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <LightEvidenceList title={labels.missingInputsQuery} items={result.missingInputs.map((item) => localize(item, language))} />
+        <LightEvidenceList title={labels.followUpQuestions} items={result.followUpQuestions.map((item) => localize(item, language))} />
+        <LightEvidenceList title={labels.assumptions} items={result.assumptions.map((item) => localize(item, language))} />
+        <LightEvidenceList title={labels.uncertainty} items={result.uncertainty.map((item) => localize(item, language))} />
+      </div>
+    </div>
+  );
+}
+
+function LightEvidenceList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-md bg-white p-3 ring-1 ring-slate-200">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      {items.length ? <ul className="mt-2 list-disc space-y-1 pl-4 text-sm leading-6 text-slate-600">{items.map((item) => <li key={item}>{item}</li>)}</ul> : <p className="mt-2 text-sm text-slate-400">-</p>}
+    </div>
+  );
+}
+
+function ActionError({ labels, retry, disabled }: { labels: (typeof copy)[Language]; retry: () => void; disabled: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+      <span>{labels.actionFailed}</span>
+      <button className="rounded-md bg-white px-3 py-1.5 font-semibold ring-1 ring-rose-200 hover:bg-rose-100 disabled:opacity-50" onClick={retry} disabled={disabled}>{labels.retry}</button>
+    </div>
+  );
+}
+
+function Attachments({ workspace, registerAttachment, labels, language, useAi }: { workspace: ProjectWorkspace; registerAttachment: (projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>; labels: (typeof copy)[Language]; language: Language; useAi: boolean }) {
   const [form, setForm] = useState({ fileName: "", fileType: "Requirements" as ProjectAttachment["fileType"], declaredPurpose: "" });
+  const analysis = useIntelligenceAction<IntelligenceResult>();
 
   function addAttachment() {
     if (!form.fileName.trim()) return;
@@ -1865,17 +2005,38 @@ function Attachments({ workspace, registerAttachment, labels, language }: { work
           </div>
         )}
       </Panel>
+      <div className="xl:col-span-2">
+        <Panel title={labels.analysisResult} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void analysis.run(() => analyzeProjectIntelligence(workspace.project.id, { language, quality: "balanced", useAi }))} disabled={analysis.loading}>
+              <Sparkles size={16} />
+              {analysis.loading ? labels.queryLoading : labels.analyzeRegisteredInfo}
+            </button>
+            <p className="text-xs font-semibold text-slate-500">{labels.attachmentsNotParsed}</p>
+          </div>
+          {analysis.error ? <div className="mt-4"><ActionError labels={labels} retry={analysis.retry} disabled={analysis.loading} /></div> : null}
+          {analysis.result ? <div className="mt-4"><IntelligenceResultPanel result={analysis.result} labels={labels} language={language} /></div> : null}
+        </Panel>
+      </div>
     </div>
   );
 }
 
-function Benchmark({ results, workspace, platformCatalog, labels, language, onRunBenchmark }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language; onRunBenchmark: (projectId: string) => void | Promise<void> }) {
+function Benchmark({ results, workspace, platformCatalog, labels, language, onRunBenchmark, useAi }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language; onRunBenchmark: (projectId: string) => void | Promise<void>; useAi: boolean }) {
+  const explanation = useIntelligenceAction<IntelligenceResult>();
   return (
-    <Panel title={labels.benchmark} description={language === "zh" ? "咨询 dashboard：技术分 + 用户倾向 = 最终排序。" : "Consulting dashboard: technical score + user preference = final ranking."}>
-      <button className="mb-4 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => onRunBenchmark(workspace.project.id)}>
-        <RefreshCw size={16} />
-        {language === "zh" ? "运行 Benchmark" : "Run Benchmark"}
-      </button>
+    <div className="space-y-5">
+      <Panel title={labels.benchmark} description={language === "zh" ? "咨询 dashboard：技术分 + 用户倾向 = 最终排序。" : "Consulting dashboard: technical score + user preference = final ranking."}>
+      <div className="mb-4 flex flex-wrap gap-3">
+        <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => onRunBenchmark(workspace.project.id)}>
+          <RefreshCw size={16} />
+          {language === "zh" ? "运行 Benchmark" : "Run Benchmark"}
+        </button>
+        <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void explanation.run(() => explainProjectBenchmark(workspace.project.id, { language, quality: "balanced", useAi }))} disabled={explanation.loading || results.length === 0}>
+          <Sparkles size={16} />
+          {explanation.loading ? labels.queryLoading : labels.explainRanking}
+        </button>
+      </div>
       <div className="grid gap-4">
         {results.map((result, index) => {
           const platform = platformCatalog.find((item) => item.id === result.platformId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
@@ -1915,7 +2076,13 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
           );
         })}
       </div>
-    </Panel>
+      </Panel>
+      <Panel title={labels.explainRanking} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
+        <p className="mb-4 text-sm text-slate-600">{language === "zh" ? "该说明独立于确定性评分，不会修改排名或图表。" : "This explanation is separate from deterministic scoring and cannot modify rankings or charts."}</p>
+        {explanation.error ? <ActionError labels={labels} retry={explanation.retry} disabled={explanation.loading} /> : null}
+        {explanation.result ? <IntelligenceResultPanel result={explanation.result} labels={labels} language={language} /> : <p className="rounded-md border border-dashed border-slate-300 p-5 text-sm text-slate-500">{labels.explainRanking}</p>}
+      </Panel>
+    </div>
   );
 }
 
@@ -1990,10 +2157,11 @@ function ReportBuilder({
   setActiveSectionId,
   benchmarkResults,
   platformCatalog,
+  useAi,
 }: {
   workspace: ProjectWorkspace;
   updateWorkspace: (workspace: ProjectWorkspace) => void;
-  saveReportSection: (projectId: string, section: ReportSection, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>;
+  saveReportSection: (projectId: string, section: ReportSection, fallbackWorkspace: ProjectWorkspace) => ProjectWorkspace | Promise<ProjectWorkspace>;
   updateLifecycleStatus: (projectId: string, status: ProjectStatus) => void | Promise<void>;
   labels: (typeof copy)[Language];
   language: Language;
@@ -2001,13 +2169,18 @@ function ReportBuilder({
   setActiveSectionId: (id: string) => void;
   benchmarkResults: BenchmarkResult[];
   platformCatalog: PlcEcosystem[];
+  useAi: boolean;
 }) {
   const section = workspace.report.sections.find((item) => item.id === activeSectionId) ?? workspace.report.sections[0];
-  const topPlatform = platformCatalog.find((item) => item.id === benchmarkResults[0]?.platformId);
   const { readiness } = getWorkspaceReadiness(workspace);
   const [reportMode, setReportMode] = useState<"edit" | "preview">("edit");
   const [markdownCopied, setMarkdownCopied] = useState(false);
   const [exportState, setExportState] = useState<"idle" | "ppt" | "failed">("idle");
+  const [rewriteInstruction, setRewriteInstruction] = useState("");
+  const [rewriteSectionId, setRewriteSectionId] = useState("");
+  const [acceptingSuggestions, setAcceptingSuggestions] = useState(false);
+  const reportDraft = useIntelligenceAction<ReportGenerationResult>();
+  const rewrite = useIntelligenceAction<IntelligenceResult>();
   const markdown = useMemo(() => buildReportMarkdown(workspace, benchmarkResults, readiness, language, platformCatalog), [benchmarkResults, language, platformCatalog, readiness, workspace]);
   const missingInputs = missingInputLabels(readiness, language);
   const deliveryDataSources = uniqueStrings([
@@ -2082,35 +2255,69 @@ function ReportBuilder({
     });
   }
 
-  function regenerateSection() {
-    if (!section) return;
-    const generated: ReportSection = {
-      ...section,
-      body: {
-        zh: `基于当前输入、偏好权重与 mock 平台评分，${topPlatform?.name ?? "候选平台"} 是当前排序最高的平台。本分区由前端确定性逻辑重算，未调用真实 AI，未解析附件。`,
-        en: `Based on current inputs, preference weights, and mock platform scoring, ${topPlatform?.name ?? "the candidate platform"} ranks highest. This section was recalculated by deterministic frontend logic, with no real AI call and no file parsing.`,
-      },
-      assumptions: [
-        { zh: "技术评分来自 mock 平台 profile。", en: "Technical score comes from mock platform profiles." },
-        { zh: "附件仅作为元信息来源登记。", en: "Attachments are registered as metadata only." },
-      ],
-      uncertainty: {
-        zh: "正式结论仍需真实供应商、成本、交期和现场约束确认。",
-        en: "A formal conclusion still needs real vendor, cost, delivery, and site-constraint confirmation.",
-      },
-      dataSourcesUsed: [
-        { zh: "Intake 表单", en: "Intake form" },
-        { zh: "偏好滑块", en: "Preference sliders" },
-        { zh: "Benchmark 排名", en: "Benchmark ranking" },
-      ],
+  function applySectionToWorkspace(base: ProjectWorkspace, next: ReportSection): ProjectWorkspace {
+    return {
+      ...base,
+      project: { ...base.project, updatedAt: today },
+      report: { ...base.report, sections: base.report.sections.map((item) => (item.id === next.id ? next : item)) },
+    };
+  }
+
+  function sectionFromSuggestion(base: ReportSection, body: LocalizedText, assumptions: LocalizedText[], uncertainty: LocalizedText[]) {
+    return {
+      ...base,
+      body,
+      assumptions: assumptions.length ? assumptions : base.assumptions,
+      uncertainty: uncertainty[0] ?? base.uncertainty,
       lastGeneratedAt: today,
     };
-    const fallbackWorkspace: ProjectWorkspace = {
-      ...workspace,
-      project: { ...workspace.project, status: "Report Ready", updatedAt: today },
-      report: { ...workspace.report, sections: workspace.report.sections.map((item) => (item.id === section.id ? generated : item)), status: "Ready" },
-    };
-    saveReportSection(workspace.project.id, generated, fallbackWorkspace);
+  }
+
+  async function acceptGeneratedSection(sectionId: string) {
+    const suggestion = reportDraft.result?.sections.find((item) => item.sectionId === sectionId);
+    const current = workspace.report.sections.find((item) => item.id === sectionId);
+    if (!suggestion || !current || acceptingSuggestions) return;
+    setAcceptingSuggestions(true);
+    const next = sectionFromSuggestion(current, suggestion.draftBody, reportDraft.result?.assumptions ?? [], reportDraft.result?.uncertainty ?? []);
+    await saveReportSection(workspace.project.id, next, applySectionToWorkspace(workspace, next));
+    reportDraft.setResult((existing) => {
+      if (!existing) return existing;
+      const remaining = existing.sections.filter((item) => item.sectionId !== sectionId);
+      return remaining.length ? { ...existing, sections: remaining } : null;
+    });
+    setAcceptingSuggestions(false);
+  }
+
+  async function acceptAllGeneratedSections() {
+    if (!reportDraft.result || acceptingSuggestions) return;
+    setAcceptingSuggestions(true);
+    let rollingWorkspace = workspace;
+    for (const suggestion of reportDraft.result.sections) {
+      const current = rollingWorkspace.report.sections.find((item) => item.id === suggestion.sectionId);
+      if (!current) continue;
+      const next = sectionFromSuggestion(current, suggestion.draftBody, reportDraft.result.assumptions, reportDraft.result.uncertainty);
+      const fallback = applySectionToWorkspace(rollingWorkspace, next);
+      rollingWorkspace = await saveReportSection(workspace.project.id, next, fallback);
+    }
+    reportDraft.reset();
+    setAcceptingSuggestions(false);
+  }
+
+  async function acceptRewriteSuggestion() {
+    if (!section || !rewrite.result || rewriteSectionId !== section.id || acceptingSuggestions) return;
+    setAcceptingSuggestions(true);
+    const next = sectionFromSuggestion(section, rewrite.result.answer, rewrite.result.assumptions, rewrite.result.uncertainty);
+    await saveReportSection(workspace.project.id, next, applySectionToWorkspace(workspace, next));
+    rewrite.reset();
+    setRewriteInstruction("");
+    setAcceptingSuggestions(false);
+  }
+
+  function selectReportSection(sectionId: string) {
+    setActiveSectionId(sectionId);
+    setRewriteInstruction("");
+    setRewriteSectionId("");
+    rewrite.reset();
   }
 
   if (!section) {
@@ -2118,7 +2325,50 @@ function ReportBuilder({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+    <div className="space-y-5">
+      <Panel title={labels.reportSuggestions} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
+        <div className="flex flex-wrap items-center gap-3">
+          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void reportDraft.run(() => generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi }))} disabled={reportDraft.loading || acceptingSuggestions}>
+            <Sparkles size={16} />
+            {reportDraft.loading ? labels.queryLoading : labels.generateReportDraft}
+          </button>
+          <p className="text-sm text-slate-600">{labels.suggestionsNotSaved}</p>
+        </div>
+        {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} disabled={reportDraft.loading} /></div> : null}
+        {reportDraft.result ? (
+          <div className="mt-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <IntelligenceModeBadge result={reportDraft.result} labels={labels} />
+              <div className="flex flex-wrap gap-2">
+                <button className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50" onClick={() => void acceptAllGeneratedSections()} disabled={acceptingSuggestions}>{labels.acceptAll}</button>
+                <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={reportDraft.reset} disabled={acceptingSuggestions}>{labels.discardSuggestions}</button>
+              </div>
+            </div>
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{labels.noPersistenceBeforeAccept}</p>
+            <div className="grid gap-4 xl:grid-cols-2">
+              {reportDraft.result.sections.map((suggestion) => {
+                const current = workspace.report.sections.find((item) => item.id === suggestion.sectionId);
+                return (
+                  <div key={suggestion.sectionId} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="font-semibold text-slate-950">{localize(suggestion.title, language)}</h3>
+                    <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-md bg-white p-3 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-600">{current ? localize(current.body, language) : "-"}</p></div>
+                      <div className="rounded-md bg-cyan-50 p-3 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.suggestedContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-700">{localize(suggestion.draftBody, language)}</p></div>
+                    </div>
+                    <button className="mt-3 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50" onClick={() => void acceptGeneratedSection(suggestion.sectionId)} disabled={acceptingSuggestions}>{labels.acceptSection}</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid gap-3 lg:grid-cols-3">
+              <LightEvidenceList title={labels.assumptions} items={reportDraft.result.assumptions.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.uncertainty} items={reportDraft.result.uncertainty.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.missingInputsQuery} items={reportDraft.result.missingInputs.map((item) => localize(item, language))} />
+            </div>
+          </div>
+        ) : null}
+      </Panel>
+      <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
       <Panel title={labels.reportSections} description={`v${workspace.report.version} · ${workspace.report.status}`}>
         <div className="mb-4 rounded-md bg-slate-50 p-2">
           <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.reportMode}</p>
@@ -2132,7 +2382,7 @@ function ReportBuilder({
         </div>
         <div className="space-y-2">
           {workspace.report.sections.map((item, index) => (
-            <button key={item.id} className={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${item.id === section.id ? "bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200" : "bg-slate-50 text-slate-700 hover:bg-slate-100"}`} onClick={() => setActiveSectionId(item.id)}>
+            <button key={item.id} className={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${item.id === section.id ? "bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200" : "bg-slate-50 text-slate-700 hover:bg-slate-100"}`} onClick={() => selectReportSection(item.id)}>
               <span className="mr-2 text-xs text-slate-400">{String(index + 1).padStart(2, "0")}</span>
               {localize(item.title, language)}
             </button>
@@ -2188,11 +2438,41 @@ function ReportBuilder({
                 <Save size={16} />
                 {labels.save}
               </button>
-              <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={regenerateSection}>
-                <RefreshCw size={16} />
-                {labels.regenerateSection}
-              </button>
               <p className="text-xs text-slate-500">{labels.updated}: {section.lastGeneratedAt}</p>
+            </div>
+            <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-slate-950">{labels.sectionRewrite}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{labels.noPersistenceBeforeAccept} · {labels.intelligenceUsesProjectSwitch}: {useAi ? labels.aiEnabled : labels.aiDisabled}</p>
+                </div>
+                {rewrite.result && rewriteSectionId === section.id ? <IntelligenceModeBadge result={rewrite.result} labels={labels} /> : null}
+              </div>
+              <label className="mt-4 grid gap-2 text-sm font-semibold text-slate-700">
+                {labels.rewriteInstruction}
+                <textarea className="min-h-24 resize-y rounded-md border border-slate-300 bg-white p-3 font-normal outline-none focus:ring-2 focus:ring-cyan-400" value={rewriteInstruction} placeholder={labels.rewritePlaceholder} onChange={(event) => setRewriteInstruction(event.target.value)} />
+              </label>
+              <button className="mt-3 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => { setRewriteSectionId(section.id); void rewrite.run(() => rewriteProjectReportSection(workspace.project.id, section.id, { instruction: rewriteInstruction.trim(), language, audience: "executive", quality: "quality", useAi })); }} disabled={rewrite.loading || acceptingSuggestions || !rewriteInstruction.trim()}>
+                <Sparkles size={16} />
+                {rewrite.loading ? labels.queryLoading : labels.suggestRewrite}
+              </button>
+              {rewrite.error && rewriteSectionId === section.id ? <div className="mt-4"><ActionError labels={labels} retry={rewrite.retry} disabled={rewrite.loading} /></div> : null}
+              {rewrite.result && rewriteSectionId === section.id ? (
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-md bg-white p-4 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(section.body, language)}</p></div>
+                    <div className="rounded-md bg-cyan-50 p-4 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.suggestedContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(rewrite.result.answer, language)}</p></div>
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <LightEvidenceList title={labels.assumptions} items={rewrite.result.assumptions.map((item) => localize(item, language))} />
+                    <LightEvidenceList title={labels.uncertainty} items={rewrite.result.uncertainty.map((item) => localize(item, language))} />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50" onClick={() => void acceptRewriteSuggestion()} disabled={acceptingSuggestions}>{labels.accept}</button>
+                    <button className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50" onClick={() => { rewrite.reset(); setRewriteInstruction(""); setRewriteSectionId(""); }} disabled={acceptingSuggestions}>{labels.discard}</button>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <SectionContextPanel section={section} readiness={readiness} labels={labels} language={language} />
           </>
@@ -2213,6 +2493,7 @@ function ReportBuilder({
         <EvidenceBlock title={labels.uncertainty} items={deliveryUncertainty} />
         <EvidenceBlock title={labels.missingInputs} items={missingInputs.length ? missingInputs : [labels.noMissingInputs]} />
       </Panel>
+    </div>
     </div>
   );
 }

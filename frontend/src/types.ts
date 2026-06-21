@@ -4,6 +4,7 @@ export type RiskLevel = "Low" | "Medium" | "High";
 export type ConfidenceLevel = "Low" | "Medium" | "High";
 export type IntelligenceMode = "openai" | "deterministic_placeholder" | "deterministic_fallback";
 export type IntelligenceQuality = "fast" | "balanced" | "quality";
+export type ReportAudience = "executive" | "technical" | "management" | "sales";
 export type WorkspaceTab = "overview" | "intake" | "preferences" | "attachments" | "benchmark" | "report";
 
 export interface LocalizedText {
@@ -123,6 +124,27 @@ export interface IntelligenceResult {
   uncertainty: LocalizedText[];
   missingInputs: LocalizedText[];
   followUpQuestions: LocalizedText[];
+  aiUsed: boolean;
+  documentParsingUsed: false;
+  generatedAt: string;
+}
+
+export interface GeneratedReportSection {
+  sectionId: string;
+  title: LocalizedText;
+  draftBody: LocalizedText;
+}
+
+export interface ReportGenerationResult {
+  id: string;
+  mode: IntelligenceMode;
+  qualityProfile: IntelligenceQuality;
+  audience: ReportAudience;
+  sections: GeneratedReportSection[];
+  sources: IntelligenceSource[];
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  missingInputs: LocalizedText[];
   aiUsed: boolean;
   documentParsingUsed: false;
   generatedAt: string;

@@ -14,6 +14,8 @@ import type {
   ProjectReadiness,
   ProjectStatus,
   ProjectWorkspace,
+  ReportAudience,
+  ReportGenerationResult,
   ReportSection,
 } from "../types";
 
@@ -122,6 +124,25 @@ type BackendIntelligenceResponse = {
   generated_at: string;
 };
 
+type BackendReportGenerationResponse = {
+  id: string;
+  mode: IntelligenceMode;
+  model_profile: IntelligenceQuality | null;
+  audience: ReportAudience;
+  sections: Array<{
+    section_id: string;
+    title: LocalizedText;
+    draft_body: LocalizedText;
+  }>;
+  sources: BackendIntelligenceSource[];
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  missing_inputs: LocalizedText[];
+  ai_used: boolean;
+  document_parsing_used: false;
+  generated_at: string;
+};
+
 export type ProjectCreatePayload = {
   name: string;
   industry: string;
@@ -141,6 +162,20 @@ export type ProjectIntelligenceChatPayload = {
   language: Language;
   quality: IntelligenceQuality;
   useAi: boolean;
+};
+
+export type ProjectIntelligenceActionPayload = {
+  language: Language;
+  quality: IntelligenceQuality;
+  useAi: boolean;
+};
+
+export type ReportGenerationPayload = ProjectIntelligenceActionPayload & {
+  audience: ReportAudience;
+};
+
+export type ReportSectionRewritePayload = ReportGenerationPayload & {
+  instruction: string;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -305,6 +340,27 @@ function normalizeIntelligenceResponse(response: BackendIntelligenceResponse, re
   };
 }
 
+function normalizeReportGenerationResponse(response: BackendReportGenerationResponse, requestedQuality: IntelligenceQuality): ReportGenerationResult {
+  return {
+    id: response.id,
+    mode: response.mode,
+    qualityProfile: response.model_profile ?? requestedQuality,
+    audience: response.audience,
+    sections: response.sections.map((section) => ({
+      sectionId: section.section_id,
+      title: section.title,
+      draftBody: section.draft_body,
+    })),
+    sources: response.sources.map(normalizeIntelligenceSource),
+    assumptions: response.assumptions,
+    uncertainty: response.uncertainty,
+    missingInputs: response.missing_inputs,
+    aiUsed: response.ai_used,
+    documentParsingUsed: response.document_parsing_used,
+    generatedAt: response.generated_at,
+  };
+}
+
 function normalizeWorkspace(workspace: BackendProjectWorkspace): ProjectWorkspace {
   return {
     project: {
@@ -370,6 +426,46 @@ export async function chatProjectIntelligence(projectId: string, payload: Projec
       quality: payload.quality,
       use_ai: payload.useAi,
     }),
+  });
+  return normalizeIntelligenceResponse(response, payload.quality);
+}
+
+function serializeIntelligenceAction(payload: ProjectIntelligenceActionPayload) {
+  return {
+    language: payload.language,
+    quality: payload.quality,
+    use_ai: payload.useAi,
+  };
+}
+
+export async function analyzeProjectIntelligence(projectId: string, payload: ProjectIntelligenceActionPayload): Promise<IntelligenceResult> {
+  const response = await request<BackendIntelligenceResponse>(`/api/projects/${projectId}/intelligence/analyze`, {
+    method: "POST",
+    body: JSON.stringify(serializeIntelligenceAction(payload)),
+  });
+  return normalizeIntelligenceResponse(response, payload.quality);
+}
+
+export async function explainProjectBenchmark(projectId: string, payload: ProjectIntelligenceActionPayload): Promise<IntelligenceResult> {
+  const response = await request<BackendIntelligenceResponse>(`/api/projects/${projectId}/benchmark/explain`, {
+    method: "POST",
+    body: JSON.stringify(serializeIntelligenceAction(payload)),
+  });
+  return normalizeIntelligenceResponse(response, payload.quality);
+}
+
+export async function generateProjectReport(projectId: string, payload: ReportGenerationPayload): Promise<ReportGenerationResult> {
+  const response = await request<BackendReportGenerationResponse>(`/api/projects/${projectId}/report/generate`, {
+    method: "POST",
+    body: JSON.stringify({ ...serializeIntelligenceAction(payload), audience: payload.audience }),
+  });
+  return normalizeReportGenerationResponse(response, payload.quality);
+}
+
+export async function rewriteProjectReportSection(projectId: string, sectionId: string, payload: ReportSectionRewritePayload): Promise<IntelligenceResult> {
+  const response = await request<BackendIntelligenceResponse>(`/api/projects/${projectId}/report/sections/${sectionId}/rewrite`, {
+    method: "POST",
+    body: JSON.stringify({ ...serializeIntelligenceAction(payload), audience: payload.audience, instruction: payload.instruction }),
   });
   return normalizeIntelligenceResponse(response, payload.quality);
 }
