@@ -15,6 +15,7 @@ from app.intelligence.models import (
     SafeProviderError,
 )
 from app.intelligence.openai_provider import OpenAIProvider, ProviderCallError
+from app.intelligence.provider import DeterministicPlaceholderProvider
 from app.intelligence.provider_factory import get_provider_selection
 from app.models import PlcEcosystem, ProjectWorkspace, ReportSection
 from app.services import create_benchmark, get_workspace
@@ -36,6 +37,9 @@ class IntelligenceProviderUnavailableError(Exception):
     def __init__(self, category: SafeProviderError) -> None:
         super().__init__(category)
         self.category = category
+
+
+_deterministic_provider = DeterministicPlaceholderProvider()
 
 
 def global_chat(request: GlobalChatRequest) -> IntelligenceResponse:
@@ -92,17 +96,17 @@ def test_connection() -> ConnectionTestResponse:
     )
 
 
-def _execute(method_name: str, *args):
+def _execute(method_name: str, request, *args):
+    if not request.use_ai:
+        return getattr(_deterministic_provider, method_name)(request, *args)
+
     selection = get_provider_selection()
-    request = args[0] if args else None
-    use_ai = getattr(request, "use_ai", True)
-    provider = selection.primary if use_ai else selection.placeholder
-    method = getattr(provider, method_name)
+    method = getattr(selection.primary, method_name)
     try:
-        return method(*args)
+        return method(request, *args)
     except ProviderCallError as error:
-        if use_ai and selection.openai_active and selection.fallback_enabled:
-            fallback = getattr(selection.placeholder, method_name)(*args)
+        if selection.openai_active and selection.fallback_enabled:
+            fallback = getattr(selection.placeholder, method_name)(request, *args)
             return _mark_fallback(fallback, error)
         raise IntelligenceProviderUnavailableError(error.category) from None
 

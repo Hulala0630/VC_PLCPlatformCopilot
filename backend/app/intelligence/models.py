@@ -80,6 +80,7 @@ class ProjectChatRequest(BaseModel):
 
 class ProjectAnalysisRequest(BaseModel):
     language: Language
+    use_ai: bool = True
     quality_profile: QualityProfile | None = Field(
         default=None,
         validation_alias=AliasChoices("quality_profile", "quality"),
@@ -88,6 +89,7 @@ class ProjectAnalysisRequest(BaseModel):
 
 class BenchmarkExplanationRequest(BaseModel):
     language: Language
+    use_ai: bool = True
     quality_profile: QualityProfile | None = Field(
         default=None,
         validation_alias=AliasChoices("quality_profile", "quality"),
@@ -97,6 +99,7 @@ class BenchmarkExplanationRequest(BaseModel):
 class ReportGenerationRequest(BaseModel):
     language: Language
     audience: ReportAudience
+    use_ai: bool = True
     quality_profile: QualityProfile | None = Field(
         default=None,
         validation_alias=AliasChoices("quality_profile", "quality"),
@@ -107,6 +110,7 @@ class ReportSectionRewriteRequest(BaseModel):
     instruction: str
     language: Language
     audience: ReportAudience
+    use_ai: bool = True
     quality_profile: QualityProfile | None = Field(
         default=None,
         validation_alias=AliasChoices("quality_profile", "quality"),
