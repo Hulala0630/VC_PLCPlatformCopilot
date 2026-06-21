@@ -94,6 +94,18 @@ def report_output(workspace) -> dict:
     }
 
 
+def rewrite_output(section) -> dict:
+    return {
+        "section_id": section.id,
+        "suggested_body": {
+            "zh": f"{section.id} 改写建议",
+            "en": f"{section.id} rewrite suggestion",
+        },
+        "assumptions": [{"zh": "改写假设", "en": "Rewrite assumption"}],
+        "uncertainty": [{"zh": "改写不确定性", "en": "Rewrite uncertainty"}],
+    }
+
+
 class FakeResponses:
     def __init__(self, *, parse_effects=None, create_effects=None) -> None:
         self.parse_effects = list(parse_effects or [])
@@ -188,7 +200,7 @@ class OpenAIProviderTests(unittest.TestCase):
             intelligence_output("analysis"),
             intelligence_output("benchmark"),
             report_output(workspace),
-            intelligence_output("rewrite"),
+            rewrite_output(workspace.report.sections[0]),
         ]
         responses = FakeResponses(parse_effects=effects)
         provider = OpenAIProvider(openai_settings(), client=FakeClient(responses), sleep_fn=lambda _: None)
@@ -275,7 +287,7 @@ class OpenAIProviderTests(unittest.TestCase):
     def test_report_rewrite_isolated_and_workspace_is_not_mutated(self) -> None:
         workspace = workspace_fixture()
         before = workspace.model_dump()
-        responses = FakeResponses(parse_effects=[intelligence_output("rewrite only")])
+        responses = FakeResponses(parse_effects=[rewrite_output(workspace.report.sections[0])])
         provider = OpenAIProvider(openai_settings(), client=FakeClient(responses), sleep_fn=lambda _: None)
         result = provider.rewrite_report_section(
             ReportSectionRewriteRequest(instruction="Shorten", language="en", audience="technical"),
@@ -288,7 +300,8 @@ class OpenAIProviderTests(unittest.TestCase):
         self.assertIn(workspace.report.sections[0].id, prompt_input)
         if len(workspace.report.sections) > 1:
             self.assertNotIn(workspace.report.sections[1].id, prompt_input)
-        self.assertEqual(result.scope, "report_section")
+        self.assertEqual(result.section_id, workspace.report.sections[0].id)
+        self.assertIn("rewrite suggestion", result.suggested_body.en)
 
     def test_connection_test_success_and_failure(self) -> None:
         success_responses = FakeResponses(create_effects=[SimpleNamespace(id="ok")])

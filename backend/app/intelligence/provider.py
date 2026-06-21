@@ -13,6 +13,7 @@ from app.intelligence.models import (
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
+    ReportSectionRewriteResponse,
 )
 from app.models import BenchmarkResult, LocalizedText, PlcEcosystem, ProjectWorkspace, ReportSection
 
@@ -56,7 +57,7 @@ class IntelligenceProvider(Protocol):
         workspace: ProjectWorkspace,
         section: ReportSection,
         benchmark: list[BenchmarkResult],
-    ) -> IntelligenceResponse: ...
+    ) -> ReportSectionRewriteResponse: ...
 
 
 class DeterministicPlaceholderProvider:
@@ -114,6 +115,9 @@ class DeterministicPlaceholderProvider:
         workspace: ProjectWorkspace,
         benchmark: list[BenchmarkResult],
     ) -> IntelligenceResponse:
+        if request.focus == "attachments":
+            return self._analyze_attachments(request, workspace)
+
         lead = benchmark[0] if benchmark else None
         risks = ", ".join(f"{item.platform_id}: {item.risk_level}" for item in benchmark) or "not available"
         zh_risks = "；".join(f"{item.platform_id}: {item.risk_level}" for item in benchmark) or "暂无"
@@ -155,9 +159,14 @@ class DeterministicPlaceholderProvider:
     ) -> IntelligenceResponse:
         if benchmark:
             lead = benchmark[0]
+            sensitivity = (
+                "Preference changes can alter the ranking when weighted scores are close."
+                if len(benchmark) > 1 and lead.weighted_score - benchmark[1].weighted_score <= 5
+                else "The current lead is not highly sensitive to small preference changes."
+            )
             answer = LocalizedText(
-                zh=f"{lead.platform_id} 以加权分 {lead.weighted_score} 排名第一；技术分 {lead.technical_score} 占 72%，偏好分 {lead.preference_score} 占 28%。Provider 仅解释结果，不修改评分。",
-                en=f"{lead.platform_id} ranks first at {lead.weighted_score}; technical score {lead.technical_score} contributes 72% and preference score {lead.preference_score} contributes 28%. The provider explains but does not modify scoring.",
+                zh=f"{lead.platform_id} 以加权分 {lead.weighted_score} 排名第一；技术分 {lead.technical_score} 占 72%，偏好分 {lead.preference_score} 占 28%，风险等级为 {lead.risk_level}。仅解释既有结果，不重新计算或替换评分。",
+                en=f"{lead.platform_id} ranks first at {lead.weighted_score}; technical score {lead.technical_score} contributes 72%, preference score {lead.preference_score} contributes 28%, and risk is {lead.risk_level}. {sensitivity} The provider explains existing results and never recalculates or replaces scores.",
             )
         else:
             answer = LocalizedText(
@@ -218,12 +227,16 @@ class DeterministicPlaceholderProvider:
         workspace: ProjectWorkspace,
         section: ReportSection,
         benchmark: list[BenchmarkResult],
-    ) -> IntelligenceResponse:
+    ) -> ReportSectionRewriteResponse:
         lead = benchmark[0] if benchmark else None
-        return self._response(
-            scope="report_section",
-            key=f"report-rewrite:{workspace.project.id}:{section.id}:{request.audience}:{request.instruction}",
-            answer=LocalizedText(
+        response_id = self._id(
+            f"report-rewrite:{workspace.project.id}:{section.id}:{request.audience}:{request.instruction}"
+        )
+        return ReportSectionRewriteResponse(
+            id=response_id,
+            request_id=response_id,
+            section_id=section.id,
+            suggested_body=LocalizedText(
                 zh=f"[{request.audience} 改写建议] {section.body.zh} 重点结论：{lead.platform_id if lead else '尚无 benchmark 领先平台'}。用户指令：{request.instruction}。",
                 en=f"[{request.audience} rewrite suggestion] {section.body.en} Key conclusion: {lead.platform_id if lead else 'no benchmark lead yet'}. User instruction: {request.instruction}.",
             ),
@@ -232,10 +245,53 @@ class DeterministicPlaceholderProvider:
                 LocalizedText(zh="改写建议不会自动保存到报告分区。", en="The rewrite suggestion is not saved to the report section automatically."),
             ],
             uncertainty=self._project_uncertainty(workspace),
+            generated_at=self._now(),
+        )
+
+    def _analyze_attachments(
+        self,
+        request: ProjectAnalysisRequest,
+        workspace: ProjectWorkspace,
+    ) -> IntelligenceResponse:
+        declared = [item for item in workspace.attachments if item.declared_purpose.strip()]
+        missing_purpose = [item.file_name for item in workspace.attachments if not item.declared_purpose.strip()]
+        registered_types = {item.file_type for item in workspace.attachments}
+        expected_types = ["Requirements", "I/O List", "Architecture", "Electrical List"]
+        missing_types = [item for item in expected_types if item not in registered_types]
+        questions: list[LocalizedText] = []
+        if missing_types:
+            questions.append(
+                LocalizedText(
+                    zh=f"是否需要登记这些尚缺的文档类型：{'、'.join(missing_types)}？",
+                    en=f"Should these missing document types be registered: {', '.join(missing_types)}?",
+                )
+            )
+        if missing_purpose:
+            questions.append(
+                LocalizedText(
+                    zh=f"请说明这些附件的预期用途：{'、'.join(missing_purpose)}。",
+                    en=f"What are the declared purposes for: {', '.join(missing_purpose)}?",
+                )
+            )
+        if not workspace.attachments:
+            questions.append(
+                LocalizedText(
+                    zh="决策评审需要哪些需求、I/O、架构或电气文档 metadata？",
+                    en="Which requirements, I/O, architecture, or electrical document metadata is expected for the decision review?",
+                )
+            )
+        return self._response(
+            scope="project_analysis",
+            key=f"attachment-analysis:{workspace.project.id}:{workspace.project.updated_at}",
+            answer=LocalizedText(
+                zh=f"已登记 {len(workspace.attachments)} 条附件 metadata，其中 {len(declared)} 条声明了用途。项目 intake 包含 {workspace.intake.io_scale} 个 I/O 和 {len(workspace.intake.candidate_platforms)} 个候选平台，成熟度为 {workspace.readiness.score}%。本分析未读取或解析任何文件内容。",
+                en=f"{len(workspace.attachments)} attachment metadata record(s) are registered and {len(declared)} include a declared purpose. Project intake has {workspace.intake.io_scale} I/O points and {len(workspace.intake.candidate_platforms)} candidate platforms; readiness is {workspace.readiness.score}%. No file content was read or parsed.",
+            ),
+            sources=self._project_sources(workspace, []),
+            assumptions=self._project_assumptions(workspace),
+            uncertainty=self._project_uncertainty(workspace),
             missing_inputs=self._missing_inputs(workspace),
-            follow_up_questions=[
-                LocalizedText(zh="是否由用户确认后再应用此改写？", en="Should the user review and apply this rewrite?"),
-            ],
+            follow_up_questions=questions,
         )
 
     def _response(

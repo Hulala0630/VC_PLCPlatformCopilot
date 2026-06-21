@@ -38,6 +38,7 @@ IntelligenceSourceType = Literal[
 ]
 ReportAudience = Literal["executive", "technical", "management", "sales"]
 QualityProfile = Literal["fast", "balanced", "quality"]
+ProjectAnalysisFocus = Literal["project", "attachments"]
 
 
 def _non_empty(value: str) -> str:
@@ -80,6 +81,7 @@ class ProjectChatRequest(BaseModel):
 
 class ProjectAnalysisRequest(BaseModel):
     language: Language
+    focus: ProjectAnalysisFocus = "project"
     use_ai: bool = True
     quality_profile: QualityProfile | None = Field(
         default=None,
@@ -169,6 +171,23 @@ class ReportGenerationResponse(BaseModel):
     uncertainty: list[LocalizedText]
     missing_inputs: list[LocalizedText]
     ai_used: bool = False
+    document_parsing_used: Literal[False] = False
+    generated_at: str
+
+
+class ReportSectionRewriteResponse(BaseModel):
+    id: str
+    section_id: str
+    suggested_body: LocalizedText
+    assumptions: list[LocalizedText]
+    uncertainty: list[LocalizedText]
+    sources: list[IntelligenceSource]
+    mode: IntelligenceMode = "deterministic_placeholder"
+    provider: IntelligenceProviderName = "placeholder"
+    model_profile: QualityProfile | None = None
+    ai_used: bool = False
+    fallback_reason: SafeProviderError | None = None
+    request_id: str
     document_parsing_used: Literal[False] = False
     generated_at: str
 
