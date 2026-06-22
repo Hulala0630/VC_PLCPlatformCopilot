@@ -61,6 +61,7 @@ import type {
   ProjectWorkspace,
   ReportGenerationResult,
   ReportSection,
+  ReportSectionRewriteResult,
   WorkspaceTab,
 } from "./types";
 
@@ -2180,7 +2181,7 @@ function ReportBuilder({
   const [rewriteSectionId, setRewriteSectionId] = useState("");
   const [acceptingSuggestions, setAcceptingSuggestions] = useState(false);
   const reportDraft = useIntelligenceAction<ReportGenerationResult>();
-  const rewrite = useIntelligenceAction<IntelligenceResult>();
+  const rewrite = useIntelligenceAction<ReportSectionRewriteResult>();
   const markdown = useMemo(() => buildReportMarkdown(workspace, benchmarkResults, readiness, language, platformCatalog), [benchmarkResults, language, platformCatalog, readiness, workspace]);
   const missingInputs = missingInputLabels(readiness, language);
   const deliveryDataSources = uniqueStrings([
@@ -2306,7 +2307,7 @@ function ReportBuilder({
   async function acceptRewriteSuggestion() {
     if (!section || !rewrite.result || rewriteSectionId !== section.id || acceptingSuggestions) return;
     setAcceptingSuggestions(true);
-    const next = sectionFromSuggestion(section, rewrite.result.answer, rewrite.result.assumptions, rewrite.result.uncertainty);
+    const next = sectionFromSuggestion(section, rewrite.result.suggestedBody, rewrite.result.assumptions, rewrite.result.uncertainty);
     await saveReportSection(workspace.project.id, next, applySectionToWorkspace(workspace, next));
     rewrite.reset();
     setRewriteInstruction("");
@@ -2461,7 +2462,7 @@ function ReportBuilder({
                 <div className="mt-4 space-y-4">
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-md bg-white p-4 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(section.body, language)}</p></div>
-                    <div className="rounded-md bg-cyan-50 p-4 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.suggestedContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(rewrite.result.answer, language)}</p></div>
+                    <div className="rounded-md bg-cyan-50 p-4 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.suggestedContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(rewrite.result.suggestedBody, language)}</p></div>
                   </div>
                   <div className="grid gap-3 lg:grid-cols-2">
                     <LightEvidenceList title={labels.assumptions} items={rewrite.result.assumptions.map((item) => localize(item, language))} />

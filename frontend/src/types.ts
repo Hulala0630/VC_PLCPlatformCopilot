@@ -150,6 +150,20 @@ export interface ReportGenerationResult {
   generatedAt: string;
 }
 
+export interface ReportSectionRewriteResult {
+  id: string;
+  sectionId: string;
+  suggestedBody: LocalizedText;
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  sources: IntelligenceSource[];
+  mode: IntelligenceMode;
+  qualityProfile: IntelligenceQuality;
+  aiUsed: boolean;
+  documentParsingUsed: false;
+  generatedAt: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: LocalizedText;

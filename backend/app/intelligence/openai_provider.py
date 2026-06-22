@@ -22,6 +22,7 @@ from app.intelligence.models import (
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
+    ReportSectionRewriteResponse,
     SafeProviderError,
 )
 from app.intelligence.prompts import (
@@ -75,6 +76,20 @@ class _StructuredReportOutput(BaseModel):
     sections: list[_StructuredReportSection]
     assumptions: list[LocalizedText]
     uncertainty: list[LocalizedText]
+
+
+class _StructuredSectionRewriteOutput(BaseModel):
+    section_id: str
+    suggested_body: LocalizedText
+    assumptions: list[LocalizedText]
+    uncertainty: list[LocalizedText]
+
+    @field_validator("suggested_body")
+    @classmethod
+    def body_must_be_bilingual(cls, value: LocalizedText) -> LocalizedText:
+        if not value.zh.strip() or not value.en.strip():
+            raise ValueError("Bilingual report body is required.")
+        return value
 
 
 class OpenAIProvider:
@@ -186,13 +201,29 @@ class OpenAIProvider:
         workspace: ProjectWorkspace,
         section: ReportSection,
         benchmark: list[BenchmarkResult],
-    ) -> IntelligenceResponse:
+    ) -> ReportSectionRewriteResponse:
         baseline = self._placeholder.rewrite_report_section(request, workspace, section, benchmark)
-        return self._intelligence_response(
-            baseline,
-            "report_section_rewrite",
-            request.quality_profile,
+        profile = self._router.profile_for("report_section_rewrite", request.quality_profile)
+        response, parsed = self._parse(
+            profile,
             report_section_rewrite_prompt(request, workspace, section, benchmark),
+            _StructuredSectionRewriteOutput,
+        )
+        if parsed.section_id != section.id:
+            raise ProviderCallError("invalid_response", profile)
+        return baseline.model_copy(
+            update={
+                "mode": "openai",
+                "provider": "openai",
+                "model_profile": profile,
+                "fallback_reason": None,
+                "request_id": self._request_id(response),
+                "suggested_body": parsed.suggested_body,
+                "assumptions": _merge_localized(baseline.assumptions, parsed.assumptions),
+                "uncertainty": _merge_localized(baseline.uncertainty, parsed.uncertainty),
+                "ai_used": True,
+                "generated_at": _now(),
+            }
         )
 
     def connection_test(self) -> ConnectionTestResponse:

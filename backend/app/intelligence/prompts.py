@@ -62,6 +62,29 @@ def project_analysis_prompt(
     workspace: ProjectWorkspace,
     benchmark: list[BenchmarkResult],
 ) -> PromptBundle:
+    if request.focus == "attachments":
+        context = {
+            "requested_language": request.language,
+            "focus": request.focus,
+            "project": {
+                "id": workspace.project.id,
+                "name": workspace.project.name,
+                "industry": workspace.project.industry,
+                "goal": workspace.project.goal,
+            },
+            "intake": workspace.intake.model_dump(),
+            "readiness": workspace.readiness.model_dump(),
+            "missing_inputs": [
+                item.model_dump()
+                for item in workspace.readiness.missing_required + workspace.readiness.recommended_missing
+            ],
+            "attachments": _attachment_metadata(workspace),
+        }
+        return _bundle(
+            "Analyze attachment metadata, intake, readiness, and missing inputs. Ask useful questions about missing document types and missing declared purposes. Never infer or claim knowledge of file contents.",
+            context,
+        )
+
     context = _project_context(workspace, benchmark)
     context["requested_language"] = request.language
     return _bundle(
@@ -81,7 +104,10 @@ def benchmark_explanation_prompt(
         "candidate_platforms": workspace.intake.candidate_platforms,
         "benchmark_results": [item.model_dump() for item in benchmark],
     }
-    return _bundle("Explain the supplied benchmark scores and preference influence without changing any score.", context)
+    return _bundle(
+        "Explain technical score, preference impact, risk level, assumptions, and ranking sensitivity using the supplied benchmark results. Never recalculate, replace, or propose changed scores.",
+        context,
+    )
 
 
 def report_generation_prompt(
@@ -135,7 +161,7 @@ def report_section_rewrite_prompt(
         "attachment_metadata_count": len(workspace.attachments),
     }
     return _bundle(
-        "Rewrite only the requested section. Return a suggestion only; do not propose mutations to other sections.",
+        "Rewrite only the requested section. Return its exact section_id, a bilingual suggested_body, assumptions, and uncertainty. Return a suggestion only; do not propose mutations to other sections.",
         context,
     )
 
@@ -167,18 +193,22 @@ def _project_context(workspace: ProjectWorkspace, benchmark: list[BenchmarkResul
             "status": workspace.report.status,
             "version": workspace.report.version,
         },
-        "attachments": [
-            {
-                "id": item.id,
-                "file_name": item.file_name,
-                "file_type": item.file_type,
-                "declared_purpose": item.declared_purpose,
-                "uploaded_at": item.uploaded_at,
-                "content_parsed": False,
-            }
-            for item in workspace.attachments
-        ],
+        "attachments": _attachment_metadata(workspace),
     }
+
+
+def _attachment_metadata(workspace: ProjectWorkspace) -> list[dict[str, object]]:
+    return [
+        {
+            "id": item.id,
+            "file_name": item.file_name,
+            "file_type": item.file_type,
+            "declared_purpose": item.declared_purpose,
+            "uploaded_at": item.uploaded_at,
+            "content_parsed": False,
+        }
+        for item in workspace.attachments
+    ]
 
 
 def _bundle(task: str, context: dict[str, object]) -> PromptBundle:

@@ -12,6 +12,7 @@ from app.intelligence.models import (
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
+    ReportSectionRewriteResponse,
     SafeProviderError,
 )
 from app.intelligence.openai_provider import OpenAIProvider, ProviderCallError
@@ -71,7 +72,7 @@ def rewrite_report_section(
     project_id: str,
     section_id: str,
     request: ReportSectionRewriteRequest,
-) -> IntelligenceResponse:
+) -> ReportSectionRewriteResponse:
     workspace = _workspace(project_id)
     section = _section(workspace, section_id)
     return _execute(

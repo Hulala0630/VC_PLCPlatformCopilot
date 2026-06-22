@@ -12,6 +12,7 @@ from app.intelligence.models import (
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
+    ReportSectionRewriteResponse,
 )
 from app.intelligence.service import (
     IntelligencePlatformError,
@@ -83,10 +84,13 @@ def post_report_generation(project_id: str, payload: ReportGenerationRequest) ->
     return _run(lambda: generate_report(project_id, payload))
 
 
-@router.post("/projects/{project_id}/report/sections/{section_id}/rewrite", response_model=IntelligenceResponse)
+@router.post(
+    "/projects/{project_id}/report/sections/{section_id}/rewrite",
+    response_model=ReportSectionRewriteResponse,
+)
 def post_report_section_rewrite(
     project_id: str,
     section_id: str,
     payload: ReportSectionRewriteRequest,
-) -> IntelligenceResponse:
+) -> ReportSectionRewriteResponse:
     return _run(lambda: rewrite_report_section(project_id, section_id, payload))

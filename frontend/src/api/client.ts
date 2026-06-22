@@ -17,6 +17,7 @@ import type {
   ReportAudience,
   ReportGenerationResult,
   ReportSection,
+  ReportSectionRewriteResult,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -138,6 +139,20 @@ type BackendReportGenerationResponse = {
   assumptions: LocalizedText[];
   uncertainty: LocalizedText[];
   missing_inputs: LocalizedText[];
+  ai_used: boolean;
+  document_parsing_used: false;
+  generated_at: string;
+};
+
+type BackendReportSectionRewriteResponse = {
+  id: string;
+  section_id: string;
+  suggested_body: LocalizedText;
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  sources: BackendIntelligenceSource[];
+  mode: IntelligenceMode;
+  model_profile: IntelligenceQuality | null;
   ai_used: boolean;
   document_parsing_used: false;
   generated_at: string;
@@ -361,6 +376,22 @@ function normalizeReportGenerationResponse(response: BackendReportGenerationResp
   };
 }
 
+function normalizeReportSectionRewriteResponse(response: BackendReportSectionRewriteResponse, requestedQuality: IntelligenceQuality): ReportSectionRewriteResult {
+  return {
+    id: response.id,
+    sectionId: response.section_id,
+    suggestedBody: response.suggested_body,
+    assumptions: response.assumptions,
+    uncertainty: response.uncertainty,
+    sources: response.sources.map(normalizeIntelligenceSource),
+    mode: response.mode,
+    qualityProfile: response.model_profile ?? requestedQuality,
+    aiUsed: response.ai_used,
+    documentParsingUsed: response.document_parsing_used,
+    generatedAt: response.generated_at,
+  };
+}
+
 function normalizeWorkspace(workspace: BackendProjectWorkspace): ProjectWorkspace {
   return {
     project: {
@@ -441,7 +472,7 @@ function serializeIntelligenceAction(payload: ProjectIntelligenceActionPayload) 
 export async function analyzeProjectIntelligence(projectId: string, payload: ProjectIntelligenceActionPayload): Promise<IntelligenceResult> {
   const response = await request<BackendIntelligenceResponse>(`/api/projects/${projectId}/intelligence/analyze`, {
     method: "POST",
-    body: JSON.stringify(serializeIntelligenceAction(payload)),
+    body: JSON.stringify({ ...serializeIntelligenceAction(payload), focus: "attachments" }),
   });
   return normalizeIntelligenceResponse(response, payload.quality);
 }
@@ -462,12 +493,12 @@ export async function generateProjectReport(projectId: string, payload: ReportGe
   return normalizeReportGenerationResponse(response, payload.quality);
 }
 
-export async function rewriteProjectReportSection(projectId: string, sectionId: string, payload: ReportSectionRewritePayload): Promise<IntelligenceResult> {
-  const response = await request<BackendIntelligenceResponse>(`/api/projects/${projectId}/report/sections/${sectionId}/rewrite`, {
+export async function rewriteProjectReportSection(projectId: string, sectionId: string, payload: ReportSectionRewritePayload): Promise<ReportSectionRewriteResult> {
+  const response = await request<BackendReportSectionRewriteResponse>(`/api/projects/${projectId}/report/sections/${sectionId}/rewrite`, {
     method: "POST",
     body: JSON.stringify({ ...serializeIntelligenceAction(payload), audience: payload.audience, instruction: payload.instruction }),
   });
-  return normalizeIntelligenceResponse(response, payload.quality);
+  return normalizeReportSectionRewriteResponse(response, payload.quality);
 }
 
 export async function createProject(payload: ProjectCreatePayload): Promise<ProjectWorkspace> {
