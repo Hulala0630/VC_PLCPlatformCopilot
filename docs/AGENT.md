@@ -144,3 +144,17 @@ Frontend compatibility should be checked with `npm.cmd run build` when feasible.
 - 报告生成和改写不得自动修改 SQLite。
 - 自动测试必须 mock 所有 SDK 调用，并只使用 fake credential。
 - Live test 只能使用已存在且被忽略的本地配置，绝不打印或复制 secret。
+
+## User-Safe Intelligence Messaging / 用户安全文案
+
+- Keep `execution_status`, public fallback reason, retryability, and request ID consistent across every intelligence response shape.
+- Map SDK/provider diagnostics to the public fallback enum in the service layer.
+- Keep implementation terminology out of answers, assumptions, uncertainty, and report suggestions.
+- Describe attachment, scoring, and report boundaries in business language.
+- Reject structured AI output containing internal implementation language and retry or fall back safely.
+
+- 所有 intelligence response shape 必须统一执行状态、公开兜底原因、可重试性和 request ID。
+- SDK 诊断信息必须在 service 层映射到公开枚举。
+- answer、assumptions、uncertainty 和报告建议不得出现内部实现术语。
+- 附件、评分和报告边界应使用业务语言表达。
+- AI structured output 若包含内部实现文案，必须拒绝并安全重试或兜底。

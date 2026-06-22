@@ -5,6 +5,7 @@ from app.data import ECOSYSTEMS
 from app.intelligence.models import (
     BenchmarkExplanationRequest,
     ConnectionTestResponse,
+    FallbackReason,
     GlobalChatRequest,
     IntelligenceResponse,
     ProjectAnalysisRequest,
@@ -35,9 +36,11 @@ class IntelligencePlatformError(ValueError):
 
 
 class IntelligenceProviderUnavailableError(Exception):
-    def __init__(self, category: SafeProviderError) -> None:
-        super().__init__(category)
-        self.category = category
+    def __init__(self, reason: FallbackReason, retryable: bool) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.retryable = retryable
+        self.request_id = f"failed-{uuid4().hex}"
 
 
 _deterministic_provider = DeterministicPlaceholderProvider()
@@ -102,6 +105,14 @@ def _execute(method_name: str, request, *args):
         return getattr(_deterministic_provider, method_name)(request, *args)
 
     selection = get_provider_selection()
+    if not selection.openai_active:
+        error = ProviderCallError("configuration_error", _default_profile(method_name))
+        if selection.fallback_enabled:
+            fallback = getattr(selection.placeholder, method_name)(request, *args)
+            return _mark_fallback(fallback, error)
+        reason, retryable = _public_failure(error.category)
+        raise IntelligenceProviderUnavailableError(reason, retryable)
+
     method = getattr(selection.primary, method_name)
     try:
         return method(request, *args)
@@ -109,21 +120,49 @@ def _execute(method_name: str, request, *args):
         if selection.openai_active and selection.fallback_enabled:
             fallback = getattr(selection.placeholder, method_name)(request, *args)
             return _mark_fallback(fallback, error)
-        raise IntelligenceProviderUnavailableError(error.category) from None
+        reason, retryable = _public_failure(error.category)
+        raise IntelligenceProviderUnavailableError(reason, retryable) from None
 
 
 def _mark_fallback(response, error: ProviderCallError):
+    reason, retryable = _public_failure(error.category)
     return response.model_copy(
         update={
             "mode": "deterministic_fallback",
+            "execution_status": "ai_fallback",
             "provider": "placeholder",
             "model_profile": error.profile,
-            "fallback_reason": error.category,
+            "fallback_reason": reason,
+            "retryable": retryable,
             "request_id": f"fallback-{uuid4().hex}",
             "ai_used": False,
             "generated_at": datetime.now(UTC).isoformat(),
         }
     )
+
+
+def _public_failure(category: SafeProviderError) -> tuple[FallbackReason, bool]:
+    mapping: dict[SafeProviderError, tuple[FallbackReason, bool]] = {
+        "timeout": ("timeout", True),
+        "rate_limit": ("rate_limit", True),
+        "authentication": ("authentication", False),
+        "unsupported_model": ("unsupported_model", False),
+        "invalid_response": ("invalid_response", True),
+        "provider_server_error": ("provider_unavailable", True),
+        "connection_error": ("provider_unavailable", True),
+        "configuration_error": ("provider_unavailable", False),
+        "invalid_request": ("provider_unavailable", False),
+        "unsupported_response_format": ("provider_unavailable", False),
+    }
+    return mapping[category]
+
+
+def _default_profile(method_name: str):
+    if method_name in {"generate_report", "rewrite_report_section"}:
+        return "quality"
+    if method_name == "global_chat":
+        return "fast"
+    return "balanced"
 
 
 def _workspace(project_id: str) -> ProjectWorkspace:

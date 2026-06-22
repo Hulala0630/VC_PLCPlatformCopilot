@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import openai
 from openai import OpenAI
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, field_validator, model_validator
 
 from app.intelligence.config import AISettings
 from app.intelligence.model_router import IntelligenceCapability, ModelRouter
@@ -59,6 +59,13 @@ class _StructuredIntelligenceOutput(BaseModel):
             raise ValueError("Bilingual answer is required.")
         return value
 
+    @model_validator(mode="after")
+    def user_content_must_avoid_engineering_terms(self):
+        _ensure_user_safe_text(
+            [self.answer, *self.assumptions, *self.uncertainty, *self.follow_up_questions]
+        )
+        return self
+
 
 class _StructuredReportSection(BaseModel):
     section_id: str
@@ -77,6 +84,17 @@ class _StructuredReportOutput(BaseModel):
     assumptions: list[LocalizedText]
     uncertainty: list[LocalizedText]
 
+    @model_validator(mode="after")
+    def user_content_must_avoid_engineering_terms(self):
+        _ensure_user_safe_text(
+            [
+                *(section.draft_body for section in self.sections),
+                *self.assumptions,
+                *self.uncertainty,
+            ]
+        )
+        return self
+
 
 class _StructuredSectionRewriteOutput(BaseModel):
     section_id: str
@@ -90,6 +108,11 @@ class _StructuredSectionRewriteOutput(BaseModel):
         if not value.zh.strip() or not value.en.strip():
             raise ValueError("Bilingual report body is required.")
         return value
+
+    @model_validator(mode="after")
+    def user_content_must_avoid_engineering_terms(self):
+        _ensure_user_safe_text([self.suggested_body, *self.assumptions, *self.uncertainty])
+        return self
 
 
 class OpenAIProvider:
@@ -183,6 +206,7 @@ class OpenAIProvider:
         return baseline.model_copy(
             update={
                 "mode": "openai",
+                "execution_status": "ai_success",
                 "provider": "openai",
                 "model_profile": profile,
                 "fallback_reason": None,
@@ -214,6 +238,7 @@ class OpenAIProvider:
         return baseline.model_copy(
             update={
                 "mode": "openai",
+                "execution_status": "ai_success",
                 "provider": "openai",
                 "model_profile": profile,
                 "fallback_reason": None,
@@ -271,6 +296,7 @@ class OpenAIProvider:
         return baseline.model_copy(
             update={
                 "mode": "openai",
+                "execution_status": "ai_success",
                 "provider": "openai",
                 "model_profile": profile,
                 "fallback_reason": None,
@@ -346,6 +372,27 @@ class OpenAIProvider:
 
 class _InvalidStructuredOutputError(Exception):
     pass
+
+
+def _ensure_user_safe_text(values: list[LocalizedText]) -> None:
+    forbidden = (
+        "placeholder",
+        "provider",
+        "deterministic service",
+        "metadata",
+        "persistence",
+        "persisted",
+        "does not modify scoring logic",
+        "will not overwrite charts",
+        "元数据",
+        "持久化",
+        "不会修改评分逻辑",
+        "不会覆盖图表",
+    )
+    for value in values:
+        combined = f"{value.zh}\n{value.en}".lower()
+        if any(term.lower() in combined for term in forbidden):
+            raise ValueError("User-facing content contains an internal implementation term.")
 
 
 def _error_category(error: Exception) -> SafeProviderError:

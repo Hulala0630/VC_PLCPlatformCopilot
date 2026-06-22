@@ -367,7 +367,11 @@ class FallbackAndRouteTests(unittest.TestCase):
                     json={"question": "Compare", "language": "en", "platform_ids": []},
                 )
         self.assertEqual(response.status_code, 502)
-        self.assertEqual(response.json(), {"detail": {"error_category": "rate_limit"}})
+        detail = response.json()["detail"]
+        self.assertEqual(detail["error"], "intelligence_request_failed")
+        self.assertEqual(detail["fallback_reason"], "rate_limit")
+        self.assertTrue(detail["retryable"])
+        self.assertTrue(detail["request_id"].startswith("failed-"))
         self.assertNotIn(FAKE_KEY, response.text)
         self.assertNotIn(MODEL_IDS["fast"], response.text)
         self.assertNotIn(raw_error, response.text)

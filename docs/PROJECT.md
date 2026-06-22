@@ -141,6 +141,23 @@ Deterministic benchmark scores remain immutable source data. OpenAI may explain 
 
 确定性 benchmark 分数是不可变事实数据；OpenAI 只能解释，不能重新计算或替代。附件仍仅作为 metadata 使用。
 
+## Intelligence Execution Contract / 智能执行契约
+
+All six intelligence workflows expose the same frontend-facing execution fields:
+
+- `execution_status=ai_success`: AI completed successfully.
+- `execution_status=basic_analysis`: the user disabled AI and received normal baseline analysis.
+- `execution_status=ai_fallback`: AI was requested but baseline analysis was returned after a safe failure.
+- `fallback_reason`: `timeout`, `rate_limit`, `authentication`, `unsupported_model`, `invalid_response`, `provider_unavailable`, or `null`.
+- `retryable`: whether retrying the AI request may reasonably succeed.
+- `request_id`: a safe correlation identifier for support and diagnostics.
+
+六类智能工作流使用相同的前端执行字段。前端应根据 `execution_status` 选择状态文案，并结合 `fallback_reason` 与 `retryable` 决定是否展示重试操作。
+
+Fields such as `mode`, `provider`, `model_profile`, and `document_parsing_used` remain machine-facing diagnostics. They must not be rendered directly as consulting copy. A fallback-disabled failure returns HTTP 502 with a safe `error`, `fallback_reason`, `retryable`, and `request_id` object.
+
+`mode`、`provider`、`model_profile` 和 `document_parsing_used` 属于机器诊断字段，不应直接转换为咨询文案。关闭兜底后的失败使用 HTTP 502，并仅返回安全的错误结构。
+
 ## Current Report Output / 当前报告输出
 
 - Report sections support Edit and Preview modes.

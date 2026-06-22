@@ -7,6 +7,15 @@ from app.models import Language, LocalizedText
 
 IntelligenceMode = Literal["deterministic_placeholder", "openai", "deterministic_fallback"]
 IntelligenceProviderName = Literal["openai", "placeholder"]
+IntelligenceExecutionStatus = Literal["ai_success", "basic_analysis", "ai_fallback"]
+FallbackReason = Literal[
+    "timeout",
+    "rate_limit",
+    "authentication",
+    "unsupported_model",
+    "invalid_response",
+    "provider_unavailable",
+]
 SafeProviderError = Literal[
     "timeout",
     "authentication",
@@ -133,10 +142,12 @@ class IntelligenceSource(BaseModel):
 
 class IntelligenceResponse(BaseModel):
     id: str
+    execution_status: IntelligenceExecutionStatus = "basic_analysis"
     mode: IntelligenceMode = "deterministic_placeholder"
     provider: IntelligenceProviderName = "placeholder"
     model_profile: QualityProfile | None = None
-    fallback_reason: SafeProviderError | None = None
+    fallback_reason: FallbackReason | None = None
+    retryable: bool = False
     request_id: str
     scope: IntelligenceScope
     answer: LocalizedText
@@ -158,10 +169,12 @@ class GeneratedReportSection(BaseModel):
 
 class ReportGenerationResponse(BaseModel):
     id: str
+    execution_status: IntelligenceExecutionStatus = "basic_analysis"
     mode: IntelligenceMode = "deterministic_placeholder"
     provider: IntelligenceProviderName = "placeholder"
     model_profile: QualityProfile | None = None
-    fallback_reason: SafeProviderError | None = None
+    fallback_reason: FallbackReason | None = None
+    retryable: bool = False
     request_id: str
     scope: Literal["report_generation"] = "report_generation"
     audience: ReportAudience
@@ -177,6 +190,7 @@ class ReportGenerationResponse(BaseModel):
 
 class ReportSectionRewriteResponse(BaseModel):
     id: str
+    execution_status: IntelligenceExecutionStatus = "basic_analysis"
     section_id: str
     suggested_body: LocalizedText
     assumptions: list[LocalizedText]
@@ -186,7 +200,8 @@ class ReportSectionRewriteResponse(BaseModel):
     provider: IntelligenceProviderName = "placeholder"
     model_profile: QualityProfile | None = None
     ai_used: bool = False
-    fallback_reason: SafeProviderError | None = None
+    fallback_reason: FallbackReason | None = None
+    retryable: bool = False
     request_id: str
     document_parsing_used: Literal[False] = False
     generated_at: str
