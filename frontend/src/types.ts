@@ -3,6 +3,7 @@ export type ProjectStatus = "Draft" | "Analyzing" | "Report Ready" | "Finalized"
 export type RiskLevel = "Low" | "Medium" | "High";
 export type ConfidenceLevel = "Low" | "Medium" | "High";
 export type IntelligenceMode = "openai" | "deterministic_placeholder" | "deterministic_fallback";
+export type IntelligenceExecutionStatus = "ai_success" | "basic_analysis" | "ai_fallback";
 export type IntelligenceQuality = "fast" | "balanced" | "quality";
 export type ReportAudience = "executive" | "technical" | "management" | "sales";
 export type WorkspaceTab = "overview" | "intake" | "preferences" | "attachments" | "benchmark" | "report";
@@ -117,6 +118,8 @@ export interface IntelligenceSource {
 export interface IntelligenceResult {
   id: string;
   mode: IntelligenceMode;
+  executionStatus: IntelligenceExecutionStatus;
+  retryable: boolean;
   qualityProfile: IntelligenceQuality;
   answer: LocalizedText;
   sources: IntelligenceSource[];
@@ -138,6 +141,8 @@ export interface GeneratedReportSection {
 export interface ReportGenerationResult {
   id: string;
   mode: IntelligenceMode;
+  executionStatus: IntelligenceExecutionStatus;
+  retryable: boolean;
   qualityProfile: IntelligenceQuality;
   audience: ReportAudience;
   sections: GeneratedReportSection[];
@@ -158,6 +163,8 @@ export interface ReportSectionRewriteResult {
   uncertainty: LocalizedText[];
   sources: IntelligenceSource[];
   mode: IntelligenceMode;
+  executionStatus: IntelligenceExecutionStatus;
+  retryable: boolean;
   qualityProfile: IntelligenceQuality;
   aiUsed: boolean;
   documentParsingUsed: false;

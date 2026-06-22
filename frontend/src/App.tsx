@@ -11,6 +11,7 @@ import {
   ExternalLink,
   FileText,
   FolderPlus,
+  Info as InfoIcon,
   Languages,
   MessageSquareText,
   PanelLeftClose,
@@ -88,16 +89,16 @@ const copy = {
     save: "保存",
     regenerateSection: "重算当前分区",
     addAttachment: "登记附件",
-    fileNote: "当前版本只登记附件元信息，不解析文件，不接 RAG。",
+    fileNote: "当前仅使用文件名称、类型和声明用途进行分析，尚未读取文件正文或表格内容。",
     technicalScore: "技术评分",
     preferenceScore: "用户倾向",
     weightedImpact: "加权影响",
     finalScore: "最终评分",
     weightedScore: "加权总分",
     risk: "风险",
-    assumptions: "假设",
-    uncertainty: "不确定性",
-    dataSources: "使用的数据来源",
+    assumptions: "分析依据",
+    uncertainty: "结论限制",
+    dataSources: "参考信息",
     reportSections: "报告目录",
     sectionEditor: "文档编辑器",
     rightPanel: "依据面板",
@@ -113,8 +114,8 @@ const copy = {
     missing: "待补充",
     validation: "输入完整度",
     reason: "倾向原因",
-    registeredOnly: "Registered only",
-    emptyAttachments: "还没有登记附件。先记录文件名、类型和用途，后续版本再接入解析。",
+    registeredOnly: "已登记",
+    emptyAttachments: "还没有登记附件。请先记录文件名称、类型和声明用途。",
     futureExport: "PDF / PPT 导出入口（未来版本）",
     topRecommendation: "当前首选",
     reasonPlaceholder: "例如：以前用过、客户指定、团队熟悉、供应链稳定、成本原因",
@@ -129,11 +130,11 @@ const copy = {
     openProject: "打开项目",
     byType: "项目类型",
     apiConnected: "API 已连接",
-    mockFallback: "Mock 兜底模式",
+    mockFallback: "离线工作模式",
     checkingApi: "检查 API",
     saving: "保存中",
     saved: "已保存",
-    saveFailed: "保存失败，已使用本地状态",
+    saveFailed: "暂时无法同步，当前修改已保留",
     savePreferences: "保存偏好",
     deleteProject: "删除项目",
     deleteProjectConfirm: "确认删除这个项目？该操作会删除本地 SQLite 中的项目数据。",
@@ -150,28 +151,28 @@ const copy = {
     projectAiToggle: "切换当前项目 Query 的 AI 分析",
     queryEmpty: "还没有对话。输入问题以获得后端分析结果。",
     queryLoading: "正在分析...",
-    queryFailed: "请求失败。用户问题已保留，请重试。",
+    queryFailed: "暂时无法连接分析服务。您的问题和上一次结果已保留。",
     retry: "重试",
     aiAnalysis: "AI 智能分析",
-    deterministic: "确定性结果",
-    fallback: "智能服务回退",
+    deterministic: "基础分析",
+    fallback: "AI 暂时不可用",
     qualityProfile: "质量档位",
     fastQuality: "快速",
     balancedQuality: "平衡",
     qualityQuality: "高质量",
-    responseContext: "假设与不确定性",
-    attachmentsNotParsed: "附件未解析，仅使用已登记的元信息。",
+    responseContext: "分析依据与结论限制",
+    attachmentsNotParsed: "当前仅使用文件名称、类型和声明用途进行分析，尚未读取文件正文或表格内容。",
     missingInputsQuery: "缺失输入",
     analyzeRegisteredInfo: "分析已登记资料",
-    explainRanking: "解释排名",
+    explainRanking: "查看推荐原因",
     generateReportDraft: "生成报告草稿",
     analysisResult: "分析结果",
     followUpQuestions: "后续问题",
-    actionFailed: "操作失败，请重试。已有结果未被修改。",
-    intelligenceUsesProjectSwitch: "使用当前项目 AI 开关",
+    actionFailed: "暂时无法连接分析服务。上一次成功结果已保留。",
+    intelligenceUsesProjectSwitch: "当前分析方式",
     reportSuggestions: "报告草稿建议",
-    suggestionsNotSaved: "建议尚未保存。只有接受后才会写入报告分区。",
-    acceptSection: "接受此分区",
+    suggestionsNotSaved: "确认采用后，此建议将更新当前报告内容。",
+    acceptSection: "接受建议",
     acceptAll: "接受全部",
     discardSuggestions: "放弃建议",
     currentContent: "当前内容",
@@ -179,10 +180,16 @@ const copy = {
     rewriteInstruction: "改写要求",
     rewritePlaceholder: "例如：更精炼地面向管理层说明推荐理由和主要风险",
     suggestRewrite: "生成改写建议",
-    accept: "接受",
-    discard: "放弃",
+    accept: "接受建议",
+    discard: "放弃建议",
     sectionRewrite: "分区改写建议",
-    noPersistenceBeforeAccept: "生成建议不会自动覆盖或保存当前报告。",
+    noPersistenceBeforeAccept: "确认采用前，当前报告内容保持不变。",
+    useBasicAnalysis: "使用基础分析",
+    fallbackHint: "已根据当前项目数据提供基础分析。",
+    benchmarkExplanation: "基于当前评分结果说明平台优势、偏好影响和主要风险。",
+    benchmarkScoreTooltip: "推荐说明不会改变已计算的评分结果。",
+    analysisScope: "分析范围",
+    unreadAttachments: "尚未读取的附件",
     accepted: "已接受",
     currentWorkResults: "当前工作结果",
     workspaceOverview: "工作台总览",
@@ -199,7 +206,7 @@ const copy = {
     confidence: "置信度",
     reasons: "原因",
     missingItems: "缺失",
-    localReadiness: "当前成熟度由前端本地估算。",
+    localReadiness: "成熟度根据当前已填写信息估算。",
     finalizedReport: "已确认最终版报告",
     markFinalized: "标记为最终版",
     reopenAnalysis: "重新进入分析",
@@ -218,18 +225,13 @@ const copy = {
     exporting: "正在生成...",
     exportFailed: "导出失败，请重试",
     copied: "已复制",
-    projectMetadata: "项目元信息",
+    projectMetadata: "项目概况",
     benchmarkSummary: "Benchmark 摘要",
     preferenceImpact: "偏好影响",
     riskAssessment: "风险评估",
     roadmapNextSteps: "路线图 / 下一步",
-    attachmentMetadata: "附件元信息",
+    attachmentMetadata: "附件登记信息",
     missingInputs: "缺失输入",
-    aiUsed: "AI 使用",
-    documentParsing: "文档解析",
-    sourceMode: "来源模式",
-    no: "否",
-    deterministicSource: "确定性项目数据 + Benchmark 结果",
     reportDraftWarning: "当前报告仍是草稿，因为项目必填信息尚未完整。",
     reportAnalyzingWarning: "分析正在进行中。报告可以审阅，但推荐置信度仍可能变化。",
     reportReadyNotice: "报告已准备好进入审阅。",
@@ -259,16 +261,16 @@ const copy = {
     save: "Save",
     regenerateSection: "Regenerate Section",
     addAttachment: "Register Attachment",
-    fileNote: "This version only records attachment metadata. It does not parse files or run RAG.",
+    fileNote: "This analysis currently uses only file names, types, and declared purposes. File contents and spreadsheet data have not been read.",
     technicalScore: "Technical Score",
     preferenceScore: "User Preference",
     weightedImpact: "Weighted Impact",
     finalScore: "Final Score",
     weightedScore: "Weighted Score",
     risk: "Risk",
-    assumptions: "Assumptions",
-    uncertainty: "Uncertainty",
-    dataSources: "Data sources used",
+    assumptions: "Analysis basis",
+    uncertainty: "Conclusion limits",
+    dataSources: "Reference information",
     reportSections: "Report Sections",
     sectionEditor: "Document Editor",
     rightPanel: "Evidence Panel",
@@ -284,8 +286,8 @@ const copy = {
     missingItems: "Missing",
     validation: "Input Completeness",
     reason: "Preference Reason",
-    registeredOnly: "Registered only",
-    emptyAttachments: "No attachments registered yet. Record file name, type, and purpose now; parsing can come later.",
+    registeredOnly: "Registered",
+    emptyAttachments: "No attachments registered yet. Add a file name, type, and declared purpose.",
     futureExport: "PDF / PPT export entry (future)",
     topRecommendation: "Current Lead",
     reasonPlaceholder: "Examples: used before, customer mandated, team familiarity, supply stability, cost reason",
@@ -300,11 +302,11 @@ const copy = {
     openProject: "Open Project",
     byType: "Project Type",
     apiConnected: "API connected",
-    mockFallback: "Mock fallback",
+    mockFallback: "Offline mode",
     checkingApi: "Checking API",
     saving: "Saving...",
     saved: "Saved",
-    saveFailed: "Save failed, using local state",
+    saveFailed: "Sync unavailable; current changes are preserved",
     savePreferences: "Save Preferences",
     deleteProject: "Delete Project",
     deleteProjectConfirm: "Delete this project? This removes the project data from local SQLite.",
@@ -321,28 +323,28 @@ const copy = {
     projectAiToggle: "Toggle AI analysis for this Project Query",
     queryEmpty: "No conversation yet. Ask a question to receive a backend analysis result.",
     queryLoading: "Analyzing...",
-    queryFailed: "The request failed. Your question is preserved; please retry.",
+    queryFailed: "Unable to connect to the analysis service right now. Your question and previous result are preserved.",
     retry: "Retry",
     aiAnalysis: "AI Analysis",
-    deterministic: "Deterministic",
-    fallback: "Fallback",
+    deterministic: "Basic analysis",
+    fallback: "AI temporarily unavailable",
     qualityProfile: "Quality profile",
     fastQuality: "Fast",
     balancedQuality: "Balanced",
     qualityQuality: "Quality",
-    responseContext: "Assumptions & uncertainty",
-    attachmentsNotParsed: "Attachments were not parsed; only registered metadata was used.",
+    responseContext: "Analysis basis & conclusion limits",
+    attachmentsNotParsed: "This analysis currently uses only file names, types, and declared purposes. File contents and spreadsheet data have not been read.",
     missingInputsQuery: "Missing inputs",
     analyzeRegisteredInfo: "Analyze registered information",
-    explainRanking: "Explain ranking",
+    explainRanking: "View recommendation reasons",
     generateReportDraft: "Generate report draft",
     analysisResult: "Analysis result",
     followUpQuestions: "Follow-up questions",
-    actionFailed: "The action failed. Retry without changing the existing result.",
-    intelligenceUsesProjectSwitch: "Uses the current project AI switch",
+    actionFailed: "Unable to connect to the analysis service right now. The last successful result is preserved.",
+    intelligenceUsesProjectSwitch: "Current analysis mode",
     reportSuggestions: "Report draft suggestions",
-    suggestionsNotSaved: "Suggestions are not saved. Only accepted sections are written to the report.",
-    acceptSection: "Accept section",
+    suggestionsNotSaved: "Once confirmed, this suggestion will update the current report content.",
+    acceptSection: "Accept suggestion",
     acceptAll: "Accept all",
     discardSuggestions: "Discard suggestions",
     currentContent: "Current content",
@@ -350,10 +352,16 @@ const copy = {
     rewriteInstruction: "Rewrite instruction",
     rewritePlaceholder: "Example: explain the recommendation and key risks more concisely for management",
     suggestRewrite: "Suggest rewrite",
-    accept: "Accept",
-    discard: "Discard",
+    accept: "Accept suggestion",
+    discard: "Discard suggestion",
     sectionRewrite: "Section rewrite suggestion",
-    noPersistenceBeforeAccept: "Generating a suggestion never overwrites or saves the current report automatically.",
+    noPersistenceBeforeAccept: "The current report remains unchanged until you confirm the suggestion.",
+    useBasicAnalysis: "Use basic analysis",
+    fallbackHint: "A basic analysis has been provided using the current project data.",
+    benchmarkExplanation: "Explains platform strengths, preference impact, and key risks using the current scores.",
+    benchmarkScoreTooltip: "Recommendation reasons do not change the calculated scores.",
+    analysisScope: "Analysis scope",
+    unreadAttachments: "Attachments not yet read",
     accepted: "Accepted",
     currentWorkResults: "Current Work Results",
     workspaceOverview: "Workspace Overview",
@@ -370,7 +378,7 @@ const copy = {
     confidence: "Confidence",
     reasons: "Reasons",
     missing: "Missing",
-    localReadiness: "Readiness is estimated locally.",
+    localReadiness: "Readiness is estimated from the information currently provided.",
     finalizedReport: "Finalized report",
     markFinalized: "Mark as Finalized",
     reopenAnalysis: "Reopen for Analysis",
@@ -389,18 +397,13 @@ const copy = {
     exporting: "Generating...",
     exportFailed: "Export failed. Please retry.",
     copied: "Copied",
-    projectMetadata: "Project Metadata",
+    projectMetadata: "Project Overview",
     benchmarkSummary: "Benchmark Summary",
     preferenceImpact: "Preference Impact",
     riskAssessment: "Risk Assessment",
     roadmapNextSteps: "Roadmap / Next Steps",
-    attachmentMetadata: "Attachment Metadata",
+    attachmentMetadata: "Registered Attachments",
     missingInputs: "Missing Inputs",
-    aiUsed: "AI used",
-    documentParsing: "Document parsing",
-    sourceMode: "Source mode",
-    no: "No",
-    deterministicSource: "deterministic project data + benchmark result",
     reportDraftWarning: "This report is still a draft because required project inputs are missing.",
     reportAnalyzingWarning: "Analysis is in progress. Report can be reviewed, but recommendation confidence may still change.",
     reportReadyNotice: "Report is ready for review.",
@@ -509,9 +512,9 @@ function nextStepFor(workspace: ProjectWorkspace, language: Language): string {
     return language === "zh" ? "为关键平台填写倾向原因，区分技术分和业务偏好。" : "Add preference reasons for key platforms to separate technical fit from business preference.";
   }
   if (workspace.attachments.length === 0) {
-    return language === "zh" ? "登记附件元信息，明确输入来源但不解析文件。" : "Register attachment metadata to clarify input sources without parsing files.";
+    return language === "zh" ? "登记附件信息，明确可参考资料；当前不会读取文件内容。" : "Register attachment information to clarify available references; file contents are not read yet.";
   }
-  return language === "zh" ? "进入 Benchmark 与 Report，检查首选平台、风险和假设。" : "Review Benchmark and Report for the lead platform, risks, and assumptions.";
+  return language === "zh" ? "进入 Benchmark 与 Report，检查首选平台、风险、分析依据和结论限制。" : "Review Benchmark and Report for the lead platform, risks, analysis basis, and conclusion limits.";
 }
 
 function getWorkspaceReadiness(workspace: ProjectWorkspace): { readiness: ProjectReadiness; isLocal: boolean } {
@@ -528,7 +531,7 @@ function getWorkspaceReadiness(workspace: ProjectWorkspace): { readiness: Projec
   if (workspace.intake.candidatePlatforms.length < 2) missingRequired.push({ zh: "至少两个候选 PLC 生态", en: "At least two candidate PLC ecosystems" });
   if (!workspace.intake.teamExperience.trim()) recommendedMissing.push({ zh: "团队经验", en: "Team experience" });
   if (!workspace.intake.constraints.trim()) recommendedMissing.push({ zh: "项目约束", en: "Project constraints" });
-  if (workspace.attachments.length === 0) recommendedMissing.push({ zh: "附件元信息", en: "Attachment metadata" });
+  if (workspace.attachments.length === 0) recommendedMissing.push({ zh: "附件登记信息", en: "Registered attachment information" });
 
   return {
     isLocal: true,
@@ -540,7 +543,7 @@ function getWorkspaceReadiness(workspace: ProjectWorkspace): { readiness: Projec
       nextAction: { zh: nextStepFor(workspace, "zh"), en: nextStepFor(workspace, "en") },
       confidenceLevel: completeness.percent >= 80 ? "High" : completeness.percent >= 50 ? "Medium" : "Low",
       reasons: [
-        { zh: "后端 readiness 不可用，前端使用本地字段完整度估算。", en: "Backend readiness is unavailable; frontend estimated readiness from local field completeness." },
+        { zh: "成熟度根据当前已填写信息估算。", en: "Readiness is estimated from the information currently provided." },
       ],
     },
   };
@@ -565,7 +568,7 @@ function calculateBenchmark(workspace: ProjectWorkspace, platformCatalog: PlcEco
           en: `${platform.name} has a technical score of ${technical}, user preference of ${preference}, and final score of ${weighted}.`,
         },
         assumptions: [
-          { zh: "技术评分来自 mock 平台 profile。", en: "Technical score comes from mock platform profiles." },
+          { zh: "技术评分来自当前平台基础资料。", en: "Technical scores come from the current platform reference information." },
           { zh: "用户倾向占最终评分 28%。", en: "User preference contributes 28% of the final score." },
         ],
       } satisfies BenchmarkResult;
@@ -596,6 +599,15 @@ function safeFileName(value: string) {
   return value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").toLowerCase() || "plc-decision-report";
 }
 
+function reportAnalysisScope(workspace: ProjectWorkspace, language: Language) {
+  return {
+    references: uniqueStrings(workspace.report.sections.flatMap((section) => section.dataSourcesUsed.map((item) => localize(item, language)))),
+    basis: uniqueStrings(workspace.report.sections.flatMap((section) => section.assumptions.map((item) => localize(item, language)))),
+    limits: uniqueStrings(workspace.report.sections.map((section) => `${localize(section.title, language)}: ${localize(section.uncertainty, language)}`)),
+    unreadAttachments: workspace.attachments.map((attachment) => `${attachment.fileName} (${attachment.fileType})`),
+  };
+}
+
 function buildReportMarkdown(
   workspace: ProjectWorkspace,
   benchmarkResults: BenchmarkResult[],
@@ -607,15 +619,13 @@ function buildReportMarkdown(
   const candidatePlatforms = workspace.intake.candidatePlatforms.map((id) => platformName(id, platformCatalog));
   const lead = benchmarkResults[0];
   const leadName = lead ? platformName(lead.platformId, platformCatalog) : "-";
+  const analysisScope = reportAnalysisScope(workspace, language);
   const sectionById = (id: string) => workspace.report.sections.find((section) => section.id === id);
   const executiveSummary = sectionById("executive-summary") ?? workspace.report.sections[0];
   const risks = uniqueStrings(benchmarkResults.flatMap((result) => result.assumptions.map((item) => localize(item, language))));
   const preferenceLines = workspace.preferences
     .filter((preference) => workspace.intake.candidatePlatforms.includes(preference.platformId))
     .map((preference) => `- ${platformName(preference.platformId, platformCatalog)}: ${preference.preferenceWeight}/100${preference.userReasonNote ? ` - ${preference.userReasonNote}` : ""}`);
-  const attachmentLines = workspace.attachments.length
-    ? workspace.attachments.map((attachment) => `- ${attachment.fileName} | ${attachment.fileType} | ${attachment.declaredPurpose || "-"} | Registered only`)
-    : [`- ${language === "zh" ? "暂无附件元信息" : "No attachment metadata registered"}`];
 
   return [
     `# ${workspace.project.name}`,
@@ -647,21 +657,19 @@ function buildReportMarkdown(
     `## ${labels.roadmapNextSteps}`,
     `- ${localize(readiness.nextAction, language)}`,
     "",
-    `## ${labels.assumptions}`,
-    ...(workspace.report.sections.flatMap((section) => section.assumptions.map((item) => `- ${localize(item, language)}`)).length
-      ? workspace.report.sections.flatMap((section) => section.assumptions.map((item) => `- ${localize(item, language)}`))
-      : [`- ${language === "zh" ? "使用当前项目输入和确定性 Benchmark 结果。" : "Uses current project inputs and deterministic benchmark results."}`]),
+    `## ${labels.analysisScope}`,
     "",
-    `## ${labels.uncertainty}`,
-    ...workspace.report.sections.map((section) => `- ${localize(section.title, language)}: ${localize(section.uncertainty, language)}`),
+    `### ${labels.dataSources}`,
+    ...(analysisScope.references.length ? analysisScope.references.map((item) => `- ${item}`) : ["-"]),
     "",
-    `## ${labels.attachmentMetadata}`,
-    ...attachmentLines,
+    `### ${labels.assumptions}`,
+    ...(analysisScope.basis.length ? analysisScope.basis.map((item) => `- ${item}`) : ["-"]),
     "",
-    "---",
-    `${labels.aiUsed}: ${labels.no}`,
-    `${labels.documentParsing}: ${labels.no}`,
-    `${labels.sourceMode}: ${labels.deterministicSource}`,
+    `### ${labels.uncertainty}`,
+    ...(analysisScope.limits.length ? analysisScope.limits.map((item) => `- ${item}`) : ["-"]),
+    "",
+    `### ${labels.unreadAttachments}`,
+    ...(analysisScope.unreadAttachments.length ? analysisScope.unreadAttachments.map((item) => `- ${item}`) : [`- ${language === "zh" ? "暂无登记附件" : "No registered attachments"}`]),
   ].join("\n");
 }
 
@@ -684,15 +692,17 @@ function buildReportPrintHtml(
   const candidatePlatforms = workspace.intake.candidatePlatforms.map((id) => platformName(id, platformCatalog)).join(", ") || "-";
   const lead = benchmarkResults[0];
   const leadName = lead ? platformName(lead.platformId, platformCatalog) : "-";
+  const analysisScope = reportAnalysisScope(workspace, language);
   const benchmarkRows = benchmarkResults
     .map((result, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(platformName(result.platformId, platformCatalog))}</td><td>${result.technicalScore}</td><td>${result.preferenceScore}</td><td>${result.weightedScore}</td><td>${escapeHtml(result.riskLevel)}</td></tr>`)
     .join("");
   const reportSectionsHtml = workspace.report.sections
     .map((section, index) => {
-      const assumptions = section.assumptions.map((item) => `<li>${escapeHtml(localize(item, language))}</li>`).join("");
-      return `<section class="report-section"><h2><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(localize(section.title, language))}</h2><div class="body">${escapeHtml(localize(section.body, language) || "-").replace(/\n/g, "<br>")}</div><div class="evidence"><strong>${language === "zh" ? "假设" : "Assumptions"}</strong><ul>${assumptions || `<li>-</li>`}</ul><strong>${language === "zh" ? "不确定性" : "Uncertainty"}</strong><p>${escapeHtml(localize(section.uncertainty, language))}</p></div></section>`;
+      return `<section class="report-section"><h2><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(localize(section.title, language))}</h2><div class="body">${escapeHtml(localize(section.body, language) || "-").replace(/\n/g, "<br>")}</div></section>`;
     })
     .join("");
+  const scopeList = (items: string[]) => `<ul>${(items.length ? items : ["-"]).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  const analysisScopeHtml = `<section class="report-section analysis-scope"><h2>${language === "zh" ? "分析范围" : "Analysis Scope"}</h2><div class="evidence"><strong>${language === "zh" ? "参考信息" : "Reference Information"}</strong>${scopeList(analysisScope.references)}<strong>${language === "zh" ? "分析依据" : "Analysis Basis"}</strong>${scopeList(analysisScope.basis)}<strong>${language === "zh" ? "结论限制" : "Conclusion Limits"}</strong>${scopeList(analysisScope.limits)}<strong>${language === "zh" ? "尚未读取的附件" : "Attachments Not Yet Read"}</strong>${scopeList(analysisScope.unreadAttachments)}</div></section>`;
 
   return `<!doctype html><html lang="${language === "zh" ? "zh-CN" : "en"}"><head><meta charset="utf-8"><title>${escapeHtml(workspace.project.name)}</title><style>
     @page { size: A4; margin: 16mm; }
@@ -727,7 +737,8 @@ function buildReportPrintHtml(
     <h2>${language === "zh" ? "平台 Benchmark" : "Platform Benchmark"}</h2>
     <table><thead><tr><th>#</th><th>${language === "zh" ? "平台" : "Platform"}</th><th>${language === "zh" ? "技术" : "Technical"}</th><th>${language === "zh" ? "偏好" : "Preference"}</th><th>${language === "zh" ? "总分" : "Final"}</th><th>${language === "zh" ? "风险" : "Risk"}</th></tr></thead><tbody>${benchmarkRows || `<tr><td colspan="6">-</td></tr>`}</tbody></table>
     ${reportSectionsHtml}
-    <footer>${language === "zh" ? "未使用 AI；未解析附件内容；来源为确定性项目数据与 benchmark 结果。" : "AI not used; attachment contents not parsed; source mode is deterministic project data and benchmark results."}</footer>
+    ${analysisScopeHtml}
+    <footer>PLC Platform Benchmark & Migration Decision Copilot</footer>
   </body></html>`;
 }
 
@@ -745,6 +756,7 @@ async function exportReportPptx(
   pptx.company = "PLC Decision Copilot";
   pptx.subject = workspace.project.goal;
   pptx.title = workspace.project.name;
+  const analysisScope = reportAnalysisScope(workspace, language);
 
   const addHeader = (slide: ReturnType<typeof pptx.addSlide>, title: string, subtitle?: string) => {
     slide.background = { color: "F8FAFC" };
@@ -754,7 +766,6 @@ async function exportReportPptx(
   };
   const addFooter = (slide: ReturnType<typeof pptx.addSlide>) => {
     slide.addText("PLC Platform Benchmark & Migration Decision Copilot", { x: 0.65, y: 7.15, w: 8.5, h: 0.2, fontSize: 8, color: "64748B", margin: 0 });
-    slide.addText(language === "zh" ? "确定性分析 · 未使用 AI · 未解析附件" : "Deterministic analysis · No AI · Attachments not parsed", { x: 8.8, y: 7.15, w: 3.9, h: 0.2, fontSize: 8, color: "64748B", align: "right", margin: 0 });
   };
 
   const titleSlide = pptx.addSlide();
@@ -800,11 +811,29 @@ async function exportReportPptx(
     addHeader(slide, `${String(index + 1).padStart(2, "0")}  ${localize(section.title, language)}`, `${readiness.status} · ${readiness.score}%`);
     const body = localize(section.body, language) || "-";
     slide.addText(body.length > 1800 ? `${body.slice(0, 1797)}...` : body, { x: 0.75, y: 1.7, w: 8.1, h: 4.9, fontSize: 15, color: "1E293B", margin: 0.08, breakLine: false, valign: "top" });
-    slide.addText(language === "zh" ? "假设与不确定性" : "Assumptions & Uncertainty", { x: 9.25, y: 1.7, w: 3.3, h: 0.35, fontSize: 12, bold: true, color: "0891B2", margin: 0 });
+    slide.addText(language === "zh" ? "分析依据与结论限制" : "Analysis Basis & Conclusion Limits", { x: 9.25, y: 1.7, w: 3.3, h: 0.35, fontSize: 12, bold: true, color: "0891B2", margin: 0 });
     const context = [...section.assumptions.map((item) => `• ${localize(item, language)}`), `• ${localize(section.uncertainty, language)}`].join("\n");
     slide.addText(context || "-", { x: 9.25, y: 2.15, w: 3.3, h: 3.85, fontSize: 11, color: "475569", margin: 0.06, breakLine: false, valign: "top" });
     addFooter(slide);
   });
+
+  const scopeSlide = pptx.addSlide();
+  addHeader(scopeSlide, language === "zh" ? "分析范围" : "Analysis Scope");
+  const scopeBlocks = [
+    [language === "zh" ? "参考信息" : "Reference Information", analysisScope.references],
+    [language === "zh" ? "分析依据" : "Analysis Basis", analysisScope.basis],
+    [language === "zh" ? "结论限制" : "Conclusion Limits", analysisScope.limits],
+    [language === "zh" ? "尚未读取的附件" : "Attachments Not Yet Read", analysisScope.unreadAttachments],
+  ] as const;
+  scopeBlocks.forEach(([title, items], index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const x = 0.75 + col * 6.15;
+    const y = 1.7 + row * 2.55;
+    scopeSlide.addText(title, { x, y, w: 5.55, h: 0.3, fontSize: 12, bold: true, color: "0891B2", margin: 0 });
+    scopeSlide.addText((items.length ? items : ["-"]).map((item) => `• ${item}`).join("\n"), { x, y: y + 0.45, w: 5.55, h: 1.7, fontSize: 11, color: "475569", margin: 0.05, valign: "top" });
+  });
+  addFooter(scopeSlide);
 
   await pptx.writeFile({ fileName: `${safeFileName(workspace.project.name)}.pptx` });
 }
@@ -1019,13 +1048,13 @@ export default function App() {
     }
   }
 
-  async function submitMessage(question: string, appendUser: boolean) {
+  async function submitMessage(question: string, appendUser: boolean, forceUseAi?: boolean) {
     if (queryRequestInFlight.current) return;
 
     const requestScope = queryScope;
     const requestProjectId = selectedProjectId;
     const requestKey = requestScope === "global" ? "global" : `project:${requestProjectId}`;
-    const useAi = requestScope === "global" ? globalAiEnabled : Boolean(projectAiEnabled[requestProjectId]);
+    const useAi = forceUseAi ?? (requestScope === "global" ? globalAiEnabled : Boolean(projectAiEnabled[requestProjectId]));
     const user: ChatMessage = { role: "user", content: { zh: question, en: question } };
 
     if (appendUser) {
@@ -1294,11 +1323,12 @@ export default function App() {
               <div className="mt-3">
                 {draftError ? <p className="mb-2 text-xs font-medium text-amber-300">{draftError}</p> : null}
                 {activeQueryError ? (
-                  <div className="mb-2 flex items-center justify-between gap-3 rounded-md border border-rose-400/30 bg-rose-400/10 p-2 text-xs text-rose-100">
+                  <div className="mb-2 rounded-md border border-rose-400/30 bg-rose-400/10 p-2 text-xs text-rose-100">
                     <span>{t.queryFailed}</span>
-                    <button className="shrink-0 rounded-md bg-white px-2 py-1 font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => void submitMessage(activeQueryError.question, false)} disabled={queryBusy}>
-                      {t.retry}
-                    </button>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button className="shrink-0 rounded-md bg-white px-2 py-1 font-semibold text-rose-800 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => void submitMessage(activeQueryError.question, false)} disabled={queryBusy}>{t.retry}</button>
+                      <button className="shrink-0 rounded-md bg-slate-950 px-2 py-1 font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => void submitMessage(activeQueryError.question, false, false)} disabled={queryBusy}>{t.useBasicAnalysis}</button>
+                    </div>
                   </div>
                 ) : null}
                 <div className="flex gap-2">
@@ -1895,13 +1925,18 @@ function useIntelligenceAction<T>() {
   return { result, setResult, loading, error, run, retry, reset };
 }
 
-function IntelligenceModeBadge({ result, labels }: { result: Pick<IntelligenceResult, "mode" | "qualityProfile">; labels: (typeof copy)[Language] }) {
-  const modeLabel = result.mode === "openai" ? labels.aiAnalysis : result.mode === "deterministic_fallback" ? labels.fallback : labels.deterministic;
-  const modeClass = result.mode === "openai" ? "bg-cyan-100 text-cyan-900" : result.mode === "deterministic_fallback" ? "bg-amber-100 text-amber-900" : "bg-slate-200 text-slate-800";
+function analysisStatusPresentation(status: IntelligenceResult["executionStatus"], labels: (typeof copy)[Language]) {
+  if (status === "ai_success") return { label: labels.aiAnalysis, lightClass: "bg-cyan-100 text-cyan-900", darkClass: "bg-cyan-300 text-slate-950" };
+  if (status === "ai_fallback") return { label: labels.fallback, lightClass: "bg-amber-100 text-amber-900", darkClass: "bg-amber-300 text-amber-950" };
+  return { label: labels.deterministic, lightClass: "bg-slate-200 text-slate-800", darkClass: "bg-slate-200 text-slate-800" };
+}
+
+function IntelligenceModeBadge({ result, labels }: { result: Pick<IntelligenceResult, "executionStatus" | "qualityProfile">; labels: (typeof copy)[Language] }) {
+  const presentation = analysisStatusPresentation(result.executionStatus, labels);
   const qualityLabel = result.qualityProfile === "fast" ? labels.fastQuality : result.qualityProfile === "balanced" ? labels.balancedQuality : labels.qualityQuality;
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${modeClass}`}>{modeLabel}</span>
+      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.lightClass}`}>{presentation.label}</span>
       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{labels.qualityProfile}: {qualityLabel}</span>
     </div>
   );
@@ -1911,6 +1946,7 @@ function IntelligenceResultPanel({ result, labels, language }: { result: Intelli
   return (
     <div className="rounded-md border border-cyan-200 bg-cyan-50/60 p-4">
       <IntelligenceModeBadge result={result} labels={labels} />
+      {result.executionStatus === "ai_fallback" ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
       <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-800">{localize(result.answer, language)}</p>
       {!result.documentParsingUsed ? <p className="mt-4 rounded-md bg-white px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.attachmentsNotParsed}</p> : null}
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -1932,11 +1968,14 @@ function LightEvidenceList({ title, items }: { title: string; items: string[] })
   );
 }
 
-function ActionError({ labels, retry, disabled }: { labels: (typeof copy)[Language]; retry: () => void; disabled: boolean }) {
+function ActionError({ labels, retry, useBasicAnalysis, disabled }: { labels: (typeof copy)[Language]; retry: () => void; useBasicAnalysis: () => void; disabled: boolean }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+    <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
       <span>{labels.actionFailed}</span>
-      <button className="rounded-md bg-white px-3 py-1.5 font-semibold ring-1 ring-rose-200 hover:bg-rose-100 disabled:opacity-50" onClick={retry} disabled={disabled}>{labels.retry}</button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className="rounded-md bg-white px-3 py-1.5 font-semibold ring-1 ring-rose-200 hover:bg-rose-100 disabled:opacity-50" onClick={retry} disabled={disabled}>{labels.retry}</button>
+        <button className="rounded-md bg-slate-950 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 disabled:opacity-50" onClick={useBasicAnalysis} disabled={disabled}>{labels.useBasicAnalysis}</button>
+      </div>
     </div>
   );
 }
@@ -1952,7 +1991,7 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
       projectId: workspace.project.id,
       fileName: form.fileName.trim(),
       fileType: form.fileType,
-      declaredPurpose: form.declaredPurpose.trim() || (language === "zh" ? "仅登记元信息，未解析文件内容。" : "Metadata registered only; file content is not parsed."),
+      declaredPurpose: form.declaredPurpose.trim() || (language === "zh" ? "仅使用文件名称、类型和声明用途，尚未读取文件内容。" : "Only the file name, type, and declared purpose are used; file contents have not been read."),
       uploadedAt: today,
     };
     registerAttachment(
@@ -2015,7 +2054,7 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
             </button>
             <p className="text-xs font-semibold text-slate-500">{labels.attachmentsNotParsed}</p>
           </div>
-          {analysis.error ? <div className="mt-4"><ActionError labels={labels} retry={analysis.retry} disabled={analysis.loading} /></div> : null}
+          {analysis.error ? <div className="mt-4"><ActionError labels={labels} retry={analysis.retry} useBasicAnalysis={() => void analysis.run(() => analyzeProjectIntelligence(workspace.project.id, { language, quality: "balanced", useAi: false }))} disabled={analysis.loading} /></div> : null}
           {analysis.result ? <div className="mt-4"><IntelligenceResultPanel result={analysis.result} labels={labels} language={language} /></div> : null}
         </Panel>
       </div>
@@ -2079,8 +2118,11 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
       </div>
       </Panel>
       <Panel title={labels.explainRanking} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
-        <p className="mb-4 text-sm text-slate-600">{language === "zh" ? "该说明独立于确定性评分，不会修改排名或图表。" : "This explanation is separate from deterministic scoring and cannot modify rankings or charts."}</p>
-        {explanation.error ? <ActionError labels={labels} retry={explanation.retry} disabled={explanation.loading} /> : null}
+        <div className="mb-4 flex items-start gap-2 text-sm text-slate-600">
+          <p>{labels.benchmarkExplanation}</p>
+          <span className="inline-flex shrink-0 cursor-help text-slate-400" title={labels.benchmarkScoreTooltip} aria-label={labels.benchmarkScoreTooltip} tabIndex={0}><InfoIcon size={16} /></span>
+        </div>
+        {explanation.error ? <ActionError labels={labels} retry={explanation.retry} useBasicAnalysis={() => void explanation.run(() => explainProjectBenchmark(workspace.project.id, { language, quality: "balanced", useAi: false }))} disabled={explanation.loading} /> : null}
         {explanation.result ? <IntelligenceResultPanel result={explanation.result} labels={labels} language={language} /> : <p className="rounded-md border border-dashed border-slate-300 p-5 text-sm text-slate-500">{labels.explainRanking}</p>}
       </Panel>
     </div>
@@ -2102,12 +2144,7 @@ function ChatMessageCard({ message, labels, language }: { message: ChatMessage; 
   }
 
   const result = message.intelligence;
-  const modeLabel = result.mode === "openai" ? labels.aiAnalysis : result.mode === "deterministic_fallback" ? labels.fallback : labels.deterministic;
-  const modeClass = result.mode === "openai"
-    ? "bg-cyan-300 text-slate-950"
-    : result.mode === "deterministic_fallback"
-      ? "bg-amber-300 text-amber-950"
-      : "bg-slate-200 text-slate-800";
+  const presentation = analysisStatusPresentation(result.executionStatus, labels);
   const qualityLabel = result.qualityProfile === "fast" ? labels.fastQuality : result.qualityProfile === "balanced" ? labels.balancedQuality : labels.qualityQuality;
   const assumptions = result.assumptions.map((item) => localize(item, language));
   const uncertainty = result.uncertainty.map((item) => localize(item, language));
@@ -2117,10 +2154,11 @@ function ChatMessageCard({ message, labels, language }: { message: ChatMessage; 
     <div className="rounded-md border border-white/10 bg-cyan-400/10 p-3 text-sm leading-6 text-cyan-50">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <p className="mr-auto text-xs font-semibold text-cyan-100">Copilot</p>
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${modeClass}`}>{modeLabel}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${presentation.darkClass}`}>{presentation.label}</span>
         <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-slate-200">{labels.qualityProfile}: {qualityLabel}</span>
       </div>
       <p>{localize(message.content, language)}</p>
+      {result.executionStatus === "ai_fallback" ? <p className="mt-3 rounded-md bg-amber-300/15 px-2 py-1.5 text-xs text-amber-100">{labels.fallbackHint}</p> : null}
       {!result.documentParsingUsed ? <p className="mt-3 rounded-md bg-slate-950/40 px-2 py-1.5 text-xs text-slate-300">{labels.attachmentsNotParsed}</p> : null}
       <details className="mt-3 rounded-md border border-white/10 bg-slate-950/30 p-2">
         <summary className="cursor-pointer text-xs font-semibold text-cyan-100">{labels.responseContext}</summary>
@@ -2183,16 +2221,13 @@ function ReportBuilder({
   const reportDraft = useIntelligenceAction<ReportGenerationResult>();
   const rewrite = useIntelligenceAction<ReportSectionRewriteResult>();
   const markdown = useMemo(() => buildReportMarkdown(workspace, benchmarkResults, readiness, language, platformCatalog), [benchmarkResults, language, platformCatalog, readiness, workspace]);
-  const missingInputs = missingInputLabels(readiness, language);
-  const deliveryDataSources = uniqueStrings([
-    ...workspace.report.sections.flatMap((item) => item.dataSourcesUsed.map((source) => localize(source, language))),
-    labels.deterministicSource,
-  ]);
+  const deliveryScope = reportAnalysisScope(workspace, language);
+  const deliveryDataSources = deliveryScope.references;
   const deliveryAssumptions = uniqueStrings([
-    ...workspace.report.sections.flatMap((item) => item.assumptions.map((assumption) => localize(assumption, language))),
+    ...deliveryScope.basis,
     ...readiness.reasons.map((reason) => localize(reason, language)),
   ]);
-  const deliveryUncertainty = uniqueStrings(workspace.report.sections.map((item) => localize(item.uncertainty, language)));
+  const deliveryUncertainty = deliveryScope.limits;
 
   async function copyMarkdown() {
     try {
@@ -2335,7 +2370,7 @@ function ReportBuilder({
           </button>
           <p className="text-sm text-slate-600">{labels.suggestionsNotSaved}</p>
         </div>
-        {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} disabled={reportDraft.loading} /></div> : null}
+        {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} useBasicAnalysis={() => void reportDraft.run(() => generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi: false }))} disabled={reportDraft.loading} /></div> : null}
         {reportDraft.result ? (
           <div className="mt-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2345,6 +2380,7 @@ function ReportBuilder({
                 <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={reportDraft.reset} disabled={acceptingSuggestions}>{labels.discardSuggestions}</button>
               </div>
             </div>
+            {reportDraft.result.executionStatus === "ai_fallback" ? <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{labels.noPersistenceBeforeAccept}</p>
             <div className="grid gap-4 xl:grid-cols-2">
               {reportDraft.result.sections.map((suggestion) => {
@@ -2449,6 +2485,7 @@ function ReportBuilder({
                 </div>
                 {rewrite.result && rewriteSectionId === section.id ? <IntelligenceModeBadge result={rewrite.result} labels={labels} /> : null}
               </div>
+              {rewrite.result?.executionStatus === "ai_fallback" && rewriteSectionId === section.id ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
               <label className="mt-4 grid gap-2 text-sm font-semibold text-slate-700">
                 {labels.rewriteInstruction}
                 <textarea className="min-h-24 resize-y rounded-md border border-slate-300 bg-white p-3 font-normal outline-none focus:ring-2 focus:ring-cyan-400" value={rewriteInstruction} placeholder={labels.rewritePlaceholder} onChange={(event) => setRewriteInstruction(event.target.value)} />
@@ -2457,7 +2494,7 @@ function ReportBuilder({
                 <Sparkles size={16} />
                 {rewrite.loading ? labels.queryLoading : labels.suggestRewrite}
               </button>
-              {rewrite.error && rewriteSectionId === section.id ? <div className="mt-4"><ActionError labels={labels} retry={rewrite.retry} disabled={rewrite.loading} /></div> : null}
+              {rewrite.error && rewriteSectionId === section.id ? <div className="mt-4"><ActionError labels={labels} retry={rewrite.retry} useBasicAnalysis={() => void rewrite.run(() => rewriteProjectReportSection(workspace.project.id, section.id, { instruction: rewriteInstruction.trim(), language, audience: "executive", quality: "quality", useAi: false }))} disabled={rewrite.loading} /></div> : null}
               {rewrite.result && rewriteSectionId === section.id ? (
                 <div className="mt-4 space-y-4">
                   <div className="grid gap-4 lg:grid-cols-2">
@@ -2481,18 +2518,16 @@ function ReportBuilder({
           <ReportPreview workspace={workspace} benchmarkResults={benchmarkResults} readiness={readiness} platformCatalog={platformCatalog} labels={labels} language={language} />
         )}
       </Panel>
-      <Panel title={labels.deliveryContext} description={labels.deterministicSource}>
+      <Panel title={labels.analysisScope}>
         <div className="mb-5 space-y-2 rounded-md bg-slate-50 p-3">
           <FactRow label={labels.status} value={readiness.status} />
           <FactRow label={labels.readiness} value={`${readiness.score}%`} />
           <FactRow label={labels.confidence} value={readiness.confidenceLevel} />
-          <FactRow label={labels.aiUsed} value={labels.no} />
-          <FactRow label={labels.documentParsing} value={labels.no} />
         </div>
         <EvidenceBlock title={labels.dataSources} items={deliveryDataSources} />
         <EvidenceBlock title={labels.assumptions} items={deliveryAssumptions} />
         <EvidenceBlock title={labels.uncertainty} items={deliveryUncertainty} />
-        <EvidenceBlock title={labels.missingInputs} items={missingInputs.length ? missingInputs : [labels.noMissingInputs]} />
+        <EvidenceBlock title={labels.unreadAttachments} items={deliveryScope.unreadAttachments.length ? deliveryScope.unreadAttachments : [language === "zh" ? "暂无登记附件" : "No registered attachments"]} />
       </Panel>
     </div>
     </div>
