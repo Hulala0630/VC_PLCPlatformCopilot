@@ -144,7 +144,7 @@ def compute_project_readiness(workspace: ProjectWorkspace) -> ProjectReadiness:
         (bool(workspace.intake.team_experience.strip()), LocalizedText(zh="补充团队经验。", en="Add team experience.")),
         (bool(workspace.intake.constraints.strip()), LocalizedText(zh="补充项目约束。", en="Add project constraints.")),
         (bool(workspace.intake.existing_platform.strip()), LocalizedText(zh="补充现有平台。", en="Add the existing platform.")),
-        (len(workspace.attachments) > 0, LocalizedText(zh="登记至少一个附件 metadata。", en="Register at least one attachment metadata record.")),
+        (len(workspace.attachments) > 0, LocalizedText(zh="登记至少一个附件记录。", en="Register at least one attachment record.")),
         (
             candidate_count > 0 and candidate_ids.issubset(preference_ids),
             LocalizedText(zh="为所有候选平台设置偏好权重。", en="Set preference weights for all candidate platforms."),

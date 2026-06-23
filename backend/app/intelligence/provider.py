@@ -71,7 +71,7 @@ class DeterministicPlaceholderProvider:
             key=f"global:{request.question}:{','.join(item.id for item in platforms)}",
             answer=LocalizedText(
                 zh=f"可基于平台 profile 比较 {zh_names} 的生产率、运动控制、安全、仿真、开放性、人才和成本评分。此回答仅使用确定性平台资料。",
-                en=f"Compare {names} using the platform profile dimensions for productivity, motion, safety, simulation, openness, talent, and cost. This answer uses deterministic platform data only.",
+                en=f"Compare {names} using the platform profile dimensions for productivity, motion, safety, simulation, openness, talent, and cost. The comparison uses the currently available platform information.",
             ),
             sources=[self._platform_source(platform) for platform in platforms],
             assumptions=self._base_assumptions(),
@@ -121,7 +121,7 @@ class DeterministicPlaceholderProvider:
         lead = benchmark[0] if benchmark else None
         risks = ", ".join(f"{item.platform_id}: {item.risk_level}" for item in benchmark) or "not available"
         zh_risks = "；".join(f"{item.platform_id}: {item.risk_level}" for item in benchmark) or "暂无"
-        attachment_text = f"{len(workspace.attachments)} metadata record(s)"
+        attachment_text = f"{len(workspace.attachments)} registered attachment reference(s)"
         candidates = ", ".join(workspace.intake.candidate_platforms) or "none"
         zh_candidates = "、".join(workspace.intake.candidate_platforms) or "暂无"
         preference_impact = lead.preference_score if lead else 0
@@ -133,7 +133,7 @@ class DeterministicPlaceholderProvider:
                     f"生命周期：{workspace.readiness.status}；成熟度：{workspace.readiness.score}%；"
                     f"候选平台：{zh_candidates}；报告状态：{workspace.report.status}；"
                     f"benchmark 领先：{lead.platform_id if lead else '暂无'}；领先平台偏好分：{preference_impact}；风险：{zh_risks}；"
-                    f"附件 metadata：{len(workspace.attachments)} 条。下一步：{workspace.readiness.next_action.zh}"
+                    f"附件记录：{len(workspace.attachments)} 条。下一步：{workspace.readiness.next_action.zh}"
                 ),
                 en=(
                     f"Lifecycle: {workspace.readiness.status}; readiness: {workspace.readiness.score}%; "
@@ -166,7 +166,7 @@ class DeterministicPlaceholderProvider:
             )
             answer = LocalizedText(
                 zh=f"{lead.platform_id} 以加权分 {lead.weighted_score} 排名第一；技术分 {lead.technical_score} 占 72%，偏好分 {lead.preference_score} 占 28%，风险等级为 {lead.risk_level}。仅解释既有结果，不重新计算或替换评分。",
-                en=f"{lead.platform_id} ranks first at {lead.weighted_score}; technical score {lead.technical_score} contributes 72%, preference score {lead.preference_score} contributes 28%, and risk is {lead.risk_level}. {sensitivity} The provider explains existing results and never recalculates or replaces scores.",
+                en=f"{lead.platform_id} ranks first at {lead.weighted_score}; technical score {lead.technical_score} contributes 72%, preference score {lead.preference_score} contributes 28%, and risk is {lead.risk_level}. {sensitivity}",
             )
         else:
             answer = LocalizedText(
@@ -179,7 +179,7 @@ class DeterministicPlaceholderProvider:
             answer=answer,
             sources=[self._benchmark_source(item) for item in benchmark],
             assumptions=self._base_assumptions() + [
-                LocalizedText(zh="评分由确定性 benchmark service 计算。", en="Scores are calculated by the deterministic benchmark service."),
+                LocalizedText(zh="本说明采用当前 benchmark 结果及其已列出的假设。", en="This explanation uses the current benchmark results and their stated assumptions."),
             ] + [assumption for result in benchmark for assumption in result.assumptions],
             uncertainty=self._project_uncertainty(workspace),
             missing_inputs=self._missing_inputs(workspace),
@@ -214,7 +214,7 @@ class DeterministicPlaceholderProvider:
             sections=sections,
             sources=self._project_sources(workspace, benchmark, include_report=True),
             assumptions=self._project_assumptions(workspace) + [
-                LocalizedText(zh="生成内容是建议稿，不会自动保存。", en="Generated content is a suggestion and is not saved automatically."),
+                LocalizedText(zh="报告内容是待确认建议，需审核后采用。", en="Report content is a suggestion pending review and approval."),
             ],
             uncertainty=self._project_uncertainty(workspace),
             missing_inputs=self._missing_inputs(workspace),
@@ -242,7 +242,7 @@ class DeterministicPlaceholderProvider:
             ),
             sources=[self._report_source(section)] + [self._benchmark_source(item) for item in benchmark],
             assumptions=self._project_assumptions(workspace) + [
-                LocalizedText(zh="改写建议不会自动保存到报告分区。", en="The rewrite suggestion is not saved to the report section automatically."),
+                LocalizedText(zh="改写内容是待确认建议，需审核后采用。", en="The rewritten content is a suggestion pending review and approval."),
             ],
             uncertainty=self._project_uncertainty(workspace),
             generated_at=self._now(),
@@ -276,16 +276,16 @@ class DeterministicPlaceholderProvider:
         if not workspace.attachments:
             questions.append(
                 LocalizedText(
-                    zh="决策评审需要哪些需求、I/O、架构或电气文档 metadata？",
-                    en="Which requirements, I/O, architecture, or electrical document metadata is expected for the decision review?",
+                    zh="决策评审还需要登记哪些需求、I/O、架构或电气文档？",
+                    en="Which requirements, I/O, architecture, or electrical documents should be registered for the decision review?",
                 )
             )
         return self._response(
             scope="project_analysis",
             key=f"attachment-analysis:{workspace.project.id}:{workspace.project.updated_at}",
             answer=LocalizedText(
-                zh=f"已登记 {len(workspace.attachments)} 条附件 metadata，其中 {len(declared)} 条声明了用途。项目 intake 包含 {workspace.intake.io_scale} 个 I/O 和 {len(workspace.intake.candidate_platforms)} 个候选平台，成熟度为 {workspace.readiness.score}%。本分析未读取或解析任何文件内容。",
-                en=f"{len(workspace.attachments)} attachment metadata record(s) are registered and {len(declared)} include a declared purpose. Project intake has {workspace.intake.io_scale} I/O points and {len(workspace.intake.candidate_platforms)} candidate platforms; readiness is {workspace.readiness.score}%. No file content was read or parsed.",
+                zh=f"已登记 {len(workspace.attachments)} 条附件记录，其中 {len(declared)} 条声明了用途。项目输入包含 {workspace.intake.io_scale} 个 I/O 和 {len(workspace.intake.candidate_platforms)} 个候选平台，成熟度为 {workspace.readiness.score}%。当前尚未读取附件内容。",
+                en=f"{len(workspace.attachments)} attachment record(s) are registered and {len(declared)} include a declared purpose. Project inputs include {workspace.intake.io_scale} I/O points and {len(workspace.intake.candidate_platforms)} candidate platforms; readiness is {workspace.readiness.score}%. Attachment contents have not yet been read.",
             ),
             sources=self._project_sources(workspace, []),
             assumptions=self._project_assumptions(workspace),
@@ -404,32 +404,33 @@ class DeterministicPlaceholderProvider:
             type="attachment_metadata",
             label=LocalizedText(zh=file_name, en=file_name),
             detail=LocalizedText(
-                zh="附件元信息已登记，但文件内容未被解析。",
-                en="Attachment metadata was registered, but file content was not parsed.",
+                zh="附件已按名称、类型和用途登记，当前尚未读取其内容。",
+                en="The attachment is registered by name, type, and purpose; its content has not been read.",
             ),
         )
 
     def _base_assumptions(self) -> list[LocalizedText]:
         return [
-            LocalizedText(zh="响应由确定性 placeholder 生成，未调用 AI。", en="The response was generated by a deterministic placeholder; no AI was called."),
+            LocalizedText(zh="分析基于当前可用的项目输入。", en="The analysis is based on the currently available project inputs."),
         ]
 
     def _project_assumptions(self, workspace: ProjectWorkspace) -> list[LocalizedText]:
         assumptions = self._base_assumptions()
         assumptions.append(
             LocalizedText(
-                zh="附件元信息已登记，但文件内容未被解析。" if workspace.attachments else "未登记附件；也未解析任何文件内容。",
-                en="Attachment metadata was registered, but file content was not parsed." if workspace.attachments else "No attachments were registered and no file content was parsed.",
+                zh="附件已按名称、类型和用途登记，当前尚未读取其内容。" if workspace.attachments else "当前未登记附件，因此没有附件内容可供评审。",
+                en="Attachments are registered by name, type, and purpose; their contents have not been read." if workspace.attachments else "No attachments are registered, so no attachment content was available for review.",
             )
         )
         return assumptions
 
     def _project_uncertainty(self, workspace: ProjectWorkspace) -> list[LocalizedText]:
         uncertainty = [
-            LocalizedText(zh="结论仅基于当前结构化项目数据和确定性 benchmark。", en="Conclusions use only current structured project data and the deterministic benchmark."),
+            LocalizedText(zh="结论仅基于当前项目输入和 benchmark 结果。", en="Conclusions are based only on the current project inputs and benchmark results."),
+            LocalizedText(zh="成本、供应链和停机约束仍需由项目团队确认。", en="Cost, supply-chain, and downtime constraints still require project-team confirmation."),
         ]
         if not workspace.attachments:
-            uncertainty.append(LocalizedText(zh="没有附件 metadata 可供参考。", en="No attachment metadata is available for reference."))
+            uncertainty.append(LocalizedText(zh="当前没有已登记附件可供参考。", en="No registered attachments are currently available for reference."))
         return uncertainty
 
     def _missing_inputs(self, workspace: ProjectWorkspace) -> list[LocalizedText]:

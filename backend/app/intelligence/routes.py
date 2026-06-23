@@ -43,7 +43,12 @@ def _run(action):
     except IntelligenceProviderUnavailableError as error:
         raise HTTPException(
             status_code=502,
-            detail={"error_category": error.category},
+            detail={
+                "error": "intelligence_request_failed",
+                "fallback_reason": error.reason,
+                "retryable": error.retryable,
+                "request_id": error.request_id,
+            },
         ) from error
 
 

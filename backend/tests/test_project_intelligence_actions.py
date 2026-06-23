@@ -108,7 +108,7 @@ class ProjectIntelligenceActionTests(unittest.TestCase):
             self.assertFalse(result.ai_used)
             self.assertIsNone(result.fallback_reason)
         attachment_analysis = results[0]
-        self.assertIn("No file content was read or parsed", attachment_analysis.answer.en)
+        self.assertIn("Attachment contents have not yet been read", attachment_analysis.answer.en)
         self.assertTrue(attachment_analysis.follow_up_questions)
         self.assertEqual(results[3].section_id, workspace.report.sections[0].id)
         self.assertEqual(workspace.model_dump(), project_before)

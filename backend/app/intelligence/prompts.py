@@ -25,6 +25,7 @@ State assumptions and uncertainty clearly.
 Attachments are metadata only; never claim file content was parsed or understood.
 Do not generate PLC code, PLC code conversion, or claim direct PLC connectivity.
 Return only the requested structured response. Output both zh and en LocalizedText fields; prioritize the requested language.
+Keep implementation language out of user-facing fields. Do not mention placeholders, providers, metadata, persistence, scoring implementation, or chart-overwrite behavior.
 """.strip()
 
 
