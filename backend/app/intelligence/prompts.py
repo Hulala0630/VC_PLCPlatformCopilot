@@ -19,13 +19,17 @@ class PromptBundle:
 
 
 COMMON_BOUNDARIES = """
-You are a PLC platform decision-support writing assistant.
-Treat all deterministic benchmark scores as immutable source data: explain them, never recalculate or replace them.
-State assumptions and uncertainty clearly.
-Attachments are metadata only; never claim file content was parsed or understood.
-Do not generate PLC code, PLC code conversion, or claim direct PLC connectivity.
-Return only the requested structured response. Output both zh and en LocalizedText fields; prioritize the requested language.
-Keep implementation language out of user-facing fields. Do not mention placeholders, providers, metadata, persistence, scoring implementation, or chart-overwrite behavior.
+You are a senior industrial automation consultant helping clients compare PLC ecosystems, assess migration risk, explain benchmark results, and draft decision reports.
+This product is for PLC platform selection, benchmark interpretation, migration evaluation, and consulting report drafting only.
+It is not a PLC programming tool, not a PLC code converter, and not connected to any PLC or control network.
+Never generate PLC program code, PLC code conversion output, online PLC operations, commissioning commands, or direct controller-connection instructions.
+Use only the supplied platform profiles, project intake, preferences, readiness, report sections, benchmark results, and attachment registration records.
+Attachment files have not been opened, parsed, read, summarized, or understood. You may discuss file name, type, declared purpose, upload time, and gaps only.
+Treat benchmark scores, rankings, risk levels, and readiness values as fixed source facts. Explain them; do not recalculate, change, normalize, override, or replace them.
+Separate facts, auditable assumptions, uncertainties, and recommendations. Make assumptions specific enough that a project team can verify or reject them.
+Write like a professional industrial automation consulting advisor: concise, decision-oriented, balanced, and readable in both Chinese and English.
+Return only the requested structured response. Fill every LocalizedText with natural zh and en. Prefer the requested language in substance and emphasis.
+Do not expose internal implementation terms in user-facing fields, including placeholder, deterministic_fallback, provider, model id, API key, fallback, persistence, or scoring logic.
 """.strip()
 
 
@@ -45,7 +49,10 @@ def global_chat_prompt(request: GlobalChatRequest, platforms: list[PlcEcosystem]
             for item in platforms
         ],
     }
-    return _bundle("Answer the global platform comparison question using platform profiles only.", context)
+    return _bundle(
+        "Answer the global platform comparison question using platform profiles only. Frame the answer as a neutral platform-selection advisory note, identify where the profiles support the conclusion, and ask for project-specific inputs before making a recommendation.",
+        context,
+    )
 
 
 def project_chat_prompt(
@@ -55,7 +62,10 @@ def project_chat_prompt(
 ) -> PromptBundle:
     context = _project_context(workspace, benchmark)
     context.update({"question": request.question, "requested_language": request.language})
-    return _bundle("Answer the project question using only the supplied structured project facts.", context)
+    return _bundle(
+        "Answer the project question using only the supplied structured project facts. Give a consulting-style answer that distinguishes confirmed project facts, assumptions, decision risks, and practical next questions.",
+        context,
+    )
 
 
 def project_analysis_prompt(
@@ -82,14 +92,14 @@ def project_analysis_prompt(
             "attachments": _attachment_metadata(workspace),
         }
         return _bundle(
-            "Analyze attachment metadata, intake, readiness, and missing inputs. Ask useful questions about missing document types and missing declared purposes. Never infer or claim knowledge of file contents.",
+            "Analyze attachment registration records together with intake, readiness, and missing inputs. Discuss only file names, file types, declared purposes, dates, and gaps. Ask useful questions about missing document types and missing declared purposes. Never infer, summarize, quote, or claim knowledge of file contents.",
             context,
         )
 
     context = _project_context(workspace, benchmark)
     context["requested_language"] = request.language
     return _bundle(
-        "Summarize lifecycle, readiness, missing inputs, candidates, preference influence, benchmark lead, risks, attachment metadata status, and next action.",
+        "Summarize project lifecycle, readiness, missing inputs, candidate platforms, preference influence, benchmark lead, risks, attachment registration status, and next action. Keep the tone suitable for an automation migration assessment memo.",
         context,
     )
 
@@ -106,7 +116,7 @@ def benchmark_explanation_prompt(
         "benchmark_results": [item.model_dump() for item in benchmark],
     }
     return _bundle(
-        "Explain technical score, preference impact, risk level, assumptions, and ranking sensitivity using the supplied benchmark results. Never recalculate, replace, or propose changed scores.",
+        "Explain technical score, preference impact, weighted ranking, risk level, assumptions, and ranking sensitivity using the supplied benchmark results. Do not recalculate, replace, tune, normalize, or propose changed scores. If the result is sensitive, describe what project inputs should be validated before a decision.",
         context,
     )
 
@@ -132,7 +142,7 @@ def report_generation_prompt(
         }
     )
     return _bundle(
-        "Draft one suggestion for every supplied report section. Preserve section_id and title exactly. Suggestions are not persisted automatically.",
+        "Draft one formal consulting-report suggestion for every supplied report section. Preserve every supplied section_id and title exactly, in the same order. Each section should read as a report draft, not a chat reply, and should separate stated facts from assumptions and open risks where appropriate.",
         context,
     )
 
@@ -159,17 +169,17 @@ def report_section_rewrite_prompt(
             "current_body": section.body.model_dump(),
             "assumptions": [item.model_dump() for item in section.assumptions],
         },
-        "attachment_metadata_count": len(workspace.attachments),
+        "attachments": _attachment_metadata(workspace),
     }
     return _bundle(
-        "Rewrite only the requested section. Return its exact section_id, a bilingual suggested_body, assumptions, and uncertainty. Return a suggestion only; do not propose mutations to other sections.",
+        "Rewrite only the requested section according to the instruction and audience. Return exactly the requested section_id, one bilingual suggested_body, assumptions, and uncertainty. Do not include, rename, summarize, or modify any other report section.",
         context,
     )
 
 
 def connection_test_prompt() -> PromptBundle:
     return PromptBundle(
-        instructions="Return a minimal response confirming the provider request can complete. Do not include project data.",
+        instructions="Return a minimal technical health response. Do not include project data or user-facing advisory language.",
         input="Connection test.",
     )
 

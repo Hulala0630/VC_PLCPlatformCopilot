@@ -39,8 +39,18 @@ from tests.test_openai_provider import (
 BANNED_USER_TERMS = (
     "placeholder",
     "provider",
+    "fallback",
+    "deterministic_fallback",
     "deterministic service",
     "metadata",
+    "model id",
+    "model_id",
+    "api key",
+    "api_key",
+    "authorization header",
+    "secret key",
+    "scoring logic",
+    "deterministic scoring",
     "persistence",
     "persisted",
     "元数据",
@@ -270,23 +280,31 @@ class IntelligenceFallbackContractTests(unittest.TestCase):
         self.assertNotIn(raw_secret, response.text)
 
     def test_ai_engineering_language_is_rejected_and_safely_falls_back(self) -> None:
-        unsafe = intelligence_output("Provider metadata placeholder")
-        configured = build_provider_selection(
-            openai_settings(retries=1),
-            client=FakeClient(FakeResponses(parse_effects=[unsafe, unsafe])),
-            sleep_fn=lambda _: None,
-        )
-        with patch("app.intelligence.service.get_provider_selection", return_value=configured):
-            result = service.global_chat(
-                GlobalChatRequest(question="Compare", language="en", use_ai=True)
-            )
+        unsafe_answers = [
+            "Provider metadata placeholder",
+            "deterministic_fallback exposed",
+            "model id and API key details",
+            "deterministic scoring logic",
+        ]
+        for unsafe_answer in unsafe_answers:
+            with self.subTest(unsafe_answer=unsafe_answer):
+                unsafe = intelligence_output(unsafe_answer)
+                configured = build_provider_selection(
+                    openai_settings(retries=1),
+                    client=FakeClient(FakeResponses(parse_effects=[unsafe, unsafe])),
+                    sleep_fn=lambda _: None,
+                )
+                with patch("app.intelligence.service.get_provider_selection", return_value=configured):
+                    result = service.global_chat(
+                        GlobalChatRequest(question="Compare", language="en", use_ai=True)
+                    )
 
-        self.assertEqual(result.execution_status, "ai_fallback")
-        self.assertEqual(result.fallback_reason, "invalid_response")
-        self.assertTrue(result.retryable)
-        content = user_text(result)
-        for term in BANNED_USER_TERMS:
-            self.assertNotIn(term, content)
+                self.assertEqual(result.execution_status, "ai_fallback")
+                self.assertEqual(result.fallback_reason, "invalid_response")
+                self.assertTrue(result.retryable)
+                content = user_text(result)
+                for term in BANNED_USER_TERMS:
+                    self.assertNotIn(term, content)
 
     def test_openapi_exposes_execution_contract_on_all_response_shapes(self) -> None:
         with TestClient(app) as client:
