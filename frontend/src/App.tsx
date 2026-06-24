@@ -192,7 +192,7 @@ const copy = {
     unreadAttachments: "尚未读取的附件",
     accepted: "已接受",
     currentWorkResults: "当前工作结果",
-    workspaceOverview: "工作台总览",
+    workspaceOverview: "选择一个项目进入工程师审查流程，检查输入、Benchmark、AI 解释和报告输出。",
     createPLCDecisionProject: "创建 PLC 决策项目",
     noProjects: "还没有项目。",
     noProjectsHint: "创建第一个 PLC 决策项目，开始平台选型与迁移分析。",
@@ -238,10 +238,10 @@ const copy = {
     finalizedReportNotice: "已定稿报告。",
     sectionContext: "分区上下文",
     noMissingInputs: "当前没有影响该分区的缺失输入。",
-    mvpTrialTitle: "工程师试用 MVP",
-    mvpTrialDescription: "用一个已准备好的样例项目，在 15-20 分钟内走完整个选型、Benchmark、AI 解释和报告导出闭环。",
-    startEngineerTrial: "开始工程师试用",
-    trialChecklist: "MVP 试用检查",
+    mvpTrialTitle: "工程师审查项目",
+    mvpTrialDescription: "这些项目就是工程师试用入口。请选择一个项目，按真实选型评审流程检查输入、评分、风险和报告。",
+    startEngineerTrial: "进入工程师审查",
+    trialChecklist: "工程师审查路径",
     trialScript: "试用脚本",
     trialStepProject: "确认项目目标、行业、I/O、运动、安全和约束。",
     trialStepBenchmark: "检查平台技术评分、偏好权重和推荐排序。",
@@ -376,7 +376,7 @@ const copy = {
     unreadAttachments: "Attachments not yet read",
     accepted: "Accepted",
     currentWorkResults: "Current Work Results",
-    workspaceOverview: "Workspace Overview",
+    workspaceOverview: "Select a project to enter the engineer review flow and inspect inputs, benchmark, AI explanation, and report output.",
     createPLCDecisionProject: "Create PLC Decision Project",
     noProjects: "No projects yet.",
     noProjectsHint: "Create your first PLC decision project to begin platform selection and migration analysis.",
@@ -422,10 +422,10 @@ const copy = {
     finalizedReportNotice: "Finalized report.",
     sectionContext: "Section Context",
     noMissingInputs: "No missing inputs are currently affecting this section.",
-    mvpTrialTitle: "Engineer Trial MVP",
-    mvpTrialDescription: "Use a prepared sample project to walk through selection, benchmark, AI explanation, and report export in 15-20 minutes.",
-    startEngineerTrial: "Start Engineer Trial",
-    trialChecklist: "MVP Trial Checklist",
+    mvpTrialTitle: "Engineer Review Project",
+    mvpTrialDescription: "Each project is an engineer trial entry. Choose one project and review inputs, scoring, risk, and report output as a real selection assessment.",
+    startEngineerTrial: "Enter Engineer Review",
+    trialChecklist: "Engineer Review Path",
     trialScript: "Trial Script",
     trialStepProject: "Confirm project goal, industry, I/O, motion, safety, and constraints.",
     trialStepBenchmark: "Review platform technical score, preference weighting, and ranking.",
@@ -1000,19 +1000,6 @@ export default function App() {
     setSaveState("failed");
   }
 
-  function openEngineerTrial() {
-    const ranked = [...workspaces].sort((a, b) => getWorkspaceReadiness(b).readiness.score - getWorkspaceReadiness(a).readiness.score);
-    const candidate = ranked.find((item) => item.attachments.length > 0 && item.intake.candidatePlatforms.length >= 2) ?? ranked[0];
-    if (!candidate) {
-      void createProject();
-      return;
-    }
-    setSelectedProjectId(candidate.project.id);
-    setWorkspaceView("project");
-    setActiveTab("overview");
-    setActiveReportSectionId("executive-summary");
-  }
-
   async function createProject() {
     const id = `project-${Date.now()}`;
     const projectName = language === "zh" ? "新建 PLC 决策项目" : "New PLC Decision Project";
@@ -1434,7 +1421,6 @@ export default function App() {
               setActiveTab={setActiveTab}
               setWorkspaceView={setWorkspaceView}
               createProject={createProject}
-              openEngineerTrial={openEngineerTrial}
               deleteProject={deleteProject}
               language={language}
               labels={t}
@@ -1516,7 +1502,6 @@ function ProjectHome({
   setActiveTab,
   setWorkspaceView,
   createProject,
-  openEngineerTrial,
   deleteProject,
   language,
   labels,
@@ -1532,7 +1517,6 @@ function ProjectHome({
   setActiveTab: (tab: WorkspaceTab) => void;
   setWorkspaceView: (view: "home" | "project") => void;
   createProject: () => void | Promise<void>;
-  openEngineerTrial: () => void | Promise<void>;
   deleteProject: (projectId: string) => void | Promise<void>;
   language: Language;
   labels: (typeof copy)[Language];
@@ -1550,27 +1534,6 @@ function ProjectHome({
 
   return (
     <div className="grid gap-5">
-      <Panel title={labels.mvpTrialTitle} description={labels.mvpTrialDescription}>
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-          <div className="grid gap-3 md:grid-cols-2">
-            {[labels.trialStepProject, labels.trialStepBenchmark, labels.trialStepIntelligence, labels.trialStepReport].map((step, index) => (
-              <div key={step} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">{labels.trialScript} {index + 1}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-700">{step}</p>
-              </div>
-            ))}
-          </div>
-          <div className="rounded-md bg-slate-950 p-4 text-white">
-            <p className="text-sm font-semibold">{labels.demoReady}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">{labels.engineerTrialGoal}</p>
-            <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400" onClick={openEngineerTrial}>
-              <ChevronRight size={16} />
-              {labels.startEngineerTrial}
-            </button>
-          </div>
-        </div>
-      </Panel>
-
       <Panel title={labels.currentWorkResults} description={labels.workspaceOverview}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="grid gap-3 md:grid-cols-3">
@@ -1685,7 +1648,7 @@ function ProjectEntryCard({
           {selected ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => open("overview")}>
-                {labels.openProject}
+                {labels.startEngineerTrial}
               </button>
               <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("benchmark")}>
                 Benchmark
@@ -1708,6 +1671,15 @@ function ProjectEntryCard({
         </div>
         {selected ? (
           <div className="grid gap-3">
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">{labels.trialChecklist}</p>
+              <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
+                <p>1. {labels.trialStepProject}</p>
+                <p>2. {labels.trialStepBenchmark}</p>
+                <p>3. {labels.trialStepIntelligence}</p>
+                <p>4. {labels.trialStepReport}</p>
+              </div>
+            </div>
             <MetricBar label={labels.readiness} value={readiness.score} tone="cyan" />
             <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
             <Info title={labels.topRecommendation} value={topPlatform?.name ?? "-"} />
@@ -1734,24 +1706,6 @@ function ProjectOverview({
   setActiveTab: (tab: WorkspaceTab) => void;
 }) {
   const { readiness, isLocal } = getWorkspaceReadiness(workspace);
-  const trialChecks = [
-    {
-      label: labels.trialStepProject,
-      ok: Boolean(workspace.project.industry && workspace.project.goal && workspace.intake.ioScale > 0 && workspace.intake.candidatePlatforms.length >= 2),
-    },
-    {
-      label: labels.trialStepBenchmark,
-      ok: Boolean(topResult),
-    },
-    {
-      label: labels.trialStepIntelligence,
-      ok: workspace.attachments.length > 0,
-    },
-    {
-      label: labels.trialStepReport,
-      ok: workspace.report.sections.some((section) => localize(section.body, language).trim().length > 0),
-    },
-  ];
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Panel title={labels.lifecycleStatus} description={workspace.project.name}>
@@ -1791,19 +1745,6 @@ function ProjectOverview({
         <MetricBar label={labels.technicalScore} value={topResult?.technicalScore ?? 0} tone="slate" />
         <MetricBar label={labels.preferenceScore} value={topResult?.preferenceScore ?? 0} tone="cyan" />
         <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
-      </Panel>
-      <Panel title={labels.trialChecklist} description={labels.engineerTrialGoal}>
-        <div className="grid gap-3">
-          {trialChecks.map((item) => (
-            <div key={item.label} className={`flex items-start gap-3 rounded-md border p-3 ${item.ok ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-              {item.ok ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-700" size={18} /> : <AlertTriangle className="mt-0.5 shrink-0 text-amber-700" size={18} />}
-              <div>
-                <p className={`text-xs font-semibold uppercase tracking-wide ${item.ok ? "text-emerald-700" : "text-amber-700"}`}>{item.ok ? labels.demoReady : labels.demoNeedsInput}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-700">{item.label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
       </Panel>
     </div>
   );

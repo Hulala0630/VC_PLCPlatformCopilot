@@ -13,7 +13,7 @@ This is not a commercial release. It is an MVP v0.1 checkpoint where an engineer
 An engineer should be able to complete the following flow in 15-20 minutes:
 
 1. Open the local web app.
-2. Start from a prepared sample project or create a new project.
+2. Enter one prepared project from the project portfolio, or create a new project.
 3. Review or fill project intake:
    - industry
    - project goal
@@ -70,8 +70,8 @@ Excluded from MVP v0.1:
 The MVP is ready for engineer trial when:
 
 - The app starts locally without manual code changes.
-- The home screen has a clear engineer-trial entry point.
-- At least one sample project can demonstrate the full loop.
+- The project portfolio itself is the engineer-trial entry point.
+- Each prepared sample project can demonstrate the full loop from its project card.
 - New project creation works.
 - Intake saving works.
 - Preference sliders affect ranking.
@@ -123,4 +123,3 @@ MVP v0.1 Engineer Trial:
 - Known limitation: AI explains and drafts, but deterministic scoring remains the source of truth.
 - Recommended trial duration: 15-20 minutes.
 - Requested feedback: scoring relevance, risk usefulness, report quality, missing inputs, and next parsing priorities.
-
