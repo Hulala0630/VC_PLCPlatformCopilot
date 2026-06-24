@@ -4,7 +4,7 @@ import json
 from sqlite3 import Connection, Row
 from uuid import uuid4
 
-from app.data import ECOSYSTEMS, PROJECT_WORKSPACES
+from app.data import ECOSYSTEMS, PROJECT_WORKSPACES, build_report_sections
 from app.database import get_connection, initialize_schema
 from app.models import (
     LocalizedText,
@@ -50,38 +50,17 @@ def _localized_list_load(value: str | None) -> list[LocalizedText]:
 
 
 def _default_report_sections(project_name: str, generated_at: str) -> list[ReportSection]:
-    return [
-        ReportSection(
-            id="executive-summary",
-            title=LocalizedText(zh="执行摘要", en="Executive Summary"),
-            body=LocalizedText(
-                zh=f"{project_name} 当前处于本地持久化决策草稿阶段，建议先完善输入资料再发布正式推荐。",
-                en=f"{project_name} is in a local persisted decision draft stage. Complete inputs before issuing a formal recommendation.",
-            ),
-            assumptions=[LocalizedText(zh="附件仅登记 metadata，当前版本不解析文件内容。", en="Attachments are metadata-only and are not parsed in this version.")],
-            last_generated_at=generated_at,
-        ),
-        ReportSection(
-            id="project-inputs",
-            title=LocalizedText(zh="项目输入", en="Project Inputs"),
-            body=LocalizedText(
-                zh="报告汇总行业、目标、I/O 规模、运动与安全需求、团队经验和候选平台。",
-                en="The report summarizes industry, goal, I/O scale, motion and safety needs, team experience, and candidate platforms.",
-            ),
-            assumptions=[LocalizedText(zh="输入由用户手动维护，并保存到本地 SQLite。", en="Inputs are maintained manually and saved to local SQLite.")],
-            last_generated_at=generated_at,
-        ),
-        ReportSection(
-            id="platform-benchmark",
-            title=LocalizedText(zh="平台基准对比", en="Platform Benchmark"),
-            body=LocalizedText(
-                zh="平台排序由技术评分和用户倾向权重共同决定。",
-                en="Platform ranking is determined by technical scores and user preference weights.",
-            ),
-            assumptions=[LocalizedText(zh="基础平台评分来自 mock profile。", en="Base platform scores come from mock profiles.")],
-            last_generated_at=generated_at,
-        ),
-    ]
+    return build_report_sections(
+        project_name,
+        executive_summary=f"{project_name} 当前处于项目输入整理阶段，建议先补齐候选平台、约束、附件登记和偏好权重，再形成正式推荐。",
+        inputs="报告将汇总行业、目标、I/O 规模、运动与安全需求、预算敏感度、团队经验和候选平台。",
+        benchmark="平台排序由技术评分和用户倾向权重共同决定，可在候选平台和偏好更新后重新生成。",
+        preference="本节用于说明团队经验、供应商能力、成本敏感度、既有平台和组织标准对平台排序的影响。",
+        risk="本节用于梳理迁移风险、交付风险、安全验收风险、团队能力风险和供应链风险。",
+        roadmap="本节用于规划平台验证、模板冻结、供应商评审、FAT/SAT、切换窗口和验收步骤。",
+        uncertainty="本节记录尚未确认的输入、未读取的附件内容、关键业务假设和后续澄清问题。",
+        generated_at=generated_at,
+    )
 
 
 def seed_initial_workspaces_if_empty() -> None:
