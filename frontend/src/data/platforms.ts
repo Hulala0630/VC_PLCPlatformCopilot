@@ -233,9 +233,9 @@ export const workspaces: ProjectWorkspace[] = [
   {
     project: {
       id: "test-migration-project",
-      name: "测试迁移项目",
-      industry: "Automotive",
-      goal: "评估既有 PLC 平台迁移路径、供应链稳定性和实施风险。",
+      name: "汽车涂装线 PLC 迁移评估",
+      industry: "Automotive Paint Shop",
+      goal: "评估既有涂装线 PLC 平台迁移路径，降低停线风险，并提升备件和长期维护稳定性。",
       status: "Draft",
       createdAt: "2026-05-30",
       updatedAt: "2026-05-30",
@@ -246,23 +246,23 @@ export const workspaces: ProjectWorkspace[] = [
       motionRequirement: 64,
       safetyRequirement: 78,
       budgetSensitivity: 66,
-      teamExperience: "Team familiar with Siemens and CODESYS; limited Rockwell maintenance experience.",
+      teamExperience: "Maintenance team familiar with Siemens and CODESYS; limited Rockwell support experience.",
       existingPlatform: "siemens-tia",
       candidatePlatforms: ["siemens-tia", "codesys", "twincat"],
-      constraints: "Customer expects stable supply chain, reusable standards, and low migration disruption.",
+      constraints: "Migration must fit planned shutdown windows, preserve validated safety logic, and reduce spare-parts risk.",
     },
     preferences: preferences({ "siemens-tia": 78, codesys: 72, twincat: 58, rockwell: 35, mitsubishi: 42, omron: 46 }),
     attachments: [
       {
         id: "att-test-io",
         projectId: "test-migration-project",
-        fileName: "Test_Project_IO_List.xlsx",
+        fileName: "Paint_Shop_IO_Baseline.xlsx",
         fileType: "I/O List",
-        declaredPurpose: "Baseline I/O count and cabinet planning reference",
+        declaredPurpose: "Existing I/O baseline and cabinet migration planning reference",
         uploadedAt: "2026-05-30",
       },
     ],
-    report: { projectId: "test-migration-project", sections: reportSections("测试迁移项目"), version: 1, status: "Draft" },
+    report: { projectId: "test-migration-project", sections: reportSections("汽车涂装线 PLC 迁移评估"), version: 1, status: "Draft" },
   },
   {
     project: {

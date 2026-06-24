@@ -79,6 +79,8 @@ const copy = {
     askPlaceholder: "输入项目约束、选型问题或报告修改意见",
     project: "项目",
     projectList: "项目列表",
+    projectGoalSummary: "项目目标摘要",
+    industry: "行业",
     status: "状态",
     updated: "更新",
     overview: "Overview",
@@ -104,6 +106,9 @@ const copy = {
     sectionEditor: "文档编辑器",
     rightPanel: "依据面板",
     candidatePlatforms: "候选平台",
+    registeredMaterials: "已登记资料数量",
+    attachmentReadLimit: "不读取正文 / 尚未解析",
+    keyInputCompleteness: "关键输入完整度",
     projectInputs: "项目输入",
     emptyQuestion: "请输入内容后再发送。",
     completion: "项目完成度",
@@ -252,6 +257,8 @@ const copy = {
     askPlaceholder: "Enter project constraints, selection questions, or report revision requests",
     project: "Project",
     projectList: "Project List",
+    projectGoalSummary: "Project Goal Summary",
+    industry: "Industry",
     status: "Status",
     updated: "Updated",
     overview: "Overview",
@@ -277,6 +284,9 @@ const copy = {
     sectionEditor: "Document Editor",
     rightPanel: "Evidence Panel",
     candidatePlatforms: "Candidate Platforms",
+    registeredMaterials: "Registered Materials",
+    attachmentReadLimit: "Content not read / not parsed",
+    keyInputCompleteness: "Key Input Completeness",
     projectInputs: "Project Inputs",
     emptyQuestion: "Enter content before sending.",
     completion: "Project Completeness",
@@ -495,6 +505,20 @@ function calculateCompleteness(workspace: ProjectWorkspace) {
     workspace.preferences.some((item) => item.preferenceWeight !== 50 || item.userReasonNote.trim()),
     workspace.attachments.length > 0,
     workspace.report.sections.some((section) => section.body.en.trim() || section.body.zh.trim()),
+  ];
+  const done = checks.filter(Boolean).length;
+  return { done, total: checks.length, percent: Math.round((done / checks.length) * 100) };
+}
+
+function calculateKeyInputCompleteness(workspace: ProjectWorkspace) {
+  const checks = [
+    Boolean(workspace.project.name.trim()),
+    Boolean(workspace.project.industry.trim()),
+    Boolean(workspace.project.goal.trim()),
+    workspace.intake.ioScale > 0,
+    workspace.intake.candidatePlatforms.length >= 2,
+    Boolean(workspace.intake.teamExperience.trim()),
+    Boolean(workspace.intake.constraints.trim()),
   ];
   const done = checks.filter(Boolean).length;
   return { done, total: checks.length, percent: Math.round((done / checks.length) * 100) };
@@ -1409,7 +1433,7 @@ export default function App() {
               setView={setProjectHomeView}
             />
           ) : null}
-          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} setActiveTab={setActiveTab} /> : null}
+          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} platformCatalog={platformCatalog} setActiveTab={setActiveTab} /> : null}
           {workspaceView === "project" && activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "attachments" ? <Attachments key={workspace.project.id} workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} useAi={currentProjectAiEnabled} /> : null}
@@ -1591,9 +1615,11 @@ function ProjectEntryCard({
   deleteProject: (projectId: string) => void | Promise<void>;
 }) {
   const { readiness, isLocal } = getWorkspaceReadiness(workspace);
+  const keyInputs = calculateKeyInputCompleteness(workspace);
   const benchmark = calculateBenchmark(workspace, platformCatalog);
   const topResult = benchmark[0];
   const topPlatform = platformCatalog.find((item) => item.id === topResult?.platformId);
+  const candidatePlatformNames = workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id);
 
   function open(tab: WorkspaceTab) {
     setSelectedProjectId(workspace.project.id);
@@ -1606,21 +1632,32 @@ function ProjectEntryCard({
       <div className={`grid gap-4 ${selected ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
         <div>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{workspace.project.industry || labels.byType}</p>
               <h3 className="mt-1 text-lg font-semibold">{workspace.project.name}</h3>
-              <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.projectGoalSummary}</p>
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">{workspace.project.goal || nextStepFor(workspace, language)}</p>
+              <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
                 <p><span className="font-semibold text-slate-800">{labels.lastUpdated}: </span>{workspace.project.updatedAt}</p>
-                <p><span className="font-semibold text-slate-800">{labels.candidatePlatforms}: </span>{workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id).join(", ") || "-"}</p>
-                <p><span className="font-semibold text-slate-800">{labels.missingItems}: </span>{readiness.missingRequired.map((item) => localize(item, language)).join(", ") || "-"}</p>
-                <p><span className="font-semibold text-slate-800">{labels.confidence}: </span>{readiness.confidenceLevel}</p>
+                <p><span className="font-semibold text-slate-800">{labels.keyInputCompleteness}: </span>{keyInputs.percent}% ({keyInputs.done}/{keyInputs.total})</p>
+                <p><span className="font-semibold text-slate-800">{labels.candidatePlatforms}: </span>{candidatePlatformNames.join(", ") || "-"}</p>
+                <p><span className="font-semibold text-slate-800">{labels.topRecommendation}: </span>{topPlatform?.name ?? "-"}</p>
+                {workspace.attachments.length > 0 ? (
+                  <p className="md:col-span-2">
+                    <span className="font-semibold text-slate-800">{labels.registeredMaterials}: </span>
+                    {workspace.attachments.length}
+                    {" "}
+                    <span className="ml-2 text-xs font-semibold text-slate-500">({labels.attachmentReadLimit})</span>
+                  </p>
+                ) : null}
                 <p className="md:col-span-2"><span className="font-semibold text-slate-800">{labels.recommendedNextAction}: </span>{localize(readiness.nextAction, language)}</p>
                 {isLocal ? <p className="text-xs text-amber-700 md:col-span-2">{labels.localReadiness}</p> : null}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.status}</span>
               <StatusBadge status={readiness.status} />
-              <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">{readiness.score}%</span>
+              <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">{labels.readiness} {readiness.score}%</span>
             </div>
           </div>
           {selected ? (
@@ -1665,6 +1702,7 @@ function ProjectOverview({
   topResult,
   language,
   labels,
+  platformCatalog,
   setActiveTab,
 }: {
   workspace: ProjectWorkspace;
@@ -1672,12 +1710,32 @@ function ProjectOverview({
   topResult?: BenchmarkResult;
   language: Language;
   labels: (typeof copy)[Language];
+  platformCatalog: PlcEcosystem[];
   setActiveTab: (tab: WorkspaceTab) => void;
 }) {
   const { readiness, isLocal } = getWorkspaceReadiness(workspace);
+  const keyInputs = calculateKeyInputCompleteness(workspace);
+  const candidatePlatformNames = workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id);
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Panel title={labels.lifecycleStatus} description={workspace.project.name}>
+        <div className="mb-5 rounded-md border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.projectGoalSummary}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">{workspace.project.goal || "-"}</p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-600 lg:grid-cols-2">
+            <p><span className="font-semibold text-slate-800">{labels.industry}: </span>{workspace.project.industry || "-"}</p>
+            <p><span className="font-semibold text-slate-800">{labels.keyInputCompleteness}: </span>{keyInputs.percent}% ({keyInputs.done}/{keyInputs.total})</p>
+            <p className="lg:col-span-2"><span className="font-semibold text-slate-800">{labels.candidatePlatforms}: </span>{candidatePlatformNames.join(", ") || "-"}</p>
+            {workspace.attachments.length > 0 ? (
+              <p className="lg:col-span-2">
+                <span className="font-semibold text-slate-800">{labels.registeredMaterials}: </span>
+                {workspace.attachments.length}
+                {" "}
+                <span className="ml-2 text-xs font-semibold text-slate-500">({labels.attachmentReadLimit})</span>
+              </p>
+            ) : null}
+          </div>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-md bg-slate-50 p-4">
             <p className="text-sm font-semibold">{labels.status}</p>
@@ -1711,6 +1769,7 @@ function ProjectOverview({
         </div>
       </Panel>
       <Panel title={labels.topRecommendation} description={topPlatform.name}>
+        <p className="mb-4 text-sm leading-6 text-slate-600">{labels.recommendedNextAction}: {localize(readiness.nextAction, language)}</p>
         <MetricBar label={labels.technicalScore} value={topResult?.technicalScore ?? 0} tone="slate" />
         <MetricBar label={labels.preferenceScore} value={topResult?.preferenceScore ?? 0} tone="cyan" />
         <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
