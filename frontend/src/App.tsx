@@ -78,6 +78,7 @@ const copy = {
     send: "发送",
     askPlaceholder: "输入项目约束、选型问题或报告修改意见",
     project: "项目",
+    projectList: "项目列表",
     status: "状态",
     updated: "更新",
     overview: "Overview",
@@ -192,7 +193,7 @@ const copy = {
     unreadAttachments: "尚未读取的附件",
     accepted: "已接受",
     currentWorkResults: "当前工作结果",
-    workspaceOverview: "选择一个项目进入工程师审查流程，检查输入、Benchmark、AI 解释和报告输出。",
+    workspaceOverview: "从项目列表继续当前 PLC 决策工作，查看状态、推荐平台和下一步操作。",
     createPLCDecisionProject: "创建 PLC 决策项目",
     noProjects: "还没有项目。",
     noProjectsHint: "创建第一个 PLC 决策项目，开始平台选型与迁移分析。",
@@ -238,18 +239,6 @@ const copy = {
     finalizedReportNotice: "已定稿报告。",
     sectionContext: "分区上下文",
     noMissingInputs: "当前没有影响该分区的缺失输入。",
-    mvpTrialTitle: "工程师审查项目",
-    mvpTrialDescription: "这些项目就是工程师试用入口。请选择一个项目，按真实选型评审流程检查输入、评分、风险和报告。",
-    startEngineerTrial: "进入工程师审查",
-    trialChecklist: "工程师审查路径",
-    trialScript: "试用脚本",
-    trialStepProject: "确认项目目标、行业、I/O、运动、安全和约束。",
-    trialStepBenchmark: "检查平台技术评分、偏好权重和推荐排序。",
-    trialStepIntelligence: "使用 AI 或基础分析解释缺口、附件和风险。",
-    trialStepReport: "生成/编辑报告，并导出 Markdown、PDF 或 PowerPoint。",
-    demoReady: "演示就绪",
-    demoNeedsInput: "需要补充",
-    engineerTrialGoal: "真实工程师应能不依赖开发说明完成一次项目评估，并判断评分、风险和报告是否有业务价值。",
   },
   en: {
     title: "PLC Platform Benchmark & Migration Decision Copilot",
@@ -262,6 +251,7 @@ const copy = {
     send: "Send",
     askPlaceholder: "Enter project constraints, selection questions, or report revision requests",
     project: "Project",
+    projectList: "Project List",
     status: "Status",
     updated: "Updated",
     overview: "Overview",
@@ -376,7 +366,7 @@ const copy = {
     unreadAttachments: "Attachments not yet read",
     accepted: "Accepted",
     currentWorkResults: "Current Work Results",
-    workspaceOverview: "Select a project to enter the engineer review flow and inspect inputs, benchmark, AI explanation, and report output.",
+    workspaceOverview: "Continue PLC decision work from the project list, with status, recommended platform, and next action visible.",
     createPLCDecisionProject: "Create PLC Decision Project",
     noProjects: "No projects yet.",
     noProjectsHint: "Create your first PLC decision project to begin platform selection and migration analysis.",
@@ -422,18 +412,6 @@ const copy = {
     finalizedReportNotice: "Finalized report.",
     sectionContext: "Section Context",
     noMissingInputs: "No missing inputs are currently affecting this section.",
-    mvpTrialTitle: "Engineer Review Project",
-    mvpTrialDescription: "Each project is an engineer trial entry. Choose one project and review inputs, scoring, risk, and report output as a real selection assessment.",
-    startEngineerTrial: "Enter Engineer Review",
-    trialChecklist: "Engineer Review Path",
-    trialScript: "Trial Script",
-    trialStepProject: "Confirm project goal, industry, I/O, motion, safety, and constraints.",
-    trialStepBenchmark: "Review platform technical score, preference weighting, and ranking.",
-    trialStepIntelligence: "Use AI or basic analysis to explain gaps, attachments, and risk.",
-    trialStepReport: "Generate/edit the report and export Markdown, PDF, or PowerPoint.",
-    demoReady: "Demo ready",
-    demoNeedsInput: "Needs input",
-    engineerTrialGoal: "A real engineer should complete one project assessment without developer notes and judge whether the scoring, risk, and report are useful.",
   },
 } as const;
 
@@ -1537,7 +1515,7 @@ function ProjectHome({
       <Panel title={labels.currentWorkResults} description={labels.workspaceOverview}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="grid gap-3 md:grid-cols-3">
-            <Kpi label={labels.project} value={`${workspaces.length}`} />
+            <Kpi label={labels.projectList} value={`${workspaces.length}`} />
             <Kpi label={labels.status} value={`${workspaces.filter((item) => item.project.status === "Report Ready").length} Ready`} />
             <Kpi label={labels.byType} value={`${Object.keys(groups).length}`} />
           </div>
@@ -1648,7 +1626,7 @@ function ProjectEntryCard({
           {selected ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => open("overview")}>
-                {labels.startEngineerTrial}
+                {labels.openProject}
               </button>
               <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("benchmark")}>
                 Benchmark
@@ -1671,15 +1649,6 @@ function ProjectEntryCard({
         </div>
         {selected ? (
           <div className="grid gap-3">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">{labels.trialChecklist}</p>
-              <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
-                <p>1. {labels.trialStepProject}</p>
-                <p>2. {labels.trialStepBenchmark}</p>
-                <p>3. {labels.trialStepIntelligence}</p>
-                <p>4. {labels.trialStepReport}</p>
-              </div>
-            </div>
             <MetricBar label={labels.readiness} value={readiness.score} tone="cyan" />
             <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
             <Info title={labels.topRecommendation} value={topPlatform?.name ?? "-"} />
