@@ -241,3 +241,13 @@ Frontend compatibility should be checked with `npm.cmd run build` when feasible.
 - answer、assumptions、uncertainty 和报告建议不得出现内部实现术语。
 - 附件、评分和报告边界应使用业务语言表达。
 - AI structured output 若包含内部实现文案，必须拒绝并安全重试或兜底。
+
+## Task 5B Planning Boundary / Task 5B 规划边界
+
+Task 5B is an Agent/architecture planning phase before implementation. Use `docs/TASK_5B_AGENT_PLAN.md` as the source of truth for attachment intelligence planning.
+
+Task 5B 是实现前的 Agent/架构规划阶段。附件智能化规划以 `docs/TASK_5B_AGENT_PLAN.md` 为事实来源。
+
+Do not implement RAG, Excel parsing, PDF parsing, or Chroma before the attachment classification, expected extraction schema, user review workflow, and deterministic/agent boundary are agreed.
+
+在附件分类、预期提取 schema、用户审阅流程、确定性逻辑与 Agent 边界明确之前，不要实现 RAG、Excel 解析、PDF 解析或 Chroma。
