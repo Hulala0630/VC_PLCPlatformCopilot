@@ -251,3 +251,13 @@ Task 5B 是实现前的 Agent/架构规划阶段。附件智能化规划以 `doc
 Do not implement RAG, Excel parsing, PDF parsing, or Chroma before the attachment classification, expected extraction schema, user review workflow, and deterministic/agent boundary are agreed.
 
 在附件分类、预期提取 schema、用户审阅流程、确定性逻辑与 Agent 边界明确之前，不要实现 RAG、Excel 解析、PDF 解析或 Chroma。
+
+## MVP Engineer Trial Target / 工程师试用 MVP 目标
+
+The current delivery target is `MVP v0.1 Engineer Trial Ready` by 2026-06-30. Use `docs/MVP_ENGINEER_TRIAL.md` as the acceptance checklist.
+
+当前交付目标是在 2026-06-30 前达到 `MVP v0.1 Engineer Trial Ready`。验收清单以 `docs/MVP_ENGINEER_TRIAL.md` 为准。
+
+Prioritize demo stability, sample-project clarity, benchmark explainability, AI/basic-analysis usability, and report export quality over new feature expansion.
+
+优先级应放在演示稳定性、样例项目清晰度、Benchmark 可解释性、AI/基础分析可用性和报告导出质量上，而不是继续扩大功能范围。
