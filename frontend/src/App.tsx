@@ -109,6 +109,18 @@ const copy = {
     registeredMaterials: "已登记资料数量",
     attachmentReadLimit: "不读取正文 / 尚未解析",
     keyInputCompleteness: "关键输入完整度",
+    projectGuidance: "项目引导",
+    currentProjectStatus: "当前项目状态",
+    benchmarkImpactInputs: "对 Benchmark 影响较大的输入",
+    suggestedInputs: "建议输入",
+    registeredMaterialsPanel: "已登记资料",
+    futureJudgementUse: "未来可用于判断",
+    futureJudgementUseText: "平台适配、迁移范围、实施风险、供应商与维护约束。",
+    currentDocumentContent: "当前正式报告内容",
+    aiSuggestedContent: "AI 建议内容",
+    acceptUpdatesReport: "接受建议后才会更新报告内容。",
+    scoreComposition: "评分组成",
+    riskLevel: "风险等级",
     projectInputs: "项目输入",
     emptyQuestion: "请输入内容后再发送。",
     completion: "项目完成度",
@@ -287,6 +299,18 @@ const copy = {
     registeredMaterials: "Registered Materials",
     attachmentReadLimit: "Content not read / not parsed",
     keyInputCompleteness: "Key Input Completeness",
+    projectGuidance: "Project Guidance",
+    currentProjectStatus: "Current Project Status",
+    benchmarkImpactInputs: "Inputs with High Benchmark Impact",
+    suggestedInputs: "Suggested Inputs",
+    registeredMaterialsPanel: "Registered Materials",
+    futureJudgementUse: "Future Judgement Use",
+    futureJudgementUseText: "Platform fit, migration scope, implementation risk, supplier constraints, and maintenance constraints.",
+    currentDocumentContent: "Current Official Report Content",
+    aiSuggestedContent: "AI Suggested Content",
+    acceptUpdatesReport: "The report updates only after you accept a suggestion.",
+    scoreComposition: "Score Composition",
+    riskLevel: "Risk Level",
     projectInputs: "Project Inputs",
     emptyQuestion: "Enter content before sending.",
     completion: "Project Completeness",
@@ -522,6 +546,10 @@ function calculateKeyInputCompleteness(workspace: ProjectWorkspace) {
   ];
   const done = checks.filter(Boolean).length;
   return { done, total: checks.length, percent: Math.round((done / checks.length) * 100) };
+}
+
+function combinedMissingInputs(readiness: ProjectReadiness) {
+  return [...readiness.missingRequired, ...readiness.recommendedMissing];
 }
 
 function nextStepFor(workspace: ProjectWorkspace, language: Language): string {
@@ -1716,9 +1744,10 @@ function ProjectOverview({
   const { readiness, isLocal } = getWorkspaceReadiness(workspace);
   const keyInputs = calculateKeyInputCompleteness(workspace);
   const candidatePlatformNames = workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id);
+  const missingInputs = combinedMissingInputs(readiness);
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <Panel title={labels.lifecycleStatus} description={workspace.project.name}>
+      <Panel title={labels.projectGuidance} description={workspace.project.name}>
         <div className="mb-5 rounded-md border border-slate-200 bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.projectGoalSummary}</p>
           <p className="mt-2 text-sm leading-6 text-slate-700">{workspace.project.goal || "-"}</p>
@@ -1736,24 +1765,25 @@ function ProjectOverview({
             ) : null}
           </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div className="rounded-md bg-slate-50 p-4">
-            <p className="text-sm font-semibold">{labels.status}</p>
+            <p className="text-sm font-semibold">{labels.currentProjectStatus}</p>
             <div className="mt-2"><StatusBadge status={readiness.status} /></div>
           </div>
-          <Info title={labels.lastUpdated} value={workspace.project.updatedAt} />
+          <Info title={labels.keyInputCompleteness} value={`${keyInputs.percent}% (${keyInputs.done}/${keyInputs.total})`} />
           <ScoreDial label={labels.readiness} value={readiness.score} />
+          <Info title={labels.topRecommendation} value={topPlatform.name} />
         </div>
         {isLocal ? <p className="mt-3 text-sm font-semibold text-amber-700">{labels.localReadiness}</p> : null}
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <ReadinessList title={labels.missingInputs} items={missingInputs} language={language} empty={labels.complete} />
           <ReadinessList title={labels.reasons} items={readiness.reasons} language={language} empty="-" />
-          <ReadinessList title={labels.missingRequired} items={readiness.missingRequired} language={language} empty="-" />
-          <ReadinessList title={labels.recommendedInputs} items={readiness.recommendedMissing} language={language} empty="-" />
           <div className="rounded-md bg-cyan-50 p-4">
             <p className="text-sm font-semibold text-cyan-900">{labels.nextStep}</p>
             <p className="mt-2 text-sm leading-6 text-cyan-950">{localize(readiness.nextAction, language)}</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-cyan-800">{labels.confidence}: {readiness.confidenceLevel}</p>
           </div>
+          <Info title={labels.lastUpdated} value={workspace.project.updatedAt} />
         </div>
         <div className="mt-5 rounded-md border border-cyan-100 bg-cyan-50 p-4">
           <p className="text-sm font-semibold text-cyan-900">{labels.recommendedNextAction}</p>
@@ -1797,6 +1827,14 @@ function Intake({ workspace, updateWorkspace, platformCatalog, labels, language 
     { label: language === "zh" ? "团队经验" : "Team experience", ok: Boolean(draft.intake.teamExperience.trim()) },
     { label: language === "zh" ? "约束条件" : "Constraints", ok: Boolean(draft.intake.constraints.trim()) },
     { label: language === "zh" ? "现有平台" : "Existing platform", ok: Boolean(draft.intake.existingPlatform) },
+  ];
+  const benchmarkImpact = [
+    { label: "I/O", ok: draft.intake.ioScale > 0 },
+    { label: language === "zh" ? "运动控制要求" : "Motion requirement", ok: draft.intake.motionRequirement > 0 },
+    { label: language === "zh" ? "安全要求" : "Safety requirement", ok: draft.intake.safetyRequirement > 0 },
+    { label: language === "zh" ? "预算敏感度" : "Budget sensitivity", ok: draft.intake.budgetSensitivity > 0 },
+    { label: language === "zh" ? "候选平台" : "Candidate platforms", ok: draft.intake.candidatePlatforms.length >= 2 },
+    { label: language === "zh" ? "团队经验与硬约束" : "Team experience and constraints", ok: Boolean(draft.intake.teamExperience.trim() && draft.intake.constraints.trim()) },
   ];
   const completion = Math.round((required.filter((item) => item.ok).length / required.length) * 100);
 
@@ -1867,10 +1905,13 @@ function Intake({ workspace, updateWorkspace, platformCatalog, labels, language 
           <ReadinessList title={labels.recommendedInputs} items={readiness.recommendedMissing} language={language} empty="-" />
         </div>
         <div className="mt-5 border-t border-slate-200 pt-5">
-        <ValidationList title={labels.required} items={required} labels={labels} />
-        <div className="mt-5">
-          <ValidationList title={labels.optional} items={optional} labels={labels} />
-        </div>
+          <ValidationList title={labels.required} items={required} labels={labels} />
+          <div className="mt-5">
+            <ValidationList title={labels.suggestedInputs} items={optional} labels={labels} />
+          </div>
+          <div className="mt-5">
+            <ValidationList title={labels.benchmarkImpactInputs} items={benchmarkImpact} labels={labels} />
+          </div>
         </div>
       </Panel>
     </div>
@@ -2076,7 +2117,11 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
           </button>
         </div>
       </Panel>
-      <Panel title={labels.attachments} description={`${workspace.attachments.length} ${language === "zh" ? "个已登记附件" : "registered attachments"}`}>
+      <Panel title={labels.registeredMaterialsPanel} description={`${workspace.attachments.length} ${language === "zh" ? "项已登记资料" : "registered materials"}`}>
+        <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-4 text-sm text-slate-700 md:grid-cols-2">
+          <p><span className="font-semibold text-slate-900">{labels.attachmentReadLimit}: </span>{labels.attachmentsNotParsed}</p>
+          <p><span className="font-semibold text-slate-900">{labels.futureJudgementUse}: </span>{labels.futureJudgementUseText}</p>
+        </div>
         {workspace.attachments.length === 0 ? (
           <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <Paperclip className="mx-auto text-slate-400" size={28} />
@@ -2100,6 +2145,7 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
                     {attachment.declaredPurpose}
                   </p>
                   <p className="text-xs text-slate-400">{attachment.uploadedAt}</p>
+                  <p className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{labels.futureJudgementUse}: {labels.futureJudgementUseText}</p>
                 </div>
               </div>
             ))}
@@ -2125,6 +2171,8 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
 
 function Benchmark({ results, workspace, platformCatalog, labels, language, onRunBenchmark, useAi }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language; onRunBenchmark: (projectId: string) => void | Promise<void>; useAi: boolean }) {
   const explanation = useIntelligenceAction<IntelligenceResult>();
+  const leadResult = results[0];
+  const leadPlatform = leadResult ? platformCatalog.find((item) => item.id === leadResult.platformId) : undefined;
   return (
     <div className="space-y-5">
       <Panel title={labels.benchmark} description={language === "zh" ? "咨询 dashboard：技术分 + 用户倾向 = 最终排序。" : "Consulting dashboard: technical score + user preference = final ranking."}>
@@ -2138,6 +2186,15 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
           {explanation.loading ? labels.queryLoading : labels.explainRanking}
         </button>
       </div>
+      {leadResult ? (
+        <div className="mb-4 grid gap-3 rounded-md border border-cyan-100 bg-cyan-50 p-4 md:grid-cols-5">
+          <Info title={labels.topRecommendation} value={leadPlatform?.name ?? leadResult.platformId} />
+          <Info title={labels.technicalScore} value={`${leadResult.technicalScore}/100`} />
+          <Info title={labels.preferenceScore} value={`${leadResult.preferenceScore}/100`} />
+          <Info title={labels.weightedScore} value={`${leadResult.weightedScore}/100`} />
+          <Info title={labels.riskLevel} value={riskLabel[language][leadResult.riskLevel]} />
+        </div>
+      ) : null}
       <div className="grid gap-4">
         {results.map((result, index) => {
           const platform = platformCatalog.find((item) => item.id === result.platformId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
@@ -2157,7 +2214,7 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 <MetricBar label={labels.technicalScore} value={result.technicalScore} tone="slate" />
                 <MetricBar label={labels.preferenceScore} value={result.preferenceScore} tone="cyan" />
-                <MetricBar label={labels.finalScore} value={result.weightedScore} tone="emerald" />
+                <MetricBar label={labels.weightedScore} value={result.weightedScore} tone="emerald" />
               </div>
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 <div className="rounded-md bg-white/80 p-3 ring-1 ring-slate-200">
@@ -2429,7 +2486,7 @@ function ReportBuilder({
             <Sparkles size={16} />
             {reportDraft.loading ? labels.queryLoading : labels.generateReportDraft}
           </button>
-          <p className="text-sm text-slate-600">{labels.suggestionsNotSaved}</p>
+          <p className="text-sm text-slate-600">{labels.aiSuggestedContent} · {labels.acceptUpdatesReport}</p>
         </div>
         {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} useBasicAnalysis={() => void reportDraft.run(() => generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi: false }))} disabled={reportDraft.loading} /></div> : null}
         {reportDraft.result ? (
@@ -2442,7 +2499,7 @@ function ReportBuilder({
               </div>
             </div>
             {reportDraft.result.executionStatus === "ai_fallback" ? <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
-            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{labels.noPersistenceBeforeAccept}</p>
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{labels.noPersistenceBeforeAccept} {labels.acceptUpdatesReport}</p>
             <div className="grid gap-4 xl:grid-cols-2">
               {reportDraft.result.sections.map((suggestion) => {
                 const current = workspace.report.sections.find((item) => item.id === suggestion.sectionId);
@@ -2450,8 +2507,8 @@ function ReportBuilder({
                   <div key={suggestion.sectionId} className="rounded-md border border-slate-200 bg-slate-50 p-4">
                     <h3 className="font-semibold text-slate-950">{localize(suggestion.title, language)}</h3>
                     <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-md bg-white p-3 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-600">{current ? localize(current.body, language) : "-"}</p></div>
-                      <div className="rounded-md bg-cyan-50 p-3 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.suggestedContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-700">{localize(suggestion.draftBody, language)}</p></div>
+                      <div className="rounded-md bg-white p-3 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentDocumentContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-600">{current ? localize(current.body, language) : "-"}</p></div>
+                      <div className="rounded-md bg-cyan-50 p-3 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-700">{localize(suggestion.draftBody, language)}</p></div>
                     </div>
                     <button className="mt-3 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50" onClick={() => void acceptGeneratedSection(suggestion.sectionId)} disabled={acceptingSuggestions}>{labels.acceptSection}</button>
                   </div>
@@ -2530,6 +2587,7 @@ function ReportBuilder({
         </div>
         {reportMode === "edit" ? (
           <>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.currentDocumentContent}</p>
             <textarea className="min-h-[420px] w-full resize-y rounded-md border border-slate-300 bg-white p-5 text-sm leading-7 shadow-inner outline-none focus:ring-2 focus:ring-cyan-400" value={localize(section.body, language)} onChange={(event) => updateSection({ ...section, body: { ...section.body, [language]: event.target.value } })} />
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => saveReportSection(workspace.project.id, section, workspace)}>
@@ -2542,7 +2600,7 @@ function ReportBuilder({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="font-semibold text-slate-950">{labels.sectionRewrite}</h3>
-                  <p className="mt-1 text-xs text-slate-500">{labels.noPersistenceBeforeAccept} · {labels.intelligenceUsesProjectSwitch}: {useAi ? labels.aiEnabled : labels.aiDisabled}</p>
+                  <p className="mt-1 text-xs text-slate-500">{labels.acceptUpdatesReport} · {labels.intelligenceUsesProjectSwitch}: {useAi ? labels.aiEnabled : labels.aiDisabled}</p>
                 </div>
                 {rewrite.result && rewriteSectionId === section.id ? <IntelligenceModeBadge result={rewrite.result} labels={labels} /> : null}
               </div>
@@ -2559,8 +2617,8 @@ function ReportBuilder({
               {rewrite.result && rewriteSectionId === section.id ? (
                 <div className="mt-4 space-y-4">
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-md bg-white p-4 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(section.body, language)}</p></div>
-                    <div className="rounded-md bg-cyan-50 p-4 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.suggestedContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(rewrite.result.suggestedBody, language)}</p></div>
+                    <div className="rounded-md bg-white p-4 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentDocumentContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(section.body, language)}</p></div>
+                    <div className="rounded-md bg-cyan-50 p-4 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(rewrite.result.suggestedBody, language)}</p></div>
                   </div>
                   <div className="grid gap-3 lg:grid-cols-2">
                     <LightEvidenceList title={labels.assumptions} items={rewrite.result.assumptions.map((item) => localize(item, language))} />
