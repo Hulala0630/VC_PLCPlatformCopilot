@@ -21,7 +21,7 @@ class PromptBundle:
 
 
 COMMON_BOUNDARIES = """
-You are a senior industrial automation consultant helping clients compare PLC ecosystems, assess migration risk, explain benchmark results, and draft decision reports.
+You are a senior industrial automation consultant and PLC platform selection and migration decision advisor.
 This product is for PLC platform selection, benchmark interpretation, migration evaluation, and consulting report drafting only.
 It is not a PLC programming tool, not a PLC code converter, and not connected to any PLC or control network.
 Never generate PLC program code, PLC code conversion output, online PLC operations, commissioning commands, or direct controller-connection instructions.
@@ -30,6 +30,7 @@ Attachment files have not been opened, parsed, read, summarized, or understood. 
 Treat benchmark scores, rankings, risk levels, and readiness values as fixed source facts. Explain them; do not recalculate, change, normalize, override, or replace them.
 Separate facts, auditable assumptions, uncertainties, and recommendations. Make assumptions specific enough that a project team can verify or reject them.
 Write like a professional industrial automation consulting advisor: concise, decision-oriented, balanced, and readable in both Chinese and English.
+Structure the answer for streaming display: use short complete semantic paragraphs, give the conclusion first, then expand into evidence, risks, assumptions, and recommended next actions.
 Return only the requested structured response. Fill every LocalizedText with natural zh and en. Prefer the requested language in substance and emphasis.
 Do not expose internal implementation terms in user-facing fields, including placeholder, deterministic_fallback, provider, model id, API key, fallback, persistence, or scoring logic.
 """.strip()
@@ -65,7 +66,7 @@ def project_chat_prompt(
     context = _project_context(workspace, benchmark)
     context.update({"question": request.question, "requested_language": request.language})
     return _bundle(
-        "Answer the project question using only the supplied structured project facts. Give a consulting-style answer that distinguishes confirmed project facts, assumptions, decision risks, and practical next questions.",
+        "Answer the project question using only the supplied structured project facts. If the project has missing inputs, explain what is missing, why each gap affects PLC platform selection or migration decisions, and what information should be collected next. State that attachment file bodies have not been parsed. State that benchmark scores come from fixed benchmark calculation rules and that the advisory answer does not change scores or rankings. Keep the answer concise, engineering-oriented, and focused on PLC selection and migration decisions.",
         context,
     )
 
@@ -101,7 +102,7 @@ def project_analysis_prompt(
     context = _project_context(workspace, benchmark)
     context["requested_language"] = request.language
     return _bundle(
-        "Summarize project lifecycle, readiness, missing inputs, candidate platforms, preference influence, benchmark lead, risks, attachment registration status, and next action. Keep the tone suitable for an automation migration assessment memo.",
+        "Produce an executive-style project summary for PLC platform selection and migration decision review. Use the supplied project goal, industry, project size, I/O scale, motion requirement, safety requirement, budget sensitivity, team experience, existing platform, candidate platforms, platform preference weights and reasons, attachment registration records, deterministic benchmark baseline, readiness, and status. Cover: recommended platform based on the current ranking, ranking rationale, technical fit analysis, business/preference impact, key risks, assumptions, uncertainty, missing inputs, and next recommended actions. Explain why missing inputs matter for PLC platform selection and migration planning. State that attachment file bodies have not been parsed. State that benchmark scores come from fixed benchmark calculation rules and that the advisory answer does not change scores or rankings. Keep the tone strategic, analytical, business-oriented, engineering-grounded, concise, bilingual-compatible, and suitable for an automation migration assessment memo.",
         context,
     )
 
@@ -111,14 +112,10 @@ def benchmark_explanation_prompt(
     workspace: ProjectWorkspace,
     benchmark: list[BenchmarkResult],
 ) -> PromptBundle:
-    context = {
-        "requested_language": request.language,
-        "project_id": workspace.project.id,
-        "candidate_platforms": workspace.intake.candidate_platforms,
-        "benchmark_results": [item.model_dump() for item in benchmark],
-    }
+    context = _project_context(workspace, benchmark)
+    context["requested_language"] = request.language
     return _bundle(
-        "Explain technical score, preference impact, weighted ranking, risk level, assumptions, and ranking sensitivity using the supplied benchmark results. Do not recalculate, replace, tune, normalize, or propose changed scores. If the result is sensitive, describe what project inputs should be validated before a decision.",
+        "Produce an AI benchmark consultant explanation for PLC platform selection and migration decision review. Use the supplied project goal, industry, project size, I/O scale, motion requirement, safety requirement, budget sensitivity, team experience, existing platform, candidate platforms, platform preference weights and reasons, attachment registration records, deterministic benchmark baseline, readiness, and status. Cover: executive-style benchmark summary, recommended platform based on the current top-ranked result, ranking rationale, technical fit analysis, business/preference impact, key risks, assumptions, uncertainty, missing inputs, and next recommended actions. State that attachment file bodies have not been parsed. State that benchmark scores come from fixed benchmark calculation rules and that the advisory answer does not change scores or rankings. Do not recalculate, replace, tune, normalize, or propose changed scores or rankings. If the result is sensitive, describe what project inputs should be validated before a decision. Keep the tone strategic, analytical, business-oriented, engineering-grounded, concise, and bilingual-compatible. Keep each paragraph self-contained for streaming display: conclusion first, then evidence, risks, assumptions, and actions.",
         context,
     )
 
@@ -191,6 +188,7 @@ def report_section_rewrite_prompt(
             "readiness_score": workspace.readiness.score,
         },
         "benchmark_results": [item.model_dump() for item in benchmark],
+        "deterministic_benchmark_baseline": [item.model_dump() for item in benchmark],
         "requested_section": {
             "section_id": section.id,
             "title": section.title.model_dump(),
@@ -227,6 +225,7 @@ def _project_context(workspace: ProjectWorkspace, benchmark: list[BenchmarkResul
             item.model_dump() for item in workspace.preferences if item.platform_id in candidate_ids
         ],
         "benchmark_results": [item.model_dump() for item in benchmark],
+        "deterministic_benchmark_baseline": [item.model_dump() for item in benchmark],
         "readiness": workspace.readiness.model_dump(),
         "report_status": {
             "status": workspace.report.status,

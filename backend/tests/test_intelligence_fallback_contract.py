@@ -43,6 +43,10 @@ BANNED_USER_TERMS = (
     "deterministic_fallback",
     "deterministic service",
     "metadata",
+    "mock",
+    "internal",
+    "dev wording",
+    "developer wording",
     "model id",
     "model_id",
     "api key",
@@ -285,6 +289,7 @@ class IntelligenceFallbackContractTests(unittest.TestCase):
             "deterministic_fallback exposed",
             "model id and API key details",
             "deterministic scoring logic",
+            "mock internal dev wording",
         ]
         for unsafe_answer in unsafe_answers:
             with self.subTest(unsafe_answer=unsafe_answer):

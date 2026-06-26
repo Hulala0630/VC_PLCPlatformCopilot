@@ -78,6 +78,78 @@ class PromptQualityTests(unittest.TestCase):
             self.assertIn("industrial automation consultant", lowered)
             self.assertIn("separate facts, auditable assumptions, uncertainties, and recommendations", lowered)
             self.assertIn("natural zh and en", lowered)
+            self.assertIn("streaming display", lowered)
+            self.assertIn("conclusion first", lowered)
+
+    def test_benchmark_and_summary_prompts_are_consultant_prompts(self) -> None:
+        workspace = workspace_fixture()
+        benchmark = create_benchmark(workspace)
+        prompts = [
+            project_analysis_prompt(ProjectAnalysisRequest(language="en"), workspace, benchmark),
+            benchmark_explanation_prompt(BenchmarkExplanationRequest(language="en"), workspace, benchmark),
+        ]
+        required_instruction_terms = (
+            "senior industrial automation consultant",
+            "plc platform selection and migration decision advisor",
+            "executive-style",
+            "recommended platform",
+            "ranking rationale",
+            "technical fit analysis",
+            "business/preference impact",
+            "key risks",
+            "assumptions",
+            "uncertainty",
+            "missing inputs",
+            "next recommended actions",
+            "attachment file bodies have not been parsed",
+            "fixed benchmark calculation rules",
+            "does not change scores or rankings",
+            "strategic",
+            "analytical",
+            "business-oriented",
+            "engineering-grounded",
+            "concise",
+            "bilingual-compatible",
+            "streaming",
+            "conclusion first",
+        )
+        required_input_terms = (
+            '"goal"',
+            '"industry"',
+            '"project_size"',
+            '"io_scale"',
+            '"motion_requirement"',
+            '"safety_requirement"',
+            '"budget_sensitivity"',
+            '"team_experience"',
+            '"existing_platform"',
+            '"candidate_platforms"',
+            '"candidate_preferences"',
+            '"user_reason_note"',
+            '"attachments"',
+            '"content_parsed":false',
+            '"deterministic_benchmark_baseline"',
+            '"readiness"',
+            '"status"',
+        )
+        boundary_terms = (
+            "not connected to any plc",
+            "never generate plc program code",
+            "plc code conversion",
+            "do not expose internal implementation terms",
+        )
+        for prompt in prompts:
+            lowered = prompt.instructions.lower()
+            with self.subTest(instructions=prompt.instructions):
+                for term in required_instruction_terms:
+                    self.assertIn(term, lowered)
+                for term in required_input_terms:
+                    self.assertIn(term, prompt.input)
+                for term in boundary_terms:
+                    self.assertIn(term, lowered)
+        benchmark_lowered = prompts[1].instructions.lower()
+        self.assertIn("do not recalculate", benchmark_lowered)
+        self.assertIn("replace, tune, normalize", benchmark_lowered)
 
     def test_report_generation_prompt_requires_preserved_section_identity(self) -> None:
         workspace = workspace_fixture()

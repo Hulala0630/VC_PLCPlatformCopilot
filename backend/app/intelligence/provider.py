@@ -109,21 +109,37 @@ class DeterministicPlaceholderProvider:
         benchmark: list[BenchmarkResult],
     ) -> IntelligenceResponse:
         lead = benchmark[0] if benchmark else None
-        lead_text = lead.platform_id if lead else "no benchmark lead"
+        lead_text = lead.platform_id if lead else "no benchmark leader yet"
         lead_zh = lead.platform_id if lead else "暂无 benchmark 领先平台"
+        required_count = len(workspace.readiness.missing_required)
+        recommended_count = len(workspace.readiness.recommended_missing)
+        gap_summary = self._gap_summary(workspace)
         return self._response(
             scope="project",
             key=f"project-chat:{workspace.project.id}:{request.question}",
             answer=LocalizedText(
-                zh=f"项目当前状态为 {workspace.readiness.status}，成熟度 {workspace.readiness.score}%。{lead_zh}。建议下一步：{workspace.readiness.next_action.zh}",
-                en=f"The project is {workspace.readiness.status} with {workspace.readiness.score}% readiness. Benchmark lead: {lead_text}. Next action: {workspace.readiness.next_action.en}",
+                zh=(
+                    f"当前项目处于 {workspace.readiness.status}，成熟度 {workspace.readiness.score}%。"
+                    f"必补缺口 {required_count} 项，建议补充 {recommended_count} 项；优先动作：{workspace.readiness.next_action.zh} "
+                    f"这些缺口会影响候选 PLC 平台的适配判断、迁移风险评估、停机窗口和团队实施可行性。"
+                    f"当前 benchmark 领先项为 {lead_zh}；分数来自固定 benchmark 计算规则，本回答只解释项目状态，不改变评分或排名。"
+                    f"附件正文当前未解析，只能参考附件名称、类型和用途登记。{gap_summary.zh}"
+                ),
+                en=(
+                    f"The project is {workspace.readiness.status} with {workspace.readiness.score}% readiness. "
+                    f"There are {required_count} required gap(s) and {recommended_count} recommended gap(s); priority action: {workspace.readiness.next_action.en} "
+                    f"These gaps affect PLC platform fit, migration risk, downtime planning, and team execution feasibility. "
+                    f"Current benchmark leader: {lead_text}. Scores come from fixed benchmark calculation rules; this answer explains the project state and does not change scores or rankings. "
+                    f"Attachment bodies have not been parsed; only registered names, types, and purposes are available. {gap_summary.en}"
+                ),
             ),
             sources=self._project_sources(workspace, benchmark),
             assumptions=self._project_assumptions(workspace),
             uncertainty=self._project_uncertainty(workspace),
             missing_inputs=self._missing_inputs(workspace),
             follow_up_questions=[
-                LocalizedText(zh="是否需要进一步解释偏好权重对排名的影响？", en="Should the preference-weight impact on ranking be explained further?"),
+                LocalizedText(zh="请确认 I/O 规模、现有 PLC 平台、停机窗口、团队经验和强制约束是否已经完整。", en="Please confirm whether I/O scale, existing PLC platform, downtime window, team experience, and hard constraints are complete."),
+                LocalizedText(zh="是否需要按缺口优先级整理一份选型评审资料清单？", en="Should the missing inputs be turned into a prioritized decision-review checklist?"),
             ],
         )
 
@@ -143,21 +159,24 @@ class DeterministicPlaceholderProvider:
         candidates = ", ".join(workspace.intake.candidate_platforms) or "none"
         zh_candidates = "、".join(workspace.intake.candidate_platforms) or "暂无"
         preference_impact = lead.preference_score if lead else 0
+        gap_summary = self._gap_summary(workspace)
         return self._response(
             scope="project_analysis",
             key=f"project-analysis:{workspace.project.id}:{workspace.project.updated_at}",
             answer=LocalizedText(
                 zh=(
-                    f"生命周期：{workspace.readiness.status}；成熟度：{workspace.readiness.score}%；"
-                    f"候选平台：{zh_candidates}；报告状态：{workspace.report.status}；"
-                    f"benchmark 领先：{lead.platform_id if lead else '暂无'}；领先平台偏好分：{preference_impact}；风险：{zh_risks}；"
-                    f"附件记录：{len(workspace.attachments)} 条。下一步：{workspace.readiness.next_action.zh}"
+                    f"项目状态：{workspace.readiness.status}；成熟度：{workspace.readiness.score}%；候选平台：{zh_candidates}。"
+                    f"当前 benchmark 领先：{lead.platform_id if lead else '暂无'}；领先平台偏好分：{preference_impact}；风险分布：{zh_risks}。"
+                    f"主要缺口：{gap_summary.zh} 缺口会削弱对 PLC 平台适配性、迁移工作量、停机风险、人员能力和约束条件的判断。"
+                    f"建议下一步补齐：{workspace.readiness.next_action.zh} 同时核对需求说明、I/O 清单、现有架构、停机窗口、供应链/成本约束和团队经验。"
+                    f"附件记录 {len(workspace.attachments)} 条；附件正文当前未解析。Benchmark 分数来自固定计算规则，本分析不改变评分或排名。"
                 ),
                 en=(
-                    f"Lifecycle: {workspace.readiness.status}; readiness: {workspace.readiness.score}%; "
-                    f"candidate platforms: {candidates}; report status: {workspace.report.status}; "
-                    f"benchmark lead: {lead.platform_id if lead else 'none'}; lead preference score: {preference_impact}; risks: {risks}; "
-                    f"attachments: {attachment_text}. Next action: {workspace.readiness.next_action.en}"
+                    f"Project state: {workspace.readiness.status}; readiness: {workspace.readiness.score}%; candidate platforms: {candidates}. "
+                    f"Current benchmark leader: {lead.platform_id if lead else 'none'}; leader preference score: {preference_impact}; risk distribution: {risks}. "
+                    f"Main gaps: {gap_summary.en} These gaps reduce confidence in PLC platform fit, migration effort, downtime risk, team capability, and hard constraints. "
+                    f"Next, complete: {workspace.readiness.next_action.en} Also confirm requirements, I/O list, current architecture, downtime window, supply/cost constraints, and team experience. "
+                    f"Attachments: {attachment_text}; attachment bodies have not been parsed. Benchmark scores come from fixed calculation rules; this analysis does not change scores or rankings."
                 ),
             ),
             sources=self._project_sources(workspace, benchmark),
@@ -165,7 +184,8 @@ class DeterministicPlaceholderProvider:
             uncertainty=self._project_uncertainty(workspace),
             missing_inputs=self._missing_inputs(workspace),
             follow_up_questions=[
-                LocalizedText(zh="哪些缺失输入应在决策评审前优先补齐？", en="Which missing inputs should be completed before the decision review?"),
+                LocalizedText(zh="哪些缺口会成为本次 PLC 迁移的硬约束：停机窗口、预算、供应链、标准化要求还是人员能力？", en="Which gaps are hard constraints for this PLC migration: downtime, budget, supply chain, standardization, or team capability?"),
+                LocalizedText(zh="是否已有需求说明、I/O 清单、现有控制架构和风险/停机计划可登记？", en="Are requirements, I/O list, current control architecture, and risk/downtime plans available to register?"),
             ],
         )
 
@@ -177,14 +197,35 @@ class DeterministicPlaceholderProvider:
     ) -> IntelligenceResponse:
         if benchmark:
             lead = benchmark[0]
+            runner_up = benchmark[1] if len(benchmark) > 1 else None
             sensitivity = (
                 "Preference changes can alter the ranking when weighted scores are close."
-                if len(benchmark) > 1 and lead.weighted_score - benchmark[1].weighted_score <= 5
+                if runner_up and lead.weighted_score - runner_up.weighted_score <= 5
                 else "The current lead is not highly sensitive to small preference changes."
             )
+            margin_text = (
+                f" It leads {runner_up.platform_id} by {lead.weighted_score - runner_up.weighted_score} point(s)."
+                if runner_up
+                else ""
+            )
+            margin_zh = (
+                f" 相比第二名 {runner_up.platform_id} 领先 {lead.weighted_score - runner_up.weighted_score} 分。"
+                if runner_up
+                else ""
+            )
             answer = LocalizedText(
-                zh=f"{lead.platform_id} 以加权分 {lead.weighted_score} 排名第一；技术分 {lead.technical_score} 占 72%，偏好分 {lead.preference_score} 占 28%，风险等级为 {lead.risk_level}。仅解释既有结果，不重新计算或替换评分。",
-                en=f"{lead.platform_id} ranks first at {lead.weighted_score}; technical score {lead.technical_score} contributes 72%, preference score {lead.preference_score} contributes 28%, and risk is {lead.risk_level}. {sensitivity}",
+                zh=(
+                    f"建议优先评审 {lead.platform_id}：它以加权分 {lead.weighted_score} 排名第一，风险等级为 {lead.risk_level}。{margin_zh}"
+                    f"排名依据是固定 benchmark 基线：技术分 {lead.technical_score} 按 72% 权重、业务/偏好分 {lead.preference_score} 按 28% 权重进入计算；本说明不改变评分或排名。"
+                    f"工程上应复核 I/O 规模、运动/安全要求、现有平台、团队经验和约束条件；业务上应确认预算敏感度、供应链、标准化要求和停机窗口。附件正文当前未解析。"
+                    f"下一步建议补齐缺失输入，并对前两名平台做迁移风险和实施资源评审。"
+                ),
+                en=(
+                    f"Recommended platform for review: {lead.platform_id}. It ranks first at {lead.weighted_score} with {lead.risk_level} risk.{margin_text} "
+                    f"The ranking uses the fixed benchmark baseline: technical score {lead.technical_score} is weighted at 72% and business/preference score {lead.preference_score} at 28%; this explanation does not change scores or rankings. "
+                    f"Engineering validation should focus on I/O scale, motion/safety requirements, existing platform, team experience, and hard constraints; business validation should confirm budget sensitivity, supply chain, standardization, and downtime window. Attachment bodies have not been parsed. "
+                    f"Next action: close missing inputs and review migration risk and implementation resources for the top-ranked platforms. {sensitivity}"
+                ),
             )
         else:
             answer = LocalizedText(
@@ -197,8 +238,8 @@ class DeterministicPlaceholderProvider:
             answer=answer,
             sources=[self._benchmark_source(item) for item in benchmark],
             assumptions=self._base_assumptions() + [
-                LocalizedText(zh="本说明采用当前 benchmark 结果及其已列出的假设。", en="This explanation uses the current benchmark results and their stated assumptions."),
-            ] + [assumption for result in benchmark for assumption in result.assumptions],
+                LocalizedText(zh="本说明采用当前 benchmark 结果；评分和排名由固定计算规则产生。", en="This explanation uses the current benchmark results; scores and rankings are produced by fixed calculation rules."),
+            ],
             uncertainty=self._project_uncertainty(workspace),
             missing_inputs=self._missing_inputs(workspace),
             follow_up_questions=[
@@ -344,8 +385,8 @@ class DeterministicPlaceholderProvider:
                 section_id=section.id,
                 title=section.title,
                 draft_body=LocalizedText(
-                    zh=f"[{request.audience} 建议稿] {section.body.zh} 项目状态：{workspace.readiness.status}；成熟度：{workspace.readiness.score}%；领先平台：{lead.platform_id if lead else '暂无'}。",
-                    en=f"[{request.audience} suggestion] {section.body.en} Project status: {workspace.readiness.status}; readiness: {workspace.readiness.score}%; benchmark lead: {lead.platform_id if lead else 'none'}.",
+                    zh=f"{self._safe_text(section.body.zh)} 项目状态：{workspace.readiness.status}；成熟度：{workspace.readiness.score}%；benchmark 领先平台：{lead.platform_id if lead else '暂无'}。附件正文当前未解析；评分和排名来自固定 benchmark 计算规则，本报告建议不改变评分或排名。",
+                    en=f"{self._safe_text(section.body.en)} Project status: {workspace.readiness.status}; readiness: {workspace.readiness.score}%; benchmark leader: {lead.platform_id if lead else 'none'}. Attachment bodies have not been parsed; scores and rankings come from fixed benchmark calculation rules, and this report suggestion does not change them.",
                 ),
             )
             for section in workspace.report.sections
@@ -381,8 +422,8 @@ class DeterministicPlaceholderProvider:
             request_id=response_id,
             section_id=section.id,
             suggested_body=LocalizedText(
-                zh=f"[{request.audience} 改写建议] {section.body.zh} 重点结论：{lead.platform_id if lead else '尚无 benchmark 领先平台'}。用户指令：{request.instruction}。",
-                en=f"[{request.audience} rewrite suggestion] {section.body.en} Key conclusion: {lead.platform_id if lead else 'no benchmark lead yet'}. User instruction: {request.instruction}.",
+                zh=f"{self._safe_text(section.body.zh)} 重点结论：{lead.platform_id if lead else '尚无 benchmark 领先平台'}。改写要求：{request.instruction}。附件正文当前未解析；评分和排名来自固定 benchmark 计算规则，本改写不改变评分或排名。",
+                en=f"{self._safe_text(section.body.en)} Key conclusion: {lead.platform_id if lead else 'no benchmark leader yet'}. Rewrite instruction: {request.instruction}. Attachment bodies have not been parsed; scores and rankings come from fixed benchmark calculation rules, and this rewrite does not change them.",
             ),
             sources=[self._report_source(section)] + [self._benchmark_source(item) for item in benchmark],
             assumptions=self._project_assumptions(workspace) + [
@@ -428,8 +469,8 @@ class DeterministicPlaceholderProvider:
             scope="project_analysis",
             key=f"attachment-analysis:{workspace.project.id}:{workspace.project.updated_at}",
             answer=LocalizedText(
-                zh=f"已登记 {len(workspace.attachments)} 条附件记录，其中 {len(declared)} 条声明了用途。项目输入包含 {workspace.intake.io_scale} 个 I/O 和 {len(workspace.intake.candidate_platforms)} 个候选平台，成熟度为 {workspace.readiness.score}%。当前尚未读取附件内容。",
-                en=f"{len(workspace.attachments)} attachment record(s) are registered and {len(declared)} include a declared purpose. Project inputs include {workspace.intake.io_scale} I/O points and {len(workspace.intake.candidate_platforms)} candidate platforms; readiness is {workspace.readiness.score}%. Attachment contents have not yet been read.",
+                zh=f"已登记 {len(workspace.attachments)} 条附件记录，其中 {len(declared)} 条声明了用途。项目输入包含 {workspace.intake.io_scale} 个 I/O 和 {len(workspace.intake.candidate_platforms)} 个候选平台，成熟度为 {workspace.readiness.score}%。当前尚未读取附件正文；因此只能判断资料登记完整性，不能引用文件内容。Benchmark 分数来自固定计算规则，本分析不改变评分或排名。",
+                en=f"{len(workspace.attachments)} attachment record(s) are registered and {len(declared)} include a declared purpose. Project inputs include {workspace.intake.io_scale} I/O points and {len(workspace.intake.candidate_platforms)} candidate platforms; readiness is {workspace.readiness.score}%. Attachment contents have not yet been read; attachment bodies have not been parsed, so this can assess registration completeness only and cannot cite file content. Benchmark scores come from fixed calculation rules; this analysis does not change scores or rankings.",
             ),
             sources=self._project_sources(workspace, []),
             assumptions=self._project_assumptions(workspace),
@@ -566,6 +607,12 @@ class DeterministicPlaceholderProvider:
                 en="Attachments are registered by name, type, and purpose; their contents have not been read." if workspace.attachments else "No attachments are registered, so no attachment content was available for review.",
             )
         )
+        assumptions.append(
+            LocalizedText(
+                zh="Benchmark 分数和排名来自固定计算规则；本建议只解释结果，不改变评分或排名。",
+                en="Benchmark scores and rankings come from fixed calculation rules; this advisory output explains the results and does not change scores or rankings.",
+            )
+        )
         return assumptions
 
     def _project_uncertainty(self, workspace: ProjectWorkspace) -> list[LocalizedText]:
@@ -576,6 +623,40 @@ class DeterministicPlaceholderProvider:
         if not workspace.attachments:
             uncertainty.append(LocalizedText(zh="当前没有已登记附件可供参考。", en="No registered attachments are currently available for reference."))
         return uncertainty
+
+    def _gap_summary(self, workspace: ProjectWorkspace) -> LocalizedText:
+        missing = self._missing_inputs(workspace)
+        if not missing:
+            return LocalizedText(
+                zh="当前没有必补缺口；建议复核约束、附件登记和报告结论是否足以支持评审。",
+                en="No required gap is currently open; review constraints, attachment registration, and report conclusions before decision review.",
+            )
+        top = missing[:4]
+        zh_items = "、".join(item.zh for item in top)
+        en_items = "; ".join(item.en for item in top)
+        remaining = len(missing) - len(top)
+        if remaining > 0:
+            return LocalizedText(
+                zh=f"{zh_items}，另有 {remaining} 项待补。",
+                en=f"{en_items}; plus {remaining} additional gap(s).",
+            )
+        return LocalizedText(zh=f"{zh_items}。", en=f"{en_items}.")
+
+    def _safe_text(self, value: str) -> str:
+        replacements = {
+            "mock-data": "decision-support",
+            "mock data": "decision-support",
+            "mock": "baseline",
+            "internal": "project",
+            "dev wording": "draft wording",
+            "developer wording": "draft wording",
+        }
+        cleaned = value
+        for source, target in replacements.items():
+            cleaned = cleaned.replace(source, target)
+            cleaned = cleaned.replace(source.title(), target)
+            cleaned = cleaned.replace(source.upper(), target.upper())
+        return cleaned
 
     def _missing_inputs(self, workspace: ProjectWorkspace) -> list[LocalizedText]:
         return workspace.readiness.missing_required + workspace.readiness.recommended_missing
