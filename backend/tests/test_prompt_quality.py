@@ -165,6 +165,74 @@ class PromptQualityTests(unittest.TestCase):
             self.assertIn(section.id, prompt.input)
             self.assertIn(section.title.en, prompt.input)
 
+    def test_attachment_and_report_consultant_prompts(self) -> None:
+        workspace = workspace_fixture()
+        benchmark = create_benchmark(workspace)
+        attachment_prompt = project_analysis_prompt(
+            ProjectAnalysisRequest(language="en", focus="attachments"),
+            workspace,
+            benchmark,
+        )
+        attachment_lowered = attachment_prompt.instructions.lower()
+        for term in (
+            "attachment analysis note",
+            "file name",
+            "file type",
+            "declared purpose",
+            "upload date",
+            "have not been read or parsed",
+            "what the registered materials may support",
+            "benchmark confidence",
+            "migration risk review",
+            "report drafting",
+            "key missing materials",
+            "never infer",
+            "excel",
+            "pdf",
+            "drawing",
+        ):
+            self.assertIn(term, attachment_lowered)
+        self.assertIn('"fixed_benchmark_baseline"', attachment_prompt.input)
+
+        report_prompt = report_generation_prompt(
+            ReportGenerationRequest(language="en", audience="executive"),
+            workspace,
+            benchmark,
+        )
+        report_lowered = report_prompt.instructions.lower()
+        for term in (
+            "consulting-report",
+            "executive summary",
+            "project inputs",
+            "platform benchmark",
+            "preference impact",
+            "risk assessment",
+            "implementation / migration roadmap",
+            "assumptions & uncertainty",
+            "not a chat reply",
+            "attachment file bodies have not been parsed",
+            "do not change benchmark scores or rankings",
+            "do not expose mock",
+        ):
+            self.assertIn(term, report_lowered)
+
+        rewrite_prompt = report_section_rewrite_prompt(
+            ReportSectionRewriteRequest(instruction="Make concise", language="en", audience="technical"),
+            workspace,
+            workspace.report.sections[0],
+            benchmark,
+        )
+        rewrite_lowered = rewrite_prompt.instructions.lower()
+        for term in (
+            "rewrite only the requested report section",
+            "preserve the factual boundary",
+            "do not change benchmark scores or rankings",
+            "do not claim attachment file bodies were read or parsed",
+            "keep uncertainty visible",
+            "not a chat reply",
+        ):
+            self.assertIn(term, rewrite_lowered)
+
     def test_section_rewrite_prompt_only_contains_target_section(self) -> None:
         workspace = workspace_fixture()
         target = workspace.report.sections[0]

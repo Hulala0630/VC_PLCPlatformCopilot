@@ -32,7 +32,7 @@ Separate facts, auditable assumptions, uncertainties, and recommendations. Make 
 Write like a professional industrial automation consulting advisor: concise, decision-oriented, balanced, and readable in both Chinese and English.
 Structure the answer for streaming display: use short complete semantic paragraphs, give the conclusion first, then expand into evidence, risks, assumptions, and recommended next actions.
 Return only the requested structured response. Fill every LocalizedText with natural zh and en. Prefer the requested language in substance and emphasis.
-Do not expose internal implementation terms in user-facing fields, including placeholder, deterministic_fallback, provider, model id, API key, fallback, persistence, or scoring logic.
+Do not expose internal implementation terms in user-facing fields, including mock, placeholder, deterministic, deterministic_fallback, provider, model id, API key, fallback, persistence, internal, dev wording, or scoring logic. Refer to the benchmark as the fixed benchmark baseline or fixed calculation rules instead.
 """.strip()
 
 
@@ -92,10 +92,12 @@ def project_analysis_prompt(
                 item.model_dump()
                 for item in workspace.readiness.missing_required + workspace.readiness.recommended_missing
             ],
+            "benchmark_results": [item.model_dump() for item in benchmark],
+            "fixed_benchmark_baseline": [item.model_dump() for item in benchmark],
             "attachments": _attachment_metadata(workspace),
         }
         return _bundle(
-            "Analyze attachment registration records together with intake, readiness, and missing inputs. Discuss only file names, file types, declared purposes, dates, and gaps. Ask useful questions about missing document types and missing declared purposes. Never infer, summarize, quote, or claim knowledge of file contents.",
+            "Produce an attachment analysis note for PLC platform selection and migration decision review. Use only attachment registration records: file name, file type, declared purpose, and upload date. State clearly that attachment file bodies have not been read or parsed. Explain what the registered materials may support, such as requirements validation, I/O scope framing, architecture review, electrical/safety readiness, benchmark confidence, migration risk review, and report drafting. Identify key missing materials and missing declared purposes. Explain how better attachment registration would help benchmark review, migration planning, and the consulting report. Recommend next actions. Never infer, summarize, quote, or claim knowledge of Excel, PDF, drawing, or document contents.",
             context,
         )
 
@@ -167,7 +169,7 @@ def report_generation_prompt(
         }
     )
     return _bundle(
-        "Draft one formal consulting-report suggestion for every supplied report section. Preserve every supplied section_id and title exactly, in the same order. Each section should read as a report draft, not a chat reply, and should separate stated facts from assumptions and open risks where appropriate.",
+        "Draft one formal PLC platform selection and migration consulting-report suggestion for every supplied report section. Preserve every supplied section_id and title exactly, in the same order. The report should read as a consultant report draft, not a chat reply. Across the supplied sections, cover Executive Summary, Project Inputs, Platform Benchmark, Preference Impact, Risk Assessment, Implementation / Migration Roadmap, and Assumptions & Uncertainty. Use professional, engineering-grounded, business-oriented language. State that attachment file bodies have not been parsed when attachments are referenced. Do not change benchmark scores or rankings. Do not expose mock, placeholder, deterministic, provider, model, API, internal, or fallback wording.",
         context,
     )
 
@@ -198,7 +200,7 @@ def report_section_rewrite_prompt(
         "attachments": _attachment_metadata(workspace),
     }
     return _bundle(
-        "Rewrite only the requested section according to the instruction and audience. Return exactly the requested section_id, one bilingual suggested_body, assumptions, and uncertainty. Do not include, rename, summarize, or modify any other report section.",
+        "Rewrite only the requested section. Rewrite only the requested report section according to the user instruction and audience. Return exactly the requested section_id, one bilingual suggested_body, assumptions, and uncertainty. Preserve the factual boundary: do not change benchmark scores or rankings, do not claim attachment file bodies were read or parsed, and keep uncertainty visible. Do not include, rename, summarize, or modify any other report section. The rewrite should sound like a concise automation / PLC platform selection consulting report section, not a chat reply. Do not expose mock, placeholder, deterministic, provider, model, API, internal, or fallback wording.",
         context,
     )
 

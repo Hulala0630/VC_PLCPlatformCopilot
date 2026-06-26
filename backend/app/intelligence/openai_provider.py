@@ -513,6 +513,7 @@ def _ensure_user_safe_text(values: list[LocalizedText]) -> None:
         "provider",
         "fallback",
         "deterministic_fallback",
+        "deterministic",
         "deterministic service",
         "metadata",
         "mock",

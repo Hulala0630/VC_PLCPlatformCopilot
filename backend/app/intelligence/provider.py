@@ -388,10 +388,7 @@ class DeterministicPlaceholderProvider:
             GeneratedReportSection(
                 section_id=section.id,
                 title=section.title,
-                draft_body=LocalizedText(
-                    zh=f"{self._safe_text(section.body.zh)} 项目状态：{workspace.readiness.status}；成熟度：{workspace.readiness.score}%；benchmark 领先平台：{lead.platform_id if lead else '暂无'}。附件正文当前未解析；评分和排名来自固定 benchmark 计算规则，本报告建议不改变评分或排名。",
-                    en=f"{self._safe_text(section.body.en)} Project status: {workspace.readiness.status}; readiness: {workspace.readiness.score}%; benchmark leader: {lead.platform_id if lead else 'none'}. Attachment bodies have not been parsed; scores and rankings come from fixed benchmark calculation rules, and this report suggestion does not change them.",
-                ),
+                draft_body=self._report_draft_body(request.audience, workspace, section, benchmark),
             )
             for section in workspace.report.sections
         ]
@@ -425,16 +422,116 @@ class DeterministicPlaceholderProvider:
             id=response_id,
             request_id=response_id,
             section_id=section.id,
-            suggested_body=LocalizedText(
-                zh=f"{self._safe_text(section.body.zh)} 重点结论：{lead.platform_id if lead else '尚无 benchmark 领先平台'}。改写要求：{request.instruction}。附件正文当前未解析；评分和排名来自固定 benchmark 计算规则，本改写不改变评分或排名。",
-                en=f"{self._safe_text(section.body.en)} Key conclusion: {lead.platform_id if lead else 'no benchmark leader yet'}. Rewrite instruction: {request.instruction}. Attachment bodies have not been parsed; scores and rankings come from fixed benchmark calculation rules, and this rewrite does not change them.",
-            ),
+            suggested_body=self._rewrite_section_body(request, workspace, section, benchmark),
             sources=[self._report_source(section)] + [self._benchmark_source(item) for item in benchmark],
             assumptions=self._project_assumptions(workspace) + [
                 LocalizedText(zh="改写内容是待确认建议，需审核后采用。", en="The rewritten content is a suggestion pending review and approval."),
             ],
             uncertainty=self._project_uncertainty(workspace),
             generated_at=self._now(),
+        )
+
+    def _report_draft_body(
+        self,
+        audience: str,
+        workspace: ProjectWorkspace,
+        section: ReportSection,
+        benchmark: list[BenchmarkResult],
+    ) -> LocalizedText:
+        lead = benchmark[0] if benchmark else None
+        runner_up = benchmark[1] if len(benchmark) > 1 else None
+        base_zh = self._safe_text(section.body.zh)
+        base_en = self._safe_text(section.body.en)
+        lead_zh = lead.platform_id if lead else "暂无"
+        lead_en = lead.platform_id if lead else "none"
+        runner_up_en = runner_up.platform_id if runner_up else "not available"
+        runner_up_zh = runner_up.platform_id if runner_up else "暂无"
+        shared_zh = (
+            f"附件正文当前未读取或解析；报告仅基于项目输入、平台偏好、附件登记信息和固定 benchmark 结果。"
+            f"本建议不改变 benchmark 分数或排名。"
+        )
+        shared_en = (
+            "Attachment bodies have not been read or parsed; the report is based only on project inputs, "
+            "platform preferences, attachment registration records, and fixed benchmark results. "
+            "This suggestion does not change benchmark scores or rankings."
+        )
+        section_key = section.id.lower()
+        title_text = f"{section.title.en} {section.title.zh}".lower()
+        if "executive" in section_key or "summary" in section_key or "executive" in title_text:
+            return LocalizedText(
+                zh=(
+                    f"执行摘要：当前项目处于 {workspace.readiness.status}，成熟度 {workspace.readiness.score}%。"
+                    f"建议将 {lead_zh} 作为首选评审平台，并将 {runner_up_zh} 作为对照方案。"
+                    f"决策重点应覆盖 Project Inputs、Platform Benchmark、Preference Impact、Risk Assessment、Implementation / Migration Roadmap、Assumptions & Uncertainty。{shared_zh}"
+                ),
+                en=(
+                    f"Executive Summary: the project is {workspace.readiness.status} with {workspace.readiness.score}% readiness. "
+                    f"Use {lead_en} as the recommended platform for review and {runner_up_en} as the comparison option. "
+                    f"The decision package should cover Project Inputs, Platform Benchmark, Preference Impact, Risk Assessment, Implementation / Migration Roadmap, and Assumptions & Uncertainty. {shared_en}"
+                ),
+            )
+        if "input" in section_key or "input" in title_text:
+            return LocalizedText(
+                zh=(
+                    f"Project Inputs：行业为 {workspace.project.industry or '待补充'}，目标为 {workspace.project.goal or '待补充'}，"
+                    f"项目规模 {workspace.intake.project_size}，I/O {workspace.intake.io_scale}，运动要求 {workspace.intake.motion_requirement}，安全要求 {workspace.intake.safety_requirement}，预算敏感度 {workspace.intake.budget_sensitivity}。"
+                    f"团队经验、现有平台和约束条件应作为迁移路线和风险评估的输入。{shared_zh}"
+                ),
+                en=(
+                    f"Project Inputs: industry is {workspace.project.industry or 'to be confirmed'}, goal is {workspace.project.goal or 'to be confirmed'}, "
+                    f"project size is {workspace.intake.project_size}, I/O scale is {workspace.intake.io_scale}, motion requirement is {workspace.intake.motion_requirement}, safety requirement is {workspace.intake.safety_requirement}, and budget sensitivity is {workspace.intake.budget_sensitivity}. "
+                    f"Team experience, existing platform, and constraints should drive the migration roadmap and risk review. {shared_en}"
+                ),
+            )
+        if "benchmark" in section_key or "benchmark" in title_text or "platform" in title_text:
+            return LocalizedText(
+                zh=(
+                    f"Platform Benchmark：当前固定 benchmark 结果显示 {lead_zh} 排名第一。"
+                    f"排序应结合技术适配、业务/偏好影响、实施风险和迁移路线一起评审；偏好权重原因应由项目团队确认。"
+                    f"Risk Assessment 应重点关注停机窗口、供应链、团队能力、现有平台迁移成本和安全审批。{shared_zh}"
+                ),
+                en=(
+                    f"Platform Benchmark: the fixed benchmark result currently ranks {lead_en} first. "
+                    f"The ranking should be reviewed together with technical fit, business/preference impact, implementation risk, and migration roadmap; preference reasons should be confirmed by the project team. "
+                    f"Risk Assessment should focus on downtime window, supply chain, team capability, existing-platform migration cost, and safety approval. {shared_en}"
+                ),
+            )
+        return LocalizedText(
+            zh=(
+                f"{base_zh} 本节应以顾问报告草稿呈现，明确事实、假设、不确定性、风险和下一步行动。"
+                f"建议覆盖偏好影响、迁移路线、风险评估和待补资料。{shared_zh}"
+            ),
+            en=(
+                f"{base_en} This section should read as a consultant report draft, separating facts, assumptions, uncertainty, risks, and next actions. "
+                f"It should cover preference impact, migration roadmap, risk assessment, and missing inputs. {shared_en}"
+            ),
+        )
+
+    def _rewrite_section_body(
+        self,
+        request: ReportSectionRewriteRequest,
+        workspace: ProjectWorkspace,
+        section: ReportSection,
+        benchmark: list[BenchmarkResult],
+    ) -> LocalizedText:
+        lead = benchmark[0] if benchmark else None
+        lead_zh = lead.platform_id if lead else "暂无 benchmark 领先平台"
+        lead_en = lead.platform_id if lead else "no benchmark leader yet"
+        base_zh = self._safe_text(section.body.zh)
+        base_en = self._safe_text(section.body.en)
+        return LocalizedText(
+            zh=(
+                f"{base_zh} 改写要求：{request.instruction}。"
+                f"本节仅围绕目标 section 重写，当前关键结论为 {lead_zh}。"
+                f"请保留事实边界：附件正文未读取或解析，benchmark 分数和排名来自固定计算规则，本改写不改变评分或排名。"
+                f"仍需标明假设、不确定性和项目团队待确认事项。"
+            ),
+            en=(
+                f"{base_en} Rewrite instruction: {request.instruction}. "
+                f"This rewrite is limited to the requested section; the current key conclusion is {lead_en}. "
+                f"Keep the factual boundary: attachment bodies have not been read or parsed, benchmark scores and rankings come from fixed calculation rules, and this rewrite does not change them. "
+                f"Assumptions, uncertainty, and project-team confirmations should remain visible."
+            ),
         )
 
     def _analyze_attachments(
@@ -480,8 +577,18 @@ class DeterministicPlaceholderProvider:
             scope="project_analysis",
             key=f"attachment-analysis:{workspace.project.id}:{workspace.project.updated_at}",
             answer=LocalizedText(
-                zh=f"已登记 {len(workspace.attachments)} 条附件记录，其中 {len(declared)} 条声明了用途。项目输入包含 {workspace.intake.io_scale} 个 I/O 和 {len(workspace.intake.candidate_platforms)} 个候选平台，成熟度为 {workspace.readiness.score}%。当前尚未读取附件正文；因此只能判断资料登记完整性，不能引用文件内容。Benchmark 分数来自固定计算规则，本分析不改变评分或排名。",
-                en=f"{len(workspace.attachments)} attachment record(s) are registered and {len(declared)} include a declared purpose. Project inputs include {workspace.intake.io_scale} I/O points and {len(workspace.intake.candidate_platforms)} candidate platforms; readiness is {workspace.readiness.score}%. Attachment contents have not yet been read; attachment bodies have not been parsed, so this can assess registration completeness only and cannot cite file content. Benchmark scores come from fixed calculation rules; this analysis does not change scores or rankings.",
+                zh=(
+                    f"已登记 {len(workspace.attachments)} 条附件记录，其中 {len(declared)} 条声明了用途；附件正文当前未读取或解析，因此不能引用 Excel、PDF、图纸或文档内容。"
+                    f"这些登记资料可支持需求完整性、I/O 范围、架构、电气/安全准备度、迁移风险和报告素材的初步判断。"
+                    f"关键缺口包括未登记的资料类型：{('、'.join(missing_types) if missing_types else '暂无明显类型缺口')}；未说明用途的附件：{('、'.join(missing_purpose) if missing_purpose else '暂无')}。"
+                    f"下一步建议补充需求说明、I/O 清单、现有控制架构、电气/安全资料和迁移约束；benchmark 分数来自固定计算规则，本分析不改变评分或排名。"
+                ),
+                en=(
+                    f"{len(workspace.attachments)} attachment record(s) are registered and {len(declared)} include a declared purpose. Attachment contents have not yet been read. Attachment bodies have not been read or parsed, so Excel, PDF, drawing, or document content cannot be cited. "
+                    f"The registered materials may support preliminary judgment on requirements completeness, I/O scope, architecture, electrical/safety readiness, migration risk, and report evidence. "
+                    f"Key gaps: missing material types: {', '.join(missing_types) if missing_types else 'none apparent'}; attachments without declared purpose: {', '.join(missing_purpose) if missing_purpose else 'none'}. "
+                    f"Next, register requirements, I/O list, current control architecture, electrical/safety material, and migration constraints. Benchmark scores come from fixed calculation rules; this analysis does not change scores or rankings."
+                ),
             ),
             sources=self._project_sources(workspace, []),
             assumptions=self._project_assumptions(workspace),

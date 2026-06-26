@@ -41,6 +41,7 @@ BANNED_USER_TERMS = (
     "provider",
     "fallback",
     "deterministic_fallback",
+    "deterministic",
     "deterministic service",
     "metadata",
     "mock",
@@ -287,6 +288,7 @@ class IntelligenceFallbackContractTests(unittest.TestCase):
         unsafe_answers = [
             "Provider metadata placeholder",
             "deterministic_fallback exposed",
+            "deterministic baseline exposed",
             "model id and API key details",
             "deterministic scoring logic",
             "mock internal dev wording",
