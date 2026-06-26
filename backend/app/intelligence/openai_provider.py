@@ -221,12 +221,23 @@ class OpenAIProvider:
         benchmark: list[BenchmarkResult],
     ) -> IntelligenceResponse:
         baseline = self._placeholder.analyze_project(request, workspace, benchmark)
-        return self._intelligence_response(
+        response = self._intelligence_response(
             baseline,
             "project_analysis",
             request.quality_profile,
             project_analysis_prompt(request, workspace, benchmark),
         )
+        if request.focus == "attachments":
+            response = response.model_copy(
+                update={
+                    "answer": LocalizedText(
+                        zh=f"{baseline.answer.zh} {response.answer.zh}",
+                        en=f"{baseline.answer.en} {response.answer.en}",
+                    ),
+                    "next_actions": baseline.next_actions,
+                }
+            )
+        return response
 
     def explain_benchmark(
         self,

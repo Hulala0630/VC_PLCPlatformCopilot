@@ -100,6 +100,7 @@ class DeterministicPlaceholderProvider:
             follow_up_questions=[
                 LocalizedText(zh="是否需要在具体项目的 I/O、运动、安全和团队背景下比较？", en="Should the comparison be grounded in a project's I/O, motion, safety, and team context?"),
             ],
+            next_actions=[],
         )
 
     def project_chat(
@@ -141,6 +142,7 @@ class DeterministicPlaceholderProvider:
                 LocalizedText(zh="请确认 I/O 规模、现有 PLC 平台、停机窗口、团队经验和强制约束是否已经完整。", en="Please confirm whether I/O scale, existing PLC platform, downtime window, team experience, and hard constraints are complete."),
                 LocalizedText(zh="是否需要按缺口优先级整理一份选型评审资料清单？", en="Should the missing inputs be turned into a prioritized decision-review checklist?"),
             ],
+            next_actions=[workspace.readiness.next_action],
         )
 
     def analyze_project(
@@ -187,6 +189,7 @@ class DeterministicPlaceholderProvider:
                 LocalizedText(zh="哪些缺口会成为本次 PLC 迁移的硬约束：停机窗口、预算、供应链、标准化要求还是人员能力？", en="Which gaps are hard constraints for this PLC migration: downtime, budget, supply chain, standardization, or team capability?"),
                 LocalizedText(zh="是否已有需求说明、I/O 清单、现有控制架构和风险/停机计划可登记？", en="Are requirements, I/O list, current control architecture, and risk/downtime plans available to register?"),
             ],
+            next_actions=[workspace.readiness.next_action],
         )
 
     def explain_benchmark(
@@ -245,6 +248,7 @@ class DeterministicPlaceholderProvider:
             follow_up_questions=[
                 LocalizedText(zh="是否需要逐个平台解释技术分与偏好分差异？", en="Should the technical and preference score differences be explained platform by platform?"),
             ],
+            next_actions=[workspace.readiness.next_action],
         )
 
     def analyze_benchmark(
@@ -465,6 +469,13 @@ class DeterministicPlaceholderProvider:
                     en="Which requirements, I/O, architecture, or electrical documents should be registered for the decision review?",
                 )
             )
+        next_actions = [
+            LocalizedText(
+                zh="补齐缺失文档类型，并为每个附件登记用途。",
+                en="Register missing document types and add a declared purpose for each attachment.",
+            ),
+            workspace.readiness.next_action,
+        ]
         return self._response(
             scope="project_analysis",
             key=f"attachment-analysis:{workspace.project.id}:{workspace.project.updated_at}",
@@ -477,6 +488,7 @@ class DeterministicPlaceholderProvider:
             uncertainty=self._project_uncertainty(workspace),
             missing_inputs=self._missing_inputs(workspace),
             follow_up_questions=questions,
+            next_actions=next_actions,
         )
 
     def _response(
@@ -490,6 +502,7 @@ class DeterministicPlaceholderProvider:
         uncertainty: list[LocalizedText],
         missing_inputs: list[LocalizedText],
         follow_up_questions: list[LocalizedText],
+        next_actions: list[LocalizedText],
     ) -> IntelligenceResponse:
         response_id = self._id(key)
         return IntelligenceResponse(
@@ -502,6 +515,7 @@ class DeterministicPlaceholderProvider:
             uncertainty=uncertainty,
             missing_inputs=missing_inputs,
             follow_up_questions=follow_up_questions,
+            next_actions=next_actions,
             generated_at=self._now(),
         )
 

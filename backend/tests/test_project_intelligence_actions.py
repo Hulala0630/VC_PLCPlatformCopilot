@@ -110,6 +110,25 @@ class ProjectIntelligenceActionTests(unittest.TestCase):
         attachment_analysis = results[0]
         self.assertIn("Attachment contents have not yet been read", attachment_analysis.answer.en)
         self.assertTrue(attachment_analysis.follow_up_questions)
+        self.assertTrue(attachment_analysis.next_actions)
+        self.assertFalse(attachment_analysis.document_parsing_used)
+        self.assertTrue(attachment_analysis.assumptions)
+        self.assertTrue(attachment_analysis.uncertainty)
+        self.assertTrue(attachment_analysis.sources)
+        self.assertTrue(any(source.type == "attachment_metadata" for source in attachment_analysis.sources))
+        report_generation = results[2]
+        self.assertTrue(report_generation.sections)
+        for section in report_generation.sections:
+            self.assertTrue(section.section_id)
+            self.assertTrue(section.title.en)
+            self.assertTrue(section.draft_body.en)
+        self.assertTrue(report_generation.assumptions)
+        self.assertTrue(report_generation.uncertainty)
+        rewrite = results[3]
+        self.assertEqual(rewrite.section_id, workspace.report.sections[0].id)
+        self.assertTrue(rewrite.suggested_body.en)
+        self.assertTrue(rewrite.assumptions)
+        self.assertTrue(rewrite.uncertainty)
         self.assertEqual(results[3].section_id, workspace.report.sections[0].id)
         self.assertEqual(workspace.model_dump(), project_before)
         self.assertEqual(
@@ -152,11 +171,23 @@ class ProjectIntelligenceActionTests(unittest.TestCase):
         attachment_prompt = responses.parse_calls[0]["input"]
         self.assertIn('"content_parsed":false', attachment_prompt)
         self.assertNotIn("file_content", attachment_prompt)
+        attachment_analysis = results[0]
+        self.assertIn("Attachment contents have not yet been read", attachment_analysis.answer.en)
+        self.assertTrue(attachment_analysis.next_actions)
+        self.assertFalse(attachment_analysis.document_parsing_used)
         self.assertEqual(
             [item.section_id for item in results[2].sections],
             [item.id for item in workspace.report.sections],
         )
+        for section in results[2].sections:
+            self.assertTrue(section.title.en)
+            self.assertTrue(section.draft_body.en)
+        self.assertTrue(results[2].assumptions)
+        self.assertTrue(results[2].uncertainty)
         self.assertEqual(results[3].section_id, workspace.report.sections[0].id)
+        self.assertTrue(results[3].suggested_body.en)
+        self.assertTrue(results[3].assumptions)
+        self.assertTrue(results[3].uncertainty)
         self.assertEqual(workspace.model_dump(), project_before)
         self.assertEqual(
             [item.model_dump() for item in create_benchmark(workspace)],
@@ -179,6 +210,12 @@ class ProjectIntelligenceActionTests(unittest.TestCase):
             self.assertEqual(result.provider, "placeholder")
             self.assertFalse(result.ai_used)
             self.assertEqual(result.fallback_reason, "timeout")
+            self.assertTrue(result.assumptions)
+            self.assertTrue(result.uncertainty)
+        self.assertTrue(results[0].next_actions)
+        self.assertIn("Attachment contents have not yet been read", results[0].answer.en)
+        self.assertTrue(results[2].sections)
+        self.assertTrue(results[3].suggested_body.en)
         self.assertEqual(workspace.model_dump(), project_before)
 
     def test_rewrite_rejects_a_different_section_id_and_falls_back(self) -> None:

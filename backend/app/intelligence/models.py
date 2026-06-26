@@ -176,6 +176,7 @@ class IntelligenceResponse(BaseModel):
     uncertainty: list[LocalizedText]
     missing_inputs: list[LocalizedText]
     follow_up_questions: list[LocalizedText]
+    next_actions: list[LocalizedText] = Field(default_factory=list)
     ai_used: bool = False
     document_parsing_used: Literal[False] = False
     generated_at: str
