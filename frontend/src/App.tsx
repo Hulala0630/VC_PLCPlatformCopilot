@@ -36,13 +36,14 @@ import {
   createProject as apiCreateProject,
   deleteProject as apiDeleteProject,
   finalizeProject,
-  explainProjectBenchmark,
   generateProjectReport,
   getEcosystems,
   getProjects,
   reopenProject,
   rewriteProjectReportSection,
   runProjectBenchmark,
+  streamProjectBenchmarkAnalysis,
+  streamProjectSummary,
   updateProjectIntake,
   updateProjectPreferences,
   updateProjectStatus as apiUpdateProjectStatus,
@@ -1826,15 +1827,8 @@ function ProjectOverview({
       summaryStream.showBasic(basicSummary);
       return;
     }
-    void summaryStream.run(
-      () => chatProjectIntelligence(workspace.project.id, {
-        question: language === "zh"
-          ? "请总结当前项目状态、缺失输入、推荐平台、下一步动作，并说明分析依据和附件正文尚未读取。"
-          : "Summarize the current project status, missing inputs, recommended platform, next action, analysis basis, and note that attachment contents have not been read.",
-        language,
-        quality: "balanced",
-        useAi: true,
-      }),
+    void summaryStream.runStream(
+      (onChunk) => streamProjectSummary(workspace.project.id, { language, quality: "balanced", useAi: true }, (chunk) => onChunk(localize(chunk, language))),
       basicSummary,
     );
   }, [basicSummary, language, useAi, workspace.project.id]);
@@ -2140,6 +2134,7 @@ function useStreamingIntelligence(language: Language) {
   const [error, setError] = useState(false);
   const timer = useRef<number | null>(null);
   const lastAction = useRef<(() => Promise<IntelligenceResult>) | null>(null);
+  const lastRetry = useRef<(() => void) | null>(null);
   const lastBasicText = useRef("");
   const busy = useRef(false);
 
@@ -2170,6 +2165,7 @@ function useStreamingIntelligence(language: Language) {
     if (busy.current) return undefined;
     busy.current = true;
     lastAction.current = action;
+    lastRetry.current = () => void run(action, basicText);
     lastBasicText.current = basicText;
     setLoading(true);
     setError(false);
@@ -2190,8 +2186,47 @@ function useStreamingIntelligence(language: Language) {
     }
   }
 
+  async function runStream(action: (onChunk: (chunk: string) => void) => Promise<IntelligenceResult>, basicText: string) {
+    if (busy.current) return undefined;
+    busy.current = true;
+    lastRetry.current = () => void runStream(action, basicText);
+    lastBasicText.current = basicText;
+    setLoading(true);
+    setStreaming(true);
+    setError(false);
+    setResult(null);
+    setDisplayText("");
+    let receivedChunk = false;
+    try {
+      const next = await action((chunk) => {
+        receivedChunk = true;
+        stopTimer();
+        setStreaming(true);
+        setDisplayText((current) => (current ? `${current}\n\n${chunk}` : chunk));
+      });
+      setResult(next);
+      stopTimer();
+      setDisplayText(localize(next.answer, language));
+      setStreaming(false);
+      if (!receivedChunk) {
+        streamText(localize(next.answer, language));
+      }
+      return next;
+    } catch (actionError) {
+      console.warn("Streaming analysis request failed.", actionError);
+      setError(true);
+      setResult(null);
+      streamText(basicText);
+      return undefined;
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  }
+
   function retry() {
-    if (lastAction.current) void run(lastAction.current, lastBasicText.current);
+    if (lastRetry.current) lastRetry.current();
+    else if (lastAction.current) void run(lastAction.current, lastBasicText.current);
   }
 
   function useBasicAnalysis() {
@@ -2212,7 +2247,7 @@ function useStreamingIntelligence(language: Language) {
 
   useEffect(() => () => stopTimer(), []);
 
-  return { result, displayText, loading, streaming, error, run, retry, useBasicAnalysis, showBasic };
+  return { result, displayText, loading, streaming, error, run, runStream, retry, useBasicAnalysis, showBasic };
 }
 
 function analysisStatusPresentation(status: IntelligenceResult["executionStatus"], labels: (typeof copy)[Language]) {
@@ -2419,8 +2454,8 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
       benchmarkStream.showBasic(basicBenchmarkSummary);
       return;
     }
-    void benchmarkStream.run(
-      () => explainProjectBenchmark(workspace.project.id, { language, quality: "balanced", useAi: true }),
+    void benchmarkStream.runStream(
+      (onChunk) => streamProjectBenchmarkAnalysis(workspace.project.id, { language, quality: "balanced", useAi: true }, (chunk) => onChunk(localize(chunk, language))),
       basicBenchmarkSummary,
     );
   }

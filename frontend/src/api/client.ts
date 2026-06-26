@@ -128,6 +128,47 @@ type BackendIntelligenceResponse = {
   generated_at: string;
 };
 
+type BackendBenchmarkAnalysisResponse = {
+  id: string;
+  execution_status?: IntelligenceExecutionStatus;
+  mode: IntelligenceMode;
+  retryable?: boolean;
+  model_profile: IntelligenceQuality | null;
+  recommended_platform: string | null;
+  ranking_rationale: LocalizedText;
+  technical_fit_analysis: LocalizedText;
+  preference_impact: LocalizedText;
+  risk_assessment: LocalizedText;
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  next_actions: LocalizedText[];
+  sources: BackendIntelligenceSource[];
+  ai_used: boolean;
+  document_parsing_used: false;
+  generated_at: string;
+};
+
+type BackendProjectSummaryResponse = {
+  id: string;
+  execution_status?: IntelligenceExecutionStatus;
+  mode: IntelligenceMode;
+  retryable?: boolean;
+  model_profile: IntelligenceQuality | null;
+  summary: LocalizedText;
+  recommended_focus: LocalizedText[];
+  assumptions: LocalizedText[];
+  uncertainty: LocalizedText[];
+  next_actions: LocalizedText[];
+  sources: BackendIntelligenceSource[];
+  ai_used: boolean;
+  document_parsing_used: false;
+  generated_at: string;
+};
+
+type IntelligenceStreamEvent<T> =
+  | { type: "chunk"; done?: false; content?: LocalizedText }
+  | { type: "done"; done: true; result: T };
+
 type BackendReportGenerationResponse = {
   id: string;
   execution_status?: IntelligenceExecutionStatus;
@@ -225,6 +266,71 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+async function requestStream<T>(path: string, init: RequestInit, onChunk: (chunk: LocalizedText) => void): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const body = await response.json();
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body);
+    } catch {
+      detail = await response.text();
+    }
+    throw new Error(`API ${response.status} ${response.statusText}: ${detail}`);
+  }
+
+  if (!response.body) {
+    throw new Error("Streaming response body is not available.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: T | null = null;
+
+  function handleBlock(block: string) {
+    const dataLines = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trim());
+    if (dataLines.length === 0) return;
+    const event = JSON.parse(dataLines.join("\n")) as IntelligenceStreamEvent<T>;
+    if (event.type === "chunk" && event.content) {
+      onChunk(normalizeLocalizedText(event.content));
+    }
+    if (event.type === "done") {
+      result = event.result;
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? "";
+    blocks.forEach(handleBlock);
+    if (done) break;
+  }
+
+  if (buffer.trim()) {
+    handleBlock(buffer);
+  }
+
+  if (!result) {
+    throw new Error("Streaming response ended without a final result.");
+  }
+
+  return result;
 }
 
 function businessString(value: string, language: Language): string {
@@ -428,6 +534,63 @@ function normalizeIntelligenceResponse(response: BackendIntelligenceResponse, re
   };
 }
 
+function combineBenchmarkAnswer(response: BackendBenchmarkAnalysisResponse): LocalizedText {
+  return normalizeLocalizedText({
+    zh: [
+      response.ranking_rationale.zh,
+      response.technical_fit_analysis.zh,
+      response.preference_impact.zh,
+      response.risk_assessment.zh,
+      ...response.next_actions.map((item) => item.zh),
+    ].filter(Boolean).join("\n\n"),
+    en: [
+      response.ranking_rationale.en,
+      response.technical_fit_analysis.en,
+      response.preference_impact.en,
+      response.risk_assessment.en,
+      ...response.next_actions.map((item) => item.en),
+    ].filter(Boolean).join("\n\n"),
+  });
+}
+
+function normalizeBenchmarkAnalysisResponse(response: BackendBenchmarkAnalysisResponse, requestedQuality: IntelligenceQuality): IntelligenceResult {
+  return {
+    id: response.id,
+    mode: response.mode,
+    executionStatus: normalizeExecutionStatus(response.execution_status, response.mode),
+    retryable: response.retryable ?? false,
+    qualityProfile: response.model_profile ?? requestedQuality,
+    answer: combineBenchmarkAnswer(response),
+    sources: response.sources.map(normalizeIntelligenceSource),
+    assumptions: response.assumptions.map(normalizeLocalizedText),
+    uncertainty: response.uncertainty.map(normalizeLocalizedText),
+    missingInputs: [],
+    followUpQuestions: response.next_actions.map(normalizeLocalizedText),
+    aiUsed: response.ai_used,
+    documentParsingUsed: response.document_parsing_used,
+    generatedAt: response.generated_at,
+  };
+}
+
+function normalizeProjectSummaryResponse(response: BackendProjectSummaryResponse, requestedQuality: IntelligenceQuality): IntelligenceResult {
+  return {
+    id: response.id,
+    mode: response.mode,
+    executionStatus: normalizeExecutionStatus(response.execution_status, response.mode),
+    retryable: response.retryable ?? false,
+    qualityProfile: response.model_profile ?? requestedQuality,
+    answer: normalizeLocalizedText(response.summary),
+    sources: response.sources.map(normalizeIntelligenceSource),
+    assumptions: response.assumptions.map(normalizeLocalizedText),
+    uncertainty: response.uncertainty.map(normalizeLocalizedText),
+    missingInputs: response.recommended_focus.map(normalizeLocalizedText),
+    followUpQuestions: response.next_actions.map(normalizeLocalizedText),
+    aiUsed: response.ai_used,
+    documentParsingUsed: response.document_parsing_used,
+    generatedAt: response.generated_at,
+  };
+}
+
 function normalizeReportGenerationResponse(response: BackendReportGenerationResponse, requestedQuality: IntelligenceQuality): ReportGenerationResult {
   return {
     id: response.id,
@@ -560,6 +723,38 @@ export async function explainProjectBenchmark(projectId: string, payload: Projec
     body: JSON.stringify(serializeIntelligenceAction(payload)),
   });
   return normalizeIntelligenceResponse(response, payload.quality);
+}
+
+export async function streamProjectSummary(
+  projectId: string,
+  payload: ProjectIntelligenceActionPayload,
+  onChunk: (chunk: LocalizedText) => void,
+): Promise<IntelligenceResult> {
+  const response = await requestStream<BackendProjectSummaryResponse>(
+    `/api/projects/${projectId}/intelligence/summary/stream`,
+    {
+      method: "POST",
+      body: JSON.stringify(serializeIntelligenceAction(payload)),
+    },
+    onChunk,
+  );
+  return normalizeProjectSummaryResponse(response, payload.quality);
+}
+
+export async function streamProjectBenchmarkAnalysis(
+  projectId: string,
+  payload: ProjectIntelligenceActionPayload,
+  onChunk: (chunk: LocalizedText) => void,
+): Promise<IntelligenceResult> {
+  const response = await requestStream<BackendBenchmarkAnalysisResponse>(
+    `/api/projects/${projectId}/intelligence/benchmark/stream`,
+    {
+      method: "POST",
+      body: JSON.stringify(serializeIntelligenceAction(payload)),
+    },
+    onChunk,
+  );
+  return normalizeBenchmarkAnalysisResponse(response, payload.quality);
 }
 
 export async function generateProjectReport(projectId: string, payload: ReportGenerationPayload): Promise<ReportGenerationResult> {
