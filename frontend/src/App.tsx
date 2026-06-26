@@ -489,6 +489,201 @@ const copy = {
   },
 } as const;
 
+type UiLabels = (typeof copy)[Language];
+
+const trialZhCopy: Partial<Record<keyof typeof copy.en, string>> = {
+  title: "PLC 平台基准与迁移决策工作台",
+  subtitle: "项目闭环：创建项目、登记输入、设置偏好、生成排名、撰写报告",
+  language: "English",
+  newProject: "新建项目",
+  ecosystems: "PLC 生态侧边栏",
+  officialWebsite: "打开官方产品页",
+  query: "当前项目 Query",
+  send: "发送",
+  askPlaceholder: "输入项目约束、选型问题或报告修改意见",
+  project: "项目",
+  projectList: "项目列表",
+  projectGoalSummary: "项目目标摘要",
+  industry: "行业",
+  status: "状态",
+  updated: "更新",
+  overview: "Overview",
+  intake: "Intake",
+  preferences: "Preferences",
+  attachments: "Attachments",
+  benchmark: "Benchmark",
+  report: "Report",
+  save: "保存",
+  addAttachment: "登记附件",
+  fileNote: "当前仅使用文件名称、类型和声明用途进行分析，尚未读取文件正文或表格内容。",
+  technicalScore: "技术评分",
+  preferenceScore: "用户倾向",
+  weightedImpact: "加权影响",
+  finalScore: "最终评分",
+  weightedScore: "加权总分",
+  risk: "风险",
+  assumptions: "分析依据",
+  uncertainty: "结论限制",
+  dataSources: "参考信息",
+  reportSections: "报告目录",
+  sectionEditor: "文档编辑器",
+  candidatePlatforms: "候选平台",
+  registeredMaterials: "已登记资料数量",
+  attachmentReadLimit: "不读取正文 / 尚未解析",
+  keyInputCompleteness: "关键输入完整度",
+  projectGuidance: "项目引导",
+  currentProjectStatus: "当前项目状态",
+  benchmarkImpactInputs: "对 Benchmark 影响较大的输入",
+  suggestedInputs: "建议输入",
+  registeredMaterialsPanel: "已登记资料",
+  futureJudgementUse: "未来可用于判断",
+  futureJudgementUseText: "平台适配、迁移范围、实施风险、供应商与维护约束。",
+  currentDocumentContent: "当前正式报告内容",
+  aiSuggestedContent: "建议内容",
+  acceptUpdatesReport: "接受建议后才会更新报告内容。",
+  scoreComposition: "评分组成",
+  riskLevel: "风险等级",
+  aiProjectSummary: "AI 项目总结",
+  projectSummary: "项目总结",
+  aiBenchmarkAnalysis: "AI Benchmark 分析",
+  baselineReference: "Baseline 评分参考",
+  baselineReferenceHint: "Baseline 保留技术分、用户偏好分、加权总分和风险等级，用于参考和审计；AI 分析不会改写这些评分。",
+  generating: "生成中",
+  streamingCursor: "正在生成",
+  partialResult: "已生成部分内容",
+  basicAnalysisReady: "基础分析已可用",
+  reportContextFromSummary: "项目总结可作为报告草稿生成的上下文，报告内容仍需接受建议后才会更新。",
+  missingMaterialSuggestions: "缺失资料建议",
+  attachmentAnalysisBoundary: "当前只使用文件名、类型和声明用途，不读取正文。",
+  generateSectionSuggestion: "生成本节建议",
+  rewriteThisSection: "重写本节",
+  projectInputs: "项目输入",
+  completion: "项目完成度",
+  nextStep: "下一步建议",
+  workflow: "决策流程",
+  required: "必填",
+  optional: "可选",
+  complete: "已完成",
+  validation: "输入完整度",
+  reason: "倾向原因",
+  registeredOnly: "已登记",
+  emptyAttachments: "还没有登记附件。请先记录文件名称、类型和声明用途。",
+  topRecommendation: "当前首选",
+  reasonPlaceholder: "例如：以前用过、客户指定、团队熟悉、供应链稳定、成本原因",
+  attachmentPurpose: "用途",
+  fileName: "文件名",
+  fileType: "文件类型",
+  projectEntrance: "项目入口",
+  listView: "列表",
+  typeView: "按类型",
+  openProject: "打开项目",
+  byType: "项目类型",
+  apiConnected: "API 已连接",
+  mockFallback: "离线工作模式",
+  checkingApi: "检查 API",
+  saving: "保存中",
+  saved: "已保存",
+  saveFailed: "暂时无法同步，当前修改已保留",
+  savePreferences: "保存偏好",
+  deleteProject: "删除项目",
+  global: "全局",
+  projectScope: "当前项目",
+  globalQuery: "全局 Query",
+  projectQuery: "当前项目 Query",
+  globalAiToggle: "切换全局 Query 的 AI 分析",
+  projectAiToggle: "切换当前项目 Query 的 AI 分析",
+  queryEmpty: "还没有对话。输入问题以获得后端分析结果。",
+  aiEnabled: "AI 已开启",
+  aiDisabled: "AI 已关闭",
+  queryLoading: "正在分析...",
+  queryFailed: "暂时无法连接分析服务。您的问题和上一次结果已保留。",
+  retry: "重试",
+  aiAnalysis: "AI 智能分析",
+  deterministic: "基础分析",
+  fallback: "AI 暂时不可用",
+  qualityProfile: "质量档位",
+  responseContext: "分析依据与结论限制",
+  attachmentsNotParsed: "当前仅使用文件名称、类型和声明用途进行分析，尚未读取文件正文或表格内容。",
+  missingInputsQuery: "缺失输入",
+  analyzeRegisteredInfo: "分析已登记资料",
+  explainRanking: "查看推荐原因",
+  generateReportDraft: "生成报告草稿",
+  analysisResult: "分析结果",
+  actionFailed: "暂时无法连接分析服务。上一次成功结果已保留。",
+  intelligenceUsesProjectSwitch: "当前分析方式",
+  reportSuggestions: "报告草稿建议",
+  suggestionsNotSaved: "确认采用后，此建议将更新当前报告内容。",
+  acceptSection: "接受建议",
+  acceptAll: "接受全部",
+  discardSuggestions: "放弃建议",
+  currentContent: "当前内容",
+  suggestedContent: "建议内容",
+  rewriteInstruction: "改写要求",
+  rewritePlaceholder: "例如：更精炼地面向管理层说明推荐理由和主要风险",
+  accept: "接受建议",
+  discard: "放弃建议",
+  sectionRewrite: "分区改写建议",
+  noPersistenceBeforeAccept: "确认采用前，当前报告内容保持不变。",
+  useBasicAnalysis: "使用基础分析",
+  fallbackHint: "已根据当前项目数据提供基础分析。",
+  benchmarkExplanation: "基于当前评分结果说明平台优势、偏好影响和主要风险。",
+  analysisScope: "分析范围",
+  unreadAttachments: "尚未读取的附件",
+  currentWorkResults: "当前工作结果",
+  workspaceOverview: "从项目列表继续当前 PLC 决策工作，查看状态、推荐平台和下一步操作。",
+  createPLCDecisionProject: "创建 PLC 决策项目",
+  noProjects: "还没有项目。",
+  noProjectsHint: "创建第一个 PLC 决策项目，开始平台选型与迁移分析。",
+  backToWorkspace: "返回工作台",
+  lastUpdated: "最近更新",
+  recommendedNextAction: "推荐下一步",
+  lifecycleStatus: "生命周期状态",
+  readiness: "成熟度",
+  missingRequired: "缺失必填",
+  recommendedInputs: "建议补充",
+  confidence: "置信度",
+  reasons: "原因",
+  missing: "待补充",
+  localReadiness: "成熟度根据当前已填写信息估算。",
+  finalizedReport: "已确认最终版报告",
+  markFinalized: "标记为最终版",
+  reopenAnalysis: "重新进入分析",
+  statusWillUpdate: "保存后状态和成熟度会根据后端规则更新。",
+  reportMode: "报告模式",
+  edit: "编辑",
+  preview: "预览",
+  reportPreview: "报告预览",
+  exportPreparation: "导出准备",
+  copyMarkdown: "复制 Markdown",
+  downloadMarkdown: "下载 Markdown",
+  exportPdf: "生成 PDF / 打印",
+  exportPpt: "导出 PowerPoint",
+  exporting: "正在生成...",
+  exportFailed: "导出失败，请重试",
+  copied: "已复制",
+  projectMetadata: "项目概览",
+  benchmarkSummary: "Benchmark 摘要",
+  preferenceImpact: "偏好影响",
+  riskAssessment: "风险评估",
+  roadmapNextSteps: "路线图 / 下一步",
+  attachmentMetadata: "附件登记信息",
+  missingInputs: "缺失输入",
+  reportDraftWarning: "当前报告仍是草稿，因为项目必填信息尚未完整。",
+  reportAnalyzingWarning: "分析正在进行中。报告可以审阅，但推荐置信度仍可能变化。",
+  reportReadyNotice: "报告已准备好进入审阅。",
+  finalizedReportNotice: "已定稿报告。",
+  sectionContext: "分区上下文",
+  noMissingInputs: "当前没有影响该分区的缺失输入。",
+};
+
+function uiCopy(language: Language): UiLabels {
+  return language === "zh" ? ({ ...copy.zh, ...trialZhCopy } as UiLabels) : copy.en;
+}
+
+function uxText(language: Language, zh: string, en: string) {
+  return language === "zh" ? zh : en;
+}
+
 const tabOrder: WorkspaceTab[] = ["overview", "intake", "preferences", "attachments", "benchmark", "report"];
 const tabs: { id: WorkspaceTab; icon: React.ReactNode }[] = [
   { id: "overview", icon: <ClipboardList size={16} /> },
@@ -903,7 +1098,7 @@ function buildReportMarkdown(
   language: Language,
   platformCatalog: PlcEcosystem[],
 ) {
-  const labels = copy[language];
+  const labels = uiCopy(language);
   const candidatePlatforms = workspace.intake.candidatePlatforms.map((id) => platformName(id, platformCatalog));
   const lead = benchmarkResults[0];
   const leadName = lead ? platformName(lead.platformId, platformCatalog) : "-";
@@ -1151,7 +1346,7 @@ export default function App() {
   const [queryErrors, setQueryErrors] = useState<Record<string, { question: string }>>({});
   const queryRequestInFlight = useRef(false);
 
-  const t = copy[language];
+  const t = uiCopy(language);
   const workspace = workspaces.find((item) => item.project.id === selectedProjectId) ?? workspaces[0] ?? seedWorkspaces[0];
   const selectedEcosystem = platformCatalog.find((item) => item.id === selectedEcosystemId) ?? platformCatalog[0] ?? fallbackEcosystems[0];
   const fallbackBenchmarkResults = useMemo(() => calculateBenchmark(workspace, platformCatalog), [workspace, platformCatalog]);
@@ -1695,7 +1890,7 @@ export default function App() {
               setView={setProjectHomeView}
             />
           ) : null}
-          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} setActiveTab={setActiveTab} /> : null}
+          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} benchmarkResults={benchmarkResults} language={language} labels={t} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} setActiveTab={setActiveTab} /> : null}
           {workspaceView === "project" && activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "attachments" ? <Attachments key={workspace.project.id} workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} useAi={currentProjectAiEnabled} /> : null}
@@ -1757,6 +1952,40 @@ function ReadinessList({ title, items, language, empty }: { title: string; items
       )}
     </div>
   );
+}
+
+type FlowStepState = "done" | "needsReview" | "next";
+
+function flowStepLabel(state: FlowStepState, language: Language) {
+  if (state === "done") return uxText(language, "Done", "Done");
+  if (state === "next") return uxText(language, "Next", "Next");
+  return uxText(language, "Needs Review", "Needs Review");
+}
+
+function flowStepClass(state: FlowStepState) {
+  if (state === "done") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (state === "next") return "border-cyan-300 bg-cyan-50 text-cyan-900";
+  return "border-amber-200 bg-amber-50 text-amber-900";
+}
+
+function projectFlowSteps(workspace: ProjectWorkspace, readiness: ProjectReadiness, benchmarkResults: BenchmarkResult[], language: Language) {
+  const keyInputs = calculateKeyInputCompleteness(workspace);
+  const hasPreferenceReasons = workspace.preferences
+    .filter((item) => workspace.intake.candidatePlatforms.includes(item.platformId))
+    .some((item) => item.userReasonNote.trim());
+  const rawSteps: Array<{ tab: WorkspaceTab; title: string; note: string; complete: boolean }> = [
+    { tab: "overview", title: "Overview", note: uxText(language, "确认目标、状态和下一步动作。", "Confirm the goal, status, and next action."), complete: Boolean(workspace.project.goal && workspace.project.industry) },
+    { tab: "intake", title: "Intake", note: uxText(language, "补齐必填输入和影响评分的工程参数。", "Complete required inputs and engineering parameters that affect scoring."), complete: keyInputs.percent >= 100 },
+    { tab: "preferences", title: "Preferences", note: uxText(language, "确认平台倾向和原因。", "Confirm platform preference and reasons."), complete: hasPreferenceReasons },
+    { tab: "attachments", title: "Attachments", note: uxText(language, "登记工程资料清单，暂不读取正文。", "Register engineering material inventory; contents are not read yet."), complete: workspace.attachments.length > 0 },
+    { tab: "benchmark", title: "Benchmark", note: uxText(language, "查看评分、风险和推荐原因。", "Review scores, risk, and recommendation reasons."), complete: benchmarkResults.length > 0 },
+    { tab: "report", title: "Report", note: uxText(language, "审阅正式内容和建议内容。", "Review official content and suggested content."), complete: readiness.status === "Report Ready" || readiness.status === "Finalized" || workspace.report.sections.some((item) => Boolean(item.body.zh || item.body.en)) },
+  ];
+  const firstOpen = rawSteps.findIndex((step) => !step.complete);
+  return rawSteps.map((step, index) => ({
+    ...step,
+    state: step.complete ? "done" as const : index === firstOpen ? "next" as const : "needsReview" as const,
+  }));
 }
 
 function ProjectHome({
@@ -1922,29 +2151,30 @@ function ProjectEntryCard({
               <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-800">{labels.readiness} {readiness.score}%</span>
             </div>
           </div>
-          {selected ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => open("overview")}>
-                {labels.openProject}
-              </button>
-              <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("benchmark")}>
-                Benchmark
-              </button>
-              <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("report")}>
-                Report
-              </button>
-              <button
-                className="inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-100 hover:bg-red-100"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  deleteProject(workspace.project.id);
-                }}
-              >
-                <Trash2 size={15} />
-                {labels.deleteProject}
-              </button>
-            </div>
-          ) : null}
+          <div className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+            {uxText(language, "打开项目后可继续 Intake、资料登记、Benchmark 或报告。", "Open the project to continue Intake, material registration, Benchmark, or Report.")}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => open("overview")}>
+              {labels.openProject}
+            </button>
+            <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("benchmark")}>
+              Benchmark
+            </button>
+            <button className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200" onClick={() => open("report")}>
+              Report
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-100 hover:bg-red-100"
+              onClick={(event) => {
+                event.stopPropagation();
+                deleteProject(workspace.project.id);
+              }}
+            >
+              <Trash2 size={15} />
+              {labels.deleteProject}
+            </button>
+          </div>
         </div>
         {selected ? (
           <div className="grid gap-3">
@@ -1962,6 +2192,7 @@ function ProjectOverview({
   workspace,
   topPlatform,
   topResult,
+  benchmarkResults,
   language,
   labels,
   platformCatalog,
@@ -1971,6 +2202,7 @@ function ProjectOverview({
   workspace: ProjectWorkspace;
   topPlatform: PlcEcosystem;
   topResult?: BenchmarkResult;
+  benchmarkResults: BenchmarkResult[];
   language: Language;
   labels: (typeof copy)[Language];
   platformCatalog: PlcEcosystem[];
@@ -1983,6 +2215,7 @@ function ProjectOverview({
   const missingInputs = combinedMissingInputs(readiness);
   const summaryStream = useStreamingIntelligence(language);
   const basicSummary = useMemo(() => buildBasicProjectSummary(workspace, readiness, topPlatform, topResult, language, platformCatalog), [language, platformCatalog, readiness, topPlatform, topResult, workspace]);
+  const flowSteps = projectFlowSteps(workspace, readiness, benchmarkResults, language);
 
   useEffect(() => {
     if (!useAi) {
@@ -2023,6 +2256,29 @@ function ProjectOverview({
           <Info title={labels.keyInputCompleteness} value={`${keyInputs.percent}% (${keyInputs.done}/${keyInputs.total})`} />
           <ScoreDial label={labels.readiness} value={readiness.score} />
           <Info title={labels.topRecommendation} value={topPlatform.name} />
+        </div>
+        <div className="mt-5 rounded-md border border-slate-200 bg-white p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">{uxText(language, "当前项目进度", "Current Project Progress")}</p>
+              <p className="mt-1 text-xs text-slate-500">{uxText(language, "每一步都可以直接进入，先处理标记为 Next 的项目。", "Open any step directly; start with the item marked Next.")}</p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{labels.readiness} {readiness.score}%</span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {flowSteps.map((step) => (
+              <button key={step.tab} className={`rounded-md border p-3 text-left transition hover:shadow-sm ${flowStepClass(step.state)}`} onClick={() => setActiveTab(step.tab)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{step.title}</p>
+                    <p className="mt-1 text-xs leading-5 opacity-80">{step.note}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-white/80 px-2 py-1 text-[11px] font-semibold ring-1 ring-current/10">{flowStepLabel(step.state, language)}</span>
+                </div>
+                <span className="mt-3 inline-flex text-xs font-semibold">{uxText(language, "进入", "Open")} {step.title}</span>
+              </button>
+            ))}
+          </div>
         </div>
         {isLocal ? <p className="mt-3 text-sm font-semibold text-amber-700">{labels.localReadiness}</p> : null}
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -2551,7 +2807,7 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
 
   return (
     <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-      <Panel title={labels.addAttachment} description={labels.fileNote}>
+      <Panel title={labels.addAttachment} description={uxText(language, "登记工程资料名称、类型和用途，用于判断资料是否充分。", "Register engineering material names, types, and purposes so the workspace can judge information readiness.")}>
         <div className="grid gap-3">
           <Field label={labels.fileName} badge={labels.required} value={form.fileName} onChange={(value) => setForm({ ...form, fileName: value })} />
           <Select label={labels.fileType} value={form.fileType} options={attachmentTypes} onChange={(value) => setForm({ ...form, fileType: value as ProjectAttachment["fileType"] })} />
@@ -2566,7 +2822,14 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
         <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-4 text-sm text-slate-700 md:grid-cols-2">
           <p><span className="font-semibold text-slate-900">{labels.attachmentReadLimit}: </span>{labels.attachmentAnalysisBoundary}</p>
           <p><span className="font-semibold text-slate-900">{labels.futureJudgementUse}: </span>{labels.futureJudgementUseText}</p>
-          <p className="md:col-span-2"><span className="font-semibold text-slate-900">{labels.missingMaterialSuggestions}: </span>{materialSuggestions.length ? materialSuggestions.map((item) => localize(item, language)).join(", ") : labels.complete}</p>
+          <div className="md:col-span-2">
+            <p className="font-semibold text-slate-900">{labels.missingMaterialSuggestions}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {materialSuggestions.length ? materialSuggestions.map((item) => (
+                <span key={localize(item, language)} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">{localize(item, language)}</span>
+              )) : <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">{labels.complete}</span>}
+            </div>
+          </div>
         </div>
         {workspace.attachments.length === 0 ? (
           <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -2979,6 +3242,7 @@ function ReportBuilder({
           </button>
           <p className="text-sm text-slate-600">{labels.aiSuggestedContent} · {labels.acceptUpdatesReport}</p>
           <p className="basis-full text-xs font-semibold text-slate-500">{labels.reportContextFromSummary}</p>
+          <p className="basis-full rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{uxText(language, "建议内容不会自动写入正式报告；确认采用后才会更新。", "Suggested content is not written into the official report until you accept it.")}</p>
         </div>
         {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} useBasicAnalysis={() => runReportDraft(true)} disabled={reportDraft.loading} /></div> : null}
         {reportDraft.result ? (
@@ -2999,10 +3263,10 @@ function ReportBuilder({
                   <div key={suggestion.sectionId} className="rounded-md border border-slate-200 bg-slate-50 p-4">
                     <h3 className="font-semibold text-slate-950">{localize(suggestion.title, language)}</h3>
                     <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-md bg-white p-3 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentDocumentContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-600">{current ? localize(current.body, language) : "-"}</p></div>
-                      <div className="rounded-md bg-cyan-50 p-3 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-700">{localize(suggestion.draftBody, language)}</p></div>
+                      <div className="rounded-md bg-white p-3 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentDocumentContent}</p><p className="mt-1 text-xs text-slate-500">{uxText(language, "这是当前正式报告内容。", "This is the current official report content.")}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-600">{current ? localize(current.body, language) : "-"}</p></div>
+                      <div className="rounded-md bg-cyan-50 p-3 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-1 text-xs text-cyan-800">{uxText(language, "这是待确认建议，不会自动覆盖正式内容。", "This is a pending suggestion and will not overwrite the official content automatically.")}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-700">{localize(suggestion.draftBody, language)}</p></div>
                     </div>
-                    <button className="mt-3 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50" onClick={() => void acceptGeneratedSection(suggestion.sectionId)} disabled={acceptingSuggestions}>{labels.acceptSection}</button>
+                    <button className="mt-3 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50" onClick={() => void acceptGeneratedSection(suggestion.sectionId)} disabled={acceptingSuggestions}>{uxText(language, "确认采用此建议", "Accept this suggestion")}</button>
                   </div>
                 );
               })}
@@ -3037,6 +3301,7 @@ function ReportBuilder({
         </div>
         <div className="mt-5 space-y-2 rounded-md border border-slate-200 bg-white p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.exportPreparation}</p>
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">{uxText(language, "导出前请先确认报告正文、分析范围和附件读取边界。", "Before export, confirm the report body, analysis scope, and attachment reading boundary.")}</p>
           <button className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => void copyMarkdown()}>
             <CopyIcon size={15} />
             {labels.copyMarkdown}
@@ -3080,6 +3345,7 @@ function ReportBuilder({
         {reportMode === "edit" ? (
           <>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.currentDocumentContent}</p>
+            <p className="mb-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">{uxText(language, "这是当前正式报告内容，可以手动编辑并保存。", "This is the current official report content. You can edit and save it manually.")}</p>
             <textarea className="min-h-[420px] w-full resize-y rounded-md border border-slate-300 bg-white p-5 text-sm leading-7 shadow-inner outline-none focus:ring-2 focus:ring-cyan-400" value={localize(section.body, language)} onChange={(event) => updateSection({ ...section, body: { ...section.body, [language]: event.target.value } })} />
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => saveReportSection(workspace.project.id, section, workspace)}>
