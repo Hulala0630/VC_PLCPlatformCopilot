@@ -2,10 +2,12 @@ from dataclasses import dataclass
 import json
 
 from app.intelligence.models import (
+    BenchmarkAnalysisRequest,
     BenchmarkExplanationRequest,
     GlobalChatRequest,
     ProjectAnalysisRequest,
     ProjectChatRequest,
+    ProjectSummaryRequest,
     ReportGenerationRequest,
     ReportSectionRewriteRequest,
 )
@@ -117,6 +119,32 @@ def benchmark_explanation_prompt(
     }
     return _bundle(
         "Explain technical score, preference impact, weighted ranking, risk level, assumptions, and ranking sensitivity using the supplied benchmark results. Do not recalculate, replace, tune, normalize, or propose changed scores. If the result is sensitive, describe what project inputs should be validated before a decision.",
+        context,
+    )
+
+
+def benchmark_analysis_prompt(
+    request: BenchmarkAnalysisRequest,
+    workspace: ProjectWorkspace,
+    benchmark: list[BenchmarkResult],
+) -> PromptBundle:
+    context = _project_context(workspace, benchmark)
+    context["requested_language"] = request.language
+    return _bundle(
+        "Produce a consulting-style benchmark analysis. Use the supplied deterministic benchmark as the audit baseline. Return recommended platform, ranking rationale, technical fit, preference impact, risk assessment, assumptions, uncertainty, and next actions. Never change scores or ranking values.",
+        context,
+    )
+
+
+def project_summary_prompt(
+    request: ProjectSummaryRequest,
+    workspace: ProjectWorkspace,
+    benchmark: list[BenchmarkResult],
+) -> PromptBundle:
+    context = _project_context(workspace, benchmark)
+    context["requested_language"] = request.language
+    return _bundle(
+        "Produce a concise consulting-style project summary for Overview, Benchmark, and Report surfaces. Ground the summary in project intake, readiness, report status, attachment information, and the deterministic benchmark baseline.",
         context,
     )
 

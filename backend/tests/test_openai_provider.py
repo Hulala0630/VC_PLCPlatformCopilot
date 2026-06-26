@@ -178,6 +178,8 @@ class ProviderFactoryAndRoutingTests(unittest.TestCase):
             "project_chat": "balanced",
             "project_analysis": "balanced",
             "benchmark_explanation": "balanced",
+            "benchmark_analysis": "balanced",
+            "project_summary": "balanced",
             "report_generation": "quality",
             "report_section_rewrite": "quality",
             "connection_test": "fast",

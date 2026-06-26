@@ -3,6 +3,8 @@ from hashlib import sha256
 from typing import Protocol
 
 from app.intelligence.models import (
+    BenchmarkAnalysisRequest,
+    BenchmarkAnalysisResponse,
     BenchmarkExplanationRequest,
     GeneratedReportSection,
     GlobalChatRequest,
@@ -10,6 +12,8 @@ from app.intelligence.models import (
     IntelligenceSource,
     ProjectAnalysisRequest,
     ProjectChatRequest,
+    ProjectSummaryRequest,
+    ProjectSummaryResponse,
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
@@ -43,6 +47,20 @@ class IntelligenceProvider(Protocol):
         workspace: ProjectWorkspace,
         benchmark: list[BenchmarkResult],
     ) -> IntelligenceResponse: ...
+
+    def analyze_benchmark(
+        self,
+        request: BenchmarkAnalysisRequest,
+        workspace: ProjectWorkspace,
+        benchmark: list[BenchmarkResult],
+    ) -> BenchmarkAnalysisResponse: ...
+
+    def summarize_project(
+        self,
+        request: ProjectSummaryRequest,
+        workspace: ProjectWorkspace,
+        benchmark: list[BenchmarkResult],
+    ) -> ProjectSummaryResponse: ...
 
     def generate_report(
         self,
@@ -186,6 +204,132 @@ class DeterministicPlaceholderProvider:
             follow_up_questions=[
                 LocalizedText(zh="是否需要逐个平台解释技术分与偏好分差异？", en="Should the technical and preference score differences be explained platform by platform?"),
             ],
+        )
+
+    def analyze_benchmark(
+        self,
+        request: BenchmarkAnalysisRequest,
+        workspace: ProjectWorkspace,
+        benchmark: list[BenchmarkResult],
+    ) -> BenchmarkAnalysisResponse:
+        lead = benchmark[0] if benchmark else None
+        second = benchmark[1] if len(benchmark) > 1 else None
+        margin = lead.weighted_score - second.weighted_score if lead and second else None
+        response_id = self._id(f"benchmark-analysis:{workspace.project.id}:{workspace.project.updated_at}")
+        return BenchmarkAnalysisResponse(
+            id=response_id,
+            request_id=response_id,
+            recommended_platform=lead.platform_id if lead else None,
+            ranking_rationale=LocalizedText(
+                zh=(
+                    f"当前排序建议优先审阅 {lead.platform_id}，加权分 {lead.weighted_score}。"
+                    f"{' 与第二名差距为 ' + str(margin) + ' 分。' if margin is not None else ''}"
+                    if lead
+                    else "当前缺少候选平台，尚不能形成平台排序建议。"
+                ),
+                en=(
+                    f"Review {lead.platform_id} first; it leads with weighted score {lead.weighted_score}."
+                    f"{' The margin to second place is ' + str(margin) + ' point(s).' if margin is not None else ''}"
+                    if lead
+                    else "No candidate platform is available, so no platform ranking can be recommended yet."
+                ),
+            ),
+            technical_fit_analysis=LocalizedText(
+                zh=(
+                    f"{lead.platform_id} 的技术分为 {lead.technical_score}，需结合 I/O 规模 {workspace.intake.io_scale}、运动需求 {workspace.intake.motion_requirement} 和安全需求 {workspace.intake.safety_requirement} 复核。"
+                    if lead
+                    else "请先补充候选平台，再评估技术适配度。"
+                ),
+                en=(
+                    f"{lead.platform_id} has technical score {lead.technical_score}; review it against I/O scale {workspace.intake.io_scale}, motion need {workspace.intake.motion_requirement}, and safety need {workspace.intake.safety_requirement}."
+                    if lead
+                    else "Add candidate platforms before assessing technical fit."
+                ),
+            ),
+            preference_impact=LocalizedText(
+                zh=(
+                    f"{lead.platform_id} 的偏好分为 {lead.preference_score}，反映团队经验、既有平台和业务约束对排序的影响。"
+                    if lead
+                    else "偏好影响将在候选平台和权重完整后生成。"
+                ),
+                en=(
+                    f"{lead.platform_id} has preference score {lead.preference_score}, reflecting team experience, existing platform context, and business constraints."
+                    if lead
+                    else "Preference impact will be available after candidate platforms and weights are complete."
+                ),
+            ),
+            risk_assessment=LocalizedText(
+                zh=(
+                    f"{lead.platform_id} 当前风险等级为 {lead.risk_level}。仍需确认成本、供应链、停机窗口和安全验收约束。"
+                    if lead
+                    else "风险评估需要候选平台和基础输入后才能形成。"
+                ),
+                en=(
+                    f"{lead.platform_id} currently has {lead.risk_level} risk. Cost, supply-chain, downtime, and safety approval constraints still need confirmation."
+                    if lead
+                    else "Risk assessment requires candidate platforms and core inputs."
+                ),
+            ),
+            assumptions=self._project_assumptions(workspace) + [assumption for item in benchmark for assumption in item.assumptions],
+            uncertainty=self._project_uncertainty(workspace),
+            next_actions=[
+                workspace.readiness.next_action,
+                LocalizedText(
+                    zh="复核领先平台与第二名的分差，并确认偏好权重是否反映真实采购和维护约束。",
+                    en="Review the margin between the leading platform and runner-up, and confirm preference weights reflect real procurement and maintenance constraints.",
+                ),
+            ],
+            sources=self._project_sources(workspace, benchmark),
+            baseline=[item.model_dump() for item in benchmark],
+            generated_at=self._now(),
+        )
+
+    def summarize_project(
+        self,
+        request: ProjectSummaryRequest,
+        workspace: ProjectWorkspace,
+        benchmark: list[BenchmarkResult],
+    ) -> ProjectSummaryResponse:
+        lead = benchmark[0] if benchmark else None
+        response_id = self._id(f"project-summary:{workspace.project.id}:{workspace.project.updated_at}")
+        summary = (
+            LocalizedText(
+                zh=(
+                    f"{workspace.project.name} 当前状态为 {workspace.readiness.status}，成熟度 {workspace.readiness.score}%。"
+                    f"首要平台建议审阅 {lead.platform_id}，报告状态为 {workspace.report.status}。"
+                    f"已登记 {len(workspace.attachments)} 条附件信息；当前未读取或解析附件正文。"
+                ),
+                en=(
+                    f"{workspace.project.name} is {workspace.readiness.status} with {workspace.readiness.score}% readiness. "
+                    f"Review {lead.platform_id} first; report status is {workspace.report.status}. "
+                    f"{len(workspace.attachments)} attachment information record(s) are registered; attachment contents are not read or parsed."
+                ),
+            )
+            if lead
+            else LocalizedText(
+                zh=(
+                    f"{workspace.project.name} 当前状态为 {workspace.readiness.status}，成熟度 {workspace.readiness.score}%。"
+                    "请先补齐候选平台以生成 benchmark。"
+                ),
+                en=(
+                    f"{workspace.project.name} is {workspace.readiness.status} with {workspace.readiness.score}% readiness. "
+                    "Add candidate platforms before generating the benchmark."
+                ),
+            )
+        )
+        return ProjectSummaryResponse(
+            id=response_id,
+            request_id=response_id,
+            summary=summary,
+            recommended_focus=[
+                LocalizedText(zh="补齐缺失输入并复核 readiness 下一步。", en="Complete missing inputs and review the readiness next action."),
+                LocalizedText(zh="用确定性 benchmark 作为平台讨论基线。", en="Use the deterministic benchmark as the platform discussion baseline."),
+            ],
+            assumptions=self._project_assumptions(workspace),
+            uncertainty=self._project_uncertainty(workspace),
+            next_actions=[workspace.readiness.next_action],
+            sources=self._project_sources(workspace, benchmark),
+            generated_at=self._now(),
         )
 
     def generate_report(

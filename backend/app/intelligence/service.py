@@ -1,8 +1,12 @@
+import json
 from datetime import UTC, datetime
+from collections.abc import Iterator
 from uuid import uuid4
 
 from app.data import ECOSYSTEMS
 from app.intelligence.models import (
+    BenchmarkAnalysisRequest,
+    BenchmarkAnalysisResponse,
     BenchmarkExplanationRequest,
     ConnectionTestResponse,
     FallbackReason,
@@ -10,6 +14,8 @@ from app.intelligence.models import (
     IntelligenceResponse,
     ProjectAnalysisRequest,
     ProjectChatRequest,
+    ProjectSummaryRequest,
+    ProjectSummaryResponse,
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
@@ -64,6 +70,52 @@ def analyze_project(project_id: str, request: ProjectAnalysisRequest) -> Intelli
 def explain_benchmark(project_id: str, request: BenchmarkExplanationRequest) -> IntelligenceResponse:
     workspace = _workspace(project_id)
     return _execute("explain_benchmark", request, workspace, create_benchmark(workspace))
+
+
+def analyze_benchmark(project_id: str, request: BenchmarkAnalysisRequest) -> BenchmarkAnalysisResponse:
+    workspace = _workspace(project_id)
+    return _execute("analyze_benchmark", request, workspace, create_benchmark(workspace))
+
+
+def summarize_project(project_id: str, request: ProjectSummaryRequest) -> ProjectSummaryResponse:
+    workspace = _workspace(project_id)
+    return _execute("summarize_project", request, workspace, create_benchmark(workspace))
+
+
+def stream_benchmark_analysis(project_id: str, request: BenchmarkAnalysisRequest) -> Iterator[str]:
+    result = analyze_benchmark(project_id, request)
+    return iter(
+        [
+            _sse(
+                "chunk",
+                {
+                    "type": "chunk",
+                    "done": False,
+                    "content": result.ranking_rationale.model_dump(),
+                    "request_id": result.request_id,
+                },
+            ),
+            _sse("done", {"type": "done", "done": True, "result": result.model_dump(mode="json")}),
+        ]
+    )
+
+
+def stream_project_summary(project_id: str, request: ProjectSummaryRequest) -> Iterator[str]:
+    result = summarize_project(project_id, request)
+    return iter(
+        [
+            _sse(
+                "chunk",
+                {
+                    "type": "chunk",
+                    "done": False,
+                    "content": result.summary.model_dump(),
+                    "request_id": result.request_id,
+                },
+            ),
+            _sse("done", {"type": "done", "done": True, "result": result.model_dump(mode="json")}),
+        ]
+    )
 
 
 def generate_report(project_id: str, request: ReportGenerationRequest) -> ReportGenerationResponse:
@@ -163,6 +215,10 @@ def _default_profile(method_name: str):
     if method_name == "global_chat":
         return "fast"
     return "balanced"
+
+
+def _sse(event: str, payload: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}\n\n"
 
 
 def _workspace(project_id: str) -> ProjectWorkspace:

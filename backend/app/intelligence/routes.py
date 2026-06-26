@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.intelligence.dependencies import get_ai_configuration_status
 from app.intelligence.models import (
     AIConfigurationStatus,
+    BenchmarkAnalysisRequest,
+    BenchmarkAnalysisResponse,
     BenchmarkExplanationRequest,
     ConnectionTestResponse,
     GlobalChatRequest,
     IntelligenceResponse,
     ProjectAnalysisRequest,
     ProjectChatRequest,
+    ProjectSummaryRequest,
+    ProjectSummaryResponse,
     ReportGenerationRequest,
     ReportGenerationResponse,
     ReportSectionRewriteRequest,
@@ -19,12 +24,16 @@ from app.intelligence.service import (
     IntelligenceProviderUnavailableError,
     IntelligenceProjectNotFoundError,
     IntelligenceSectionNotFoundError,
+    analyze_benchmark,
     analyze_project,
     explain_benchmark,
     generate_report,
     global_chat,
     project_chat,
     rewrite_report_section,
+    stream_benchmark_analysis,
+    stream_project_summary,
+    summarize_project,
     test_connection,
 )
 
@@ -82,6 +91,28 @@ def post_project_analysis(project_id: str, payload: ProjectAnalysisRequest) -> I
 @router.post("/projects/{project_id}/benchmark/explain", response_model=IntelligenceResponse)
 def post_benchmark_explanation(project_id: str, payload: BenchmarkExplanationRequest) -> IntelligenceResponse:
     return _run(lambda: explain_benchmark(project_id, payload))
+
+
+@router.post("/projects/{project_id}/intelligence/benchmark", response_model=BenchmarkAnalysisResponse)
+def post_benchmark_analysis(project_id: str, payload: BenchmarkAnalysisRequest) -> BenchmarkAnalysisResponse:
+    return _run(lambda: analyze_benchmark(project_id, payload))
+
+
+@router.post("/projects/{project_id}/intelligence/summary", response_model=ProjectSummaryResponse)
+def post_project_summary(project_id: str, payload: ProjectSummaryRequest) -> ProjectSummaryResponse:
+    return _run(lambda: summarize_project(project_id, payload))
+
+
+@router.post("/projects/{project_id}/intelligence/benchmark/stream")
+def post_benchmark_analysis_stream(project_id: str, payload: BenchmarkAnalysisRequest) -> StreamingResponse:
+    stream = _run(lambda: stream_benchmark_analysis(project_id, payload))
+    return StreamingResponse(stream, media_type="text/event-stream")
+
+
+@router.post("/projects/{project_id}/intelligence/summary/stream")
+def post_project_summary_stream(project_id: str, payload: ProjectSummaryRequest) -> StreamingResponse:
+    stream = _run(lambda: stream_project_summary(project_id, payload))
+    return StreamingResponse(stream, media_type="text/event-stream")
 
 
 @router.post("/projects/{project_id}/report/generate", response_model=ReportGenerationResponse)

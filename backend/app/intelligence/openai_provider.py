@@ -11,6 +11,8 @@ from pydantic import BaseModel, ValidationError, field_validator, model_validato
 from app.intelligence.config import AISettings
 from app.intelligence.model_router import IntelligenceCapability, ModelRouter
 from app.intelligence.models import (
+    BenchmarkAnalysisRequest,
+    BenchmarkAnalysisResponse,
     BenchmarkExplanationRequest,
     ConnectionTestResponse,
     GeneratedReportSection,
@@ -18,6 +20,8 @@ from app.intelligence.models import (
     IntelligenceResponse,
     ProjectAnalysisRequest,
     ProjectChatRequest,
+    ProjectSummaryRequest,
+    ProjectSummaryResponse,
     QualityProfile,
     ReportGenerationRequest,
     ReportGenerationResponse,
@@ -27,11 +31,13 @@ from app.intelligence.models import (
 )
 from app.intelligence.prompts import (
     PromptBundle,
+    benchmark_analysis_prompt,
     benchmark_explanation_prompt,
     connection_test_prompt,
     global_chat_prompt,
     project_analysis_prompt,
     project_chat_prompt,
+    project_summary_prompt,
     report_generation_prompt,
     report_section_rewrite_prompt,
 )
@@ -115,6 +121,53 @@ class _StructuredSectionRewriteOutput(BaseModel):
         return self
 
 
+class _StructuredBenchmarkAnalysisOutput(BaseModel):
+    recommended_platform: str | None
+    ranking_rationale: LocalizedText
+    technical_fit_analysis: LocalizedText
+    preference_impact: LocalizedText
+    risk_assessment: LocalizedText
+    assumptions: list[LocalizedText]
+    uncertainty: list[LocalizedText]
+    next_actions: list[LocalizedText]
+
+    @model_validator(mode="after")
+    def user_content_must_avoid_engineering_terms(self):
+        _ensure_user_safe_text(
+            [
+                self.ranking_rationale,
+                self.technical_fit_analysis,
+                self.preference_impact,
+                self.risk_assessment,
+                *self.assumptions,
+                *self.uncertainty,
+                *self.next_actions,
+            ]
+        )
+        return self
+
+
+class _StructuredProjectSummaryOutput(BaseModel):
+    summary: LocalizedText
+    recommended_focus: list[LocalizedText]
+    assumptions: list[LocalizedText]
+    uncertainty: list[LocalizedText]
+    next_actions: list[LocalizedText]
+
+    @model_validator(mode="after")
+    def user_content_must_avoid_engineering_terms(self):
+        _ensure_user_safe_text(
+            [
+                self.summary,
+                *self.recommended_focus,
+                *self.assumptions,
+                *self.uncertainty,
+                *self.next_actions,
+            ]
+        )
+        return self
+
+
 class OpenAIProvider:
     mode = "openai"
 
@@ -187,6 +240,75 @@ class OpenAIProvider:
             "benchmark_explanation",
             request.quality_profile,
             benchmark_explanation_prompt(request, workspace, benchmark),
+        )
+
+    def analyze_benchmark(
+        self,
+        request: BenchmarkAnalysisRequest,
+        workspace: ProjectWorkspace,
+        benchmark: list[BenchmarkResult],
+    ) -> BenchmarkAnalysisResponse:
+        baseline = self._placeholder.analyze_benchmark(request, workspace, benchmark)
+        profile = self._router.profile_for("benchmark_analysis", request.quality_profile)
+        response, parsed = self._parse(
+            profile,
+            benchmark_analysis_prompt(request, workspace, benchmark),
+            _StructuredBenchmarkAnalysisOutput,
+        )
+        if parsed.recommended_platform is not None and parsed.recommended_platform not in {
+            item.platform_id for item in benchmark
+        }:
+            raise ProviderCallError("invalid_response", profile)
+        return baseline.model_copy(
+            update={
+                "mode": "openai",
+                "execution_status": "ai_success",
+                "provider": "openai",
+                "model_profile": profile,
+                "fallback_reason": None,
+                "request_id": self._request_id(response),
+                "recommended_platform": parsed.recommended_platform,
+                "ranking_rationale": parsed.ranking_rationale,
+                "technical_fit_analysis": parsed.technical_fit_analysis,
+                "preference_impact": parsed.preference_impact,
+                "risk_assessment": parsed.risk_assessment,
+                "assumptions": _merge_localized(baseline.assumptions, parsed.assumptions),
+                "uncertainty": _merge_localized(baseline.uncertainty, parsed.uncertainty),
+                "next_actions": _merge_localized(baseline.next_actions, parsed.next_actions),
+                "ai_used": True,
+                "generated_at": _now(),
+            }
+        )
+
+    def summarize_project(
+        self,
+        request: ProjectSummaryRequest,
+        workspace: ProjectWorkspace,
+        benchmark: list[BenchmarkResult],
+    ) -> ProjectSummaryResponse:
+        baseline = self._placeholder.summarize_project(request, workspace, benchmark)
+        profile = self._router.profile_for("project_summary", request.quality_profile)
+        response, parsed = self._parse(
+            profile,
+            project_summary_prompt(request, workspace, benchmark),
+            _StructuredProjectSummaryOutput,
+        )
+        return baseline.model_copy(
+            update={
+                "mode": "openai",
+                "execution_status": "ai_success",
+                "provider": "openai",
+                "model_profile": profile,
+                "fallback_reason": None,
+                "request_id": self._request_id(response),
+                "summary": parsed.summary,
+                "recommended_focus": _merge_localized(baseline.recommended_focus, parsed.recommended_focus),
+                "assumptions": _merge_localized(baseline.assumptions, parsed.assumptions),
+                "uncertainty": _merge_localized(baseline.uncertainty, parsed.uncertainty),
+                "next_actions": _merge_localized(baseline.next_actions, parsed.next_actions),
+                "ai_used": True,
+                "generated_at": _now(),
+            }
         )
 
     def generate_report(

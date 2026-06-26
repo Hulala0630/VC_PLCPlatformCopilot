@@ -33,6 +33,8 @@ IntelligenceScope = Literal[
     "project",
     "project_analysis",
     "benchmark_explanation",
+    "benchmark_analysis",
+    "project_summary",
     "report_generation",
     "report_section",
 ]
@@ -99,6 +101,24 @@ class ProjectAnalysisRequest(BaseModel):
 
 
 class BenchmarkExplanationRequest(BaseModel):
+    language: Language
+    use_ai: bool = True
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
+
+
+class BenchmarkAnalysisRequest(BaseModel):
+    language: Language
+    use_ai: bool = True
+    quality_profile: QualityProfile | None = Field(
+        default=None,
+        validation_alias=AliasChoices("quality_profile", "quality"),
+    )
+
+
+class ProjectSummaryRequest(BaseModel):
     language: Language
     use_ai: bool = True
     quality_profile: QualityProfile | None = Field(
@@ -203,6 +223,52 @@ class ReportSectionRewriteResponse(BaseModel):
     fallback_reason: FallbackReason | None = None
     retryable: bool = False
     request_id: str
+    document_parsing_used: Literal[False] = False
+    generated_at: str
+
+
+class BenchmarkAnalysisResponse(BaseModel):
+    id: str
+    execution_status: IntelligenceExecutionStatus = "basic_analysis"
+    mode: IntelligenceMode = "deterministic_placeholder"
+    provider: IntelligenceProviderName = "placeholder"
+    model_profile: QualityProfile | None = None
+    fallback_reason: FallbackReason | None = None
+    retryable: bool = False
+    request_id: str
+    scope: Literal["benchmark_analysis"] = "benchmark_analysis"
+    recommended_platform: str | None
+    ranking_rationale: LocalizedText
+    technical_fit_analysis: LocalizedText
+    preference_impact: LocalizedText
+    risk_assessment: LocalizedText
+    assumptions: list[LocalizedText]
+    uncertainty: list[LocalizedText]
+    next_actions: list[LocalizedText]
+    sources: list[IntelligenceSource]
+    baseline: list[dict]
+    ai_used: bool = False
+    document_parsing_used: Literal[False] = False
+    generated_at: str
+
+
+class ProjectSummaryResponse(BaseModel):
+    id: str
+    execution_status: IntelligenceExecutionStatus = "basic_analysis"
+    mode: IntelligenceMode = "deterministic_placeholder"
+    provider: IntelligenceProviderName = "placeholder"
+    model_profile: QualityProfile | None = None
+    fallback_reason: FallbackReason | None = None
+    retryable: bool = False
+    request_id: str
+    scope: Literal["project_summary"] = "project_summary"
+    summary: LocalizedText
+    recommended_focus: list[LocalizedText]
+    assumptions: list[LocalizedText]
+    uncertainty: list[LocalizedText]
+    next_actions: list[LocalizedText]
+    sources: list[IntelligenceSource]
+    ai_used: bool = False
     document_parsing_used: Literal[False] = False
     generated_at: str
 
