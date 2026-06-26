@@ -121,6 +121,16 @@ const copy = {
     acceptUpdatesReport: "接受建议后才会更新报告内容。",
     scoreComposition: "评分组成",
     riskLevel: "风险等级",
+    aiProjectSummary: "AI 项目总结",
+    projectSummary: "项目总结",
+    aiBenchmarkAnalysis: "AI Benchmark 分析",
+    baselineReference: "Baseline 评分参考",
+    baselineReferenceHint: "Baseline 保留技术分、用户偏好分、加权总分和风险等级，用于参考和审计；AI 分析不会改写这些评分。",
+    generating: "生成中",
+    streamingCursor: "正在生成",
+    partialResult: "已生成部分内容",
+    basicAnalysisReady: "基础分析已可用",
+    reportContextFromSummary: "项目总结可作为报告草稿生成的上下文，报告内容仍需接受建议后才会更新。",
     projectInputs: "项目输入",
     emptyQuestion: "请输入内容后再发送。",
     completion: "项目完成度",
@@ -311,6 +321,16 @@ const copy = {
     acceptUpdatesReport: "The report updates only after you accept a suggestion.",
     scoreComposition: "Score Composition",
     riskLevel: "Risk Level",
+    aiProjectSummary: "AI Project Summary",
+    projectSummary: "Project Summary",
+    aiBenchmarkAnalysis: "AI Benchmark Analysis",
+    baselineReference: "Baseline Scoring Reference",
+    baselineReferenceHint: "Baseline keeps technical score, user preference score, weighted score, and risk level for reference and audit. AI analysis does not rewrite these scores.",
+    generating: "Generating",
+    streamingCursor: "Generating",
+    partialResult: "Partial result",
+    basicAnalysisReady: "Basic analysis is available",
+    reportContextFromSummary: "The project summary can provide context for report draft generation. Report content still updates only after accepting a suggestion.",
     projectInputs: "Project Inputs",
     emptyQuestion: "Enter content before sending.",
     completion: "Project Completeness",
@@ -550,6 +570,57 @@ function calculateKeyInputCompleteness(workspace: ProjectWorkspace) {
 
 function combinedMissingInputs(readiness: ProjectReadiness) {
   return [...readiness.missingRequired, ...readiness.recommendedMissing];
+}
+
+function buildBasicProjectSummary(workspace: ProjectWorkspace, readiness: ProjectReadiness, topPlatform: PlcEcosystem, topResult: BenchmarkResult | undefined, language: Language, platformCatalog: PlcEcosystem[]) {
+  const keyInputs = calculateKeyInputCompleteness(workspace);
+  const missing = combinedMissingInputs(readiness).map((item) => localize(item, language)).join(language === "zh" ? "、" : ", ");
+  const candidates = workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id).join(", ");
+  if (language === "zh") {
+    return [
+      `${workspace.project.name} 当前处于 ${readiness.status} 状态，关键输入完整度为 ${keyInputs.percent}%。`,
+      `项目目标：${workspace.project.goal || "尚未填写项目目标。"}`,
+      `候选平台包括 ${candidates || "尚未选择候选平台"}，当前首选为 ${topPlatform.name}${topResult ? `，加权总分 ${topResult.weightedScore}/100` : ""}。`,
+      `下一步：${localize(readiness.nextAction, language)}`,
+      `缺失输入：${missing || "当前没有明显缺失项。"}`,
+      `分析依据来自当前项目输入、偏好、Baseline 排名和已登记资料名称/类型/用途；附件尚未读取正文。`,
+    ].join("\n");
+  }
+  return [
+    `${workspace.project.name} is currently ${readiness.status}, with key input completeness at ${keyInputs.percent}%.`,
+    `Goal: ${workspace.project.goal || "Project goal has not been entered yet."}`,
+    `Candidate platforms include ${candidates || "no candidate platforms yet"}, and the current lead is ${topPlatform.name}${topResult ? ` with a weighted score of ${topResult.weightedScore}/100` : ""}.`,
+    `Next action: ${localize(readiness.nextAction, language)}`,
+    `Missing inputs: ${missing || "No major missing inputs at the moment."}`,
+    `Basis: current project inputs, preferences, baseline ranking, and registered material names/types/purposes. Attachment contents have not been read.`,
+  ].join("\n");
+}
+
+function buildBasicBenchmarkSummary(results: BenchmarkResult[], workspace: ProjectWorkspace, platformCatalog: PlcEcosystem[], language: Language) {
+  const lead = results[0];
+  const leadPlatform = lead ? platformCatalog.find((item) => item.id === lead.platformId) : undefined;
+  const missingPreferenceNotes = workspace.preferences.filter((item) => workspace.intake.candidatePlatforms.includes(item.platformId) && !item.userReasonNote.trim()).length;
+  if (!lead) {
+    return language === "zh"
+      ? "当前尚无 Benchmark 结果。请先运行 Benchmark，再查看平台排序和推荐原因。附件尚未读取正文。"
+      : "No Benchmark result is available yet. Run Benchmark first to review ranking and recommendation reasons. Attachment contents have not been read.";
+  }
+  if (language === "zh") {
+    return [
+      `当前首选为 ${leadPlatform?.name ?? lead.platformId}，Baseline 加权总分 ${lead.weightedScore}/100，风险等级为 ${riskLabel.zh[lead.riskLevel]}。`,
+      `评分组成：技术分 ${lead.technicalScore}/100，用户偏好分 ${lead.preferenceScore}/100，加权总分 ${lead.weightedScore}/100。`,
+      missingPreferenceNotes ? `仍有 ${missingPreferenceNotes} 个候选平台缺少用户倾向原因，建议补充以提升解释质量。` : "候选平台已有用户倾向输入，可用于解释偏好影响。",
+      "AI 分析只解释平台优势、偏好影响和主要风险，不会改写 Baseline 分数或原始输入。",
+      "分析依据来自项目输入、偏好、Baseline 排名和已登记资料名称/类型/用途；附件尚未读取正文。",
+    ].join("\n");
+  }
+  return [
+    `The current lead is ${leadPlatform?.name ?? lead.platformId}, with a baseline weighted score of ${lead.weightedScore}/100 and ${riskLabel.en[lead.riskLevel]} risk.`,
+    `Score composition: technical score ${lead.technicalScore}/100, user preference score ${lead.preferenceScore}/100, weighted score ${lead.weightedScore}/100.`,
+    missingPreferenceNotes ? `${missingPreferenceNotes} candidate platform(s) still need user preference reasons to improve explanation quality.` : "Candidate platforms include user preference inputs for explaining preference impact.",
+    "AI analysis explains platform strengths, preference impact, and main risks. It does not rewrite baseline scores or original inputs.",
+    "Basis: project inputs, preferences, baseline ranking, and registered material names/types/purposes. Attachment contents have not been read.",
+  ].join("\n");
 }
 
 function nextStepFor(workspace: ProjectWorkspace, language: Language): string {
@@ -1461,7 +1532,7 @@ export default function App() {
               setView={setProjectHomeView}
             />
           ) : null}
-          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} platformCatalog={platformCatalog} setActiveTab={setActiveTab} /> : null}
+          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} language={language} labels={t} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} setActiveTab={setActiveTab} /> : null}
           {workspaceView === "project" && activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "attachments" ? <Attachments key={workspace.project.id} workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} useAi={currentProjectAiEnabled} /> : null}
@@ -1731,6 +1802,7 @@ function ProjectOverview({
   language,
   labels,
   platformCatalog,
+  useAi,
   setActiveTab,
 }: {
   workspace: ProjectWorkspace;
@@ -1739,12 +1811,34 @@ function ProjectOverview({
   language: Language;
   labels: (typeof copy)[Language];
   platformCatalog: PlcEcosystem[];
+  useAi: boolean;
   setActiveTab: (tab: WorkspaceTab) => void;
 }) {
   const { readiness, isLocal } = getWorkspaceReadiness(workspace);
   const keyInputs = calculateKeyInputCompleteness(workspace);
   const candidatePlatformNames = workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id);
   const missingInputs = combinedMissingInputs(readiness);
+  const summaryStream = useStreamingIntelligence(language);
+  const basicSummary = useMemo(() => buildBasicProjectSummary(workspace, readiness, topPlatform, topResult, language, platformCatalog), [language, platformCatalog, readiness, topPlatform, topResult, workspace]);
+
+  useEffect(() => {
+    if (!useAi) {
+      summaryStream.showBasic(basicSummary);
+      return;
+    }
+    void summaryStream.run(
+      () => chatProjectIntelligence(workspace.project.id, {
+        question: language === "zh"
+          ? "请总结当前项目状态、缺失输入、推荐平台、下一步动作，并说明分析依据和附件正文尚未读取。"
+          : "Summarize the current project status, missing inputs, recommended platform, next action, analysis basis, and note that attachment contents have not been read.",
+        language,
+        quality: "balanced",
+        useAi: true,
+      }),
+      basicSummary,
+    );
+  }, [basicSummary, language, useAi, workspace.project.id]);
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Panel title={labels.projectGuidance} description={workspace.project.name}>
@@ -1804,6 +1898,17 @@ function ProjectOverview({
         <MetricBar label={labels.preferenceScore} value={topResult?.preferenceScore ?? 0} tone="cyan" />
         <MetricBar label={labels.finalScore} value={topResult?.weightedScore ?? 0} tone="emerald" />
       </Panel>
+      <div className="xl:col-span-2">
+        <StreamingAnalysisPanel
+          title={useAi ? labels.aiProjectSummary : labels.projectSummary}
+          description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}
+          stream={summaryStream}
+          labels={labels}
+          language={language}
+        >
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{labels.reportContextFromSummary}</p>
+        </StreamingAnalysisPanel>
+      </div>
     </div>
   );
 }
@@ -2027,6 +2132,89 @@ function useIntelligenceAction<T>() {
   return { result, setResult, loading, error, run, retry, reset };
 }
 
+function useStreamingIntelligence(language: Language) {
+  const [result, setResult] = useState<IntelligenceResult | null>(null);
+  const [displayText, setDisplayText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [error, setError] = useState(false);
+  const timer = useRef<number | null>(null);
+  const lastAction = useRef<(() => Promise<IntelligenceResult>) | null>(null);
+  const lastBasicText = useRef("");
+  const busy = useRef(false);
+
+  function stopTimer() {
+    if (timer.current) {
+      window.clearInterval(timer.current);
+      timer.current = null;
+    }
+  }
+
+  function streamText(text: string) {
+    stopTimer();
+    setDisplayText("");
+    setStreaming(true);
+    let index = 0;
+    const chunkSize = Math.max(2, Math.ceil(text.length / 90));
+    timer.current = window.setInterval(() => {
+      index = Math.min(text.length, index + chunkSize);
+      setDisplayText(text.slice(0, index));
+      if (index >= text.length) {
+        stopTimer();
+        setStreaming(false);
+      }
+    }, 28);
+  }
+
+  async function run(action: () => Promise<IntelligenceResult>, basicText: string) {
+    if (busy.current) return undefined;
+    busy.current = true;
+    lastAction.current = action;
+    lastBasicText.current = basicText;
+    setLoading(true);
+    setError(false);
+    try {
+      const next = await action();
+      setResult(next);
+      streamText(localize(next.answer, language));
+      return next;
+    } catch (actionError) {
+      console.warn("Streaming analysis request failed.", actionError);
+      setError(true);
+      setResult(null);
+      streamText(basicText);
+      return undefined;
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  }
+
+  function retry() {
+    if (lastAction.current) void run(lastAction.current, lastBasicText.current);
+  }
+
+  function useBasicAnalysis() {
+    setError(false);
+    setResult(null);
+    streamText(lastBasicText.current);
+  }
+
+  function showBasic(text: string) {
+    lastBasicText.current = text;
+    setResult(null);
+    setError(false);
+    stopTimer();
+    setStreaming(false);
+    setLoading(false);
+    setDisplayText(text);
+  }
+
+  useEffect(() => () => stopTimer(), []);
+
+  return { result, displayText, loading, streaming, error, run, retry, useBasicAnalysis, showBasic };
+}
+
 function analysisStatusPresentation(status: IntelligenceResult["executionStatus"], labels: (typeof copy)[Language]) {
   if (status === "ai_success") return { label: labels.aiAnalysis, lightClass: "bg-cyan-100 text-cyan-900", darkClass: "bg-cyan-300 text-slate-950" };
   if (status === "ai_fallback") return { label: labels.fallback, lightClass: "bg-amber-100 text-amber-900", darkClass: "bg-amber-300 text-amber-950" };
@@ -2058,6 +2246,57 @@ function IntelligenceResultPanel({ result, labels, language }: { result: Intelli
         <LightEvidenceList title={labels.uncertainty} items={result.uncertainty.map((item) => localize(item, language))} />
       </div>
     </div>
+  );
+}
+
+function StreamingAnalysisPanel({
+  title,
+  description,
+  stream,
+  labels,
+  language,
+  children,
+}: {
+  title: string;
+  description: string;
+  stream: ReturnType<typeof useStreamingIntelligence>;
+  labels: (typeof copy)[Language];
+  language: Language;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Panel title={title} description={description}>
+      {children}
+      <div className="mt-4 rounded-md border border-cyan-200 bg-cyan-50/60 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {stream.result ? <IntelligenceModeBadge result={stream.result} labels={labels} /> : <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-800">{labels.basicAnalysisReady}</span>}
+          {stream.loading ? <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-900">{labels.generating}</span> : null}
+          {stream.displayText && stream.streaming ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.partialResult}</span> : null}
+        </div>
+        {stream.loading && !stream.displayText ? (
+          <div className="mt-4 grid gap-2">
+            <div className="h-3 w-11/12 animate-pulse rounded bg-cyan-100" />
+            <div className="h-3 w-9/12 animate-pulse rounded bg-cyan-100" />
+            <div className="h-3 w-7/12 animate-pulse rounded bg-cyan-100" />
+          </div>
+        ) : null}
+        {stream.displayText ? (
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-800">
+            {stream.displayText}
+            {stream.streaming ? <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-cyan-700 align-[-2px]" aria-label={labels.streamingCursor} /> : null}
+          </p>
+        ) : null}
+        {stream.result?.executionStatus === "ai_fallback" ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
+        <p className="mt-4 rounded-md bg-white px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.attachmentsNotParsed}</p>
+        {stream.error ? <div className="mt-4"><ActionError labels={labels} retry={stream.retry} useBasicAnalysis={stream.useBasicAnalysis} disabled={stream.loading} /></div> : null}
+        {stream.result ? (
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <LightEvidenceList title={labels.assumptions} items={stream.result.assumptions.map((item) => localize(item, language))} />
+            <LightEvidenceList title={labels.uncertainty} items={stream.result.uncertainty.map((item) => localize(item, language))} />
+          </div>
+        ) : null}
+      </div>
+    </Panel>
   );
 }
 
@@ -2170,20 +2409,37 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
 }
 
 function Benchmark({ results, workspace, platformCatalog, labels, language, onRunBenchmark, useAi }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language; onRunBenchmark: (projectId: string) => void | Promise<void>; useAi: boolean }) {
-  const explanation = useIntelligenceAction<IntelligenceResult>();
   const leadResult = results[0];
   const leadPlatform = leadResult ? platformCatalog.find((item) => item.id === leadResult.platformId) : undefined;
+  const benchmarkStream = useStreamingIntelligence(language);
+  const basicBenchmarkSummary = useMemo(() => buildBasicBenchmarkSummary(results, workspace, platformCatalog, language), [language, platformCatalog, results, workspace]);
+
+  function runBenchmarkAnalysis(forceBasic = false) {
+    if (!useAi || forceBasic) {
+      benchmarkStream.showBasic(basicBenchmarkSummary);
+      return;
+    }
+    void benchmarkStream.run(
+      () => explainProjectBenchmark(workspace.project.id, { language, quality: "balanced", useAi: true }),
+      basicBenchmarkSummary,
+    );
+  }
+
+  useEffect(() => {
+    runBenchmarkAnalysis(!useAi);
+  }, [basicBenchmarkSummary, language, useAi, workspace.project.id]);
+
   return (
     <div className="space-y-5">
-      <Panel title={labels.benchmark} description={language === "zh" ? "咨询 dashboard：技术分 + 用户倾向 = 最终排序。" : "Consulting dashboard: technical score + user preference = final ranking."}>
+      <Panel title={labels.baselineReference} description={labels.baselineReferenceHint}>
       <div className="mb-4 flex flex-wrap gap-3">
         <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800" onClick={() => onRunBenchmark(workspace.project.id)}>
           <RefreshCw size={16} />
           {language === "zh" ? "运行 Benchmark" : "Run Benchmark"}
         </button>
-        <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void explanation.run(() => explainProjectBenchmark(workspace.project.id, { language, quality: "balanced", useAi }))} disabled={explanation.loading || results.length === 0}>
+        <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runBenchmarkAnalysis(false)} disabled={benchmarkStream.loading || results.length === 0}>
           <Sparkles size={16} />
-          {explanation.loading ? labels.queryLoading : labels.explainRanking}
+          {benchmarkStream.loading ? labels.queryLoading : labels.explainRanking}
         </button>
       </div>
       {leadResult ? (
@@ -2235,14 +2491,18 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
         })}
       </div>
       </Panel>
-      <Panel title={labels.explainRanking} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
-        <div className="mb-4 flex items-start gap-2 text-sm text-slate-600">
+      <StreamingAnalysisPanel
+        title={useAi ? labels.aiBenchmarkAnalysis : labels.analysisResult}
+        description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}
+        stream={benchmarkStream}
+        labels={labels}
+        language={language}
+      >
+        <div className="flex items-start gap-2 text-sm text-slate-600">
           <p>{labels.benchmarkExplanation}</p>
           <span className="inline-flex shrink-0 cursor-help text-slate-400" title={labels.benchmarkScoreTooltip} aria-label={labels.benchmarkScoreTooltip} tabIndex={0}><InfoIcon size={16} /></span>
         </div>
-        {explanation.error ? <ActionError labels={labels} retry={explanation.retry} useBasicAnalysis={() => void explanation.run(() => explainProjectBenchmark(workspace.project.id, { language, quality: "balanced", useAi: false }))} disabled={explanation.loading} /> : null}
-        {explanation.result ? <IntelligenceResultPanel result={explanation.result} labels={labels} language={language} /> : <p className="rounded-md border border-dashed border-slate-300 p-5 text-sm text-slate-500">{labels.explainRanking}</p>}
-      </Panel>
+      </StreamingAnalysisPanel>
     </div>
   );
 }
@@ -2487,6 +2747,7 @@ function ReportBuilder({
             {reportDraft.loading ? labels.queryLoading : labels.generateReportDraft}
           </button>
           <p className="text-sm text-slate-600">{labels.aiSuggestedContent} · {labels.acceptUpdatesReport}</p>
+          <p className="basis-full text-xs font-semibold text-slate-500">{labels.reportContextFromSummary}</p>
         </div>
         {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} useBasicAnalysis={() => void reportDraft.run(() => generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi: false }))} disabled={reportDraft.loading} /></div> : null}
         {reportDraft.result ? (
