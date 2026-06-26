@@ -54,6 +54,7 @@ import type {
   BenchmarkResult,
   ChatMessage,
   IntelligenceResult,
+  IntelligenceSource,
   Language,
   LocalizedText,
   PlcEcosystem,
@@ -132,6 +133,15 @@ const copy = {
     partialResult: "已生成部分内容",
     basicAnalysisReady: "基础分析已可用",
     reportContextFromSummary: "项目总结可作为报告草稿生成的上下文，报告内容仍需接受建议后才会更新。",
+    missingMaterialSuggestions: "缺失资料建议",
+    attachmentAnalysisBoundary: "当前只使用文件名、类型和声明用途，不读取正文。",
+    suggestedMaterialIo: "I/O 表",
+    suggestedMaterialElectrical: "电气清单",
+    suggestedMaterialSafety: "安全说明",
+    suggestedMaterialTestPlan: "测试计划",
+    generateSectionSuggestion: "生成本节建议",
+    rewriteThisSection: "重写本节",
+    basicSuggestionReady: "基础建议已生成",
     projectInputs: "项目输入",
     emptyQuestion: "请输入内容后再发送。",
     completion: "项目完成度",
@@ -332,6 +342,15 @@ const copy = {
     partialResult: "Partial result",
     basicAnalysisReady: "Basic analysis is available",
     reportContextFromSummary: "The project summary can provide context for report draft generation. Report content still updates only after accepting a suggestion.",
+    missingMaterialSuggestions: "Suggested Missing Materials",
+    attachmentAnalysisBoundary: "Only file names, types, and declared purposes are used. File contents are not read.",
+    suggestedMaterialIo: "I/O table",
+    suggestedMaterialElectrical: "Electrical list",
+    suggestedMaterialSafety: "Safety notes",
+    suggestedMaterialTestPlan: "Test plan",
+    generateSectionSuggestion: "Generate section suggestion",
+    rewriteThisSection: "Rewrite this section",
+    basicSuggestionReady: "Basic suggestion generated",
     projectInputs: "Project Inputs",
     emptyQuestion: "Enter content before sending.",
     completion: "Project Completeness",
@@ -622,6 +641,149 @@ function buildBasicBenchmarkSummary(results: BenchmarkResult[], workspace: Proje
     "AI analysis explains platform strengths, preference impact, and main risks. It does not rewrite baseline scores or original inputs.",
     "Basis: project inputs, preferences, baseline ranking, and registered material names/types/purposes. Attachment contents have not been read.",
   ].join("\n");
+}
+
+function intelligenceSource(label: LocalizedText, detail: LocalizedText): IntelligenceSource {
+  return { id: `source-${Date.now()}`, type: "project-data", label, detail };
+}
+
+function basicIntelligenceResult(answer: LocalizedText, assumptions: LocalizedText[], uncertainty: LocalizedText[], missingInputs: LocalizedText[], followUpQuestions: LocalizedText[], qualityProfile: IntelligenceResult["qualityProfile"] = "balanced"): IntelligenceResult {
+  return {
+    id: `basic-${Date.now()}`,
+    mode: "deterministic_placeholder",
+    executionStatus: "basic_analysis",
+    retryable: false,
+    qualityProfile,
+    answer,
+    sources: [
+      intelligenceSource(
+        { zh: "当前项目输入", en: "Current project inputs" },
+        { zh: "项目画像、偏好、Baseline 评分和已登记资料名称/类型/用途。", en: "Project profile, preferences, baseline scores, and registered material names/types/purposes." },
+      ),
+    ],
+    assumptions,
+    uncertainty,
+    missingInputs,
+    followUpQuestions,
+    aiUsed: false,
+    documentParsingUsed: false,
+    generatedAt: today,
+  };
+}
+
+function attachmentMaterialSuggestions(workspace: ProjectWorkspace): LocalizedText[] {
+  const fileTypes = new Set(workspace.attachments.map((item) => item.fileType));
+  const suggestions: LocalizedText[] = [];
+  if (!fileTypes.has("I/O List")) suggestions.push({ zh: "I/O 表", en: "I/O table" });
+  if (!fileTypes.has("Electrical List")) suggestions.push({ zh: "电气清单", en: "Electrical list" });
+  if (!workspace.attachments.some((item) => /safety|安全/i.test(`${item.fileName} ${item.declaredPurpose}`))) suggestions.push({ zh: "安全说明", en: "Safety notes" });
+  if (!workspace.attachments.some((item) => /test|验收|测试|commission/i.test(`${item.fileName} ${item.declaredPurpose}`))) suggestions.push({ zh: "测试计划", en: "Test plan" });
+  return suggestions;
+}
+
+function buildBasicAttachmentAnalysis(workspace: ProjectWorkspace): IntelligenceResult {
+  const suggestions = attachmentMaterialSuggestions(workspace);
+  const attachmentList = workspace.attachments.map((item) => `${item.fileName} (${item.fileType})`).join(", ");
+  return basicIntelligenceResult(
+    {
+      zh: [
+        `当前已登记 ${workspace.attachments.length} 项资料${attachmentList ? `：${attachmentList}` : "。"}`,
+        "本分析只使用文件名、类型和声明用途，尚未读取附件正文或表格内容。",
+        suggestions.length ? `建议补充：${suggestions.map((item) => item.zh).join("、")}。` : "当前登记资料已覆盖主要判断入口，可继续进入 Benchmark 和 Report。",
+        "这些资料未来可用于判断平台适配、迁移范围、实施风险、供应商约束和维护边界。",
+      ].join("\n"),
+      en: [
+        `${workspace.attachments.length} material(s) are registered${attachmentList ? `: ${attachmentList}` : "."}`,
+        "This analysis uses only file names, types, and declared purposes. File bodies and spreadsheet contents have not been read.",
+        suggestions.length ? `Suggested additions: ${suggestions.map((item) => item.en).join(", ")}.` : "The registered materials cover the main decision entry points. You can continue to Benchmark and Report.",
+        "These materials can later support judgement on platform fit, migration scope, implementation risk, supplier constraints, and maintenance boundaries.",
+      ].join("\n"),
+    },
+    [{ zh: "已登记资料只代表资料清单，不代表正文已被读取。", en: "Registered materials represent an inventory only; file contents have not been read." }],
+    [{ zh: "缺少正文内容、版本和现场确认时，结论仍需复核。", en: "Conclusions still need review without file contents, version history, and site confirmation." }],
+    suggestions,
+    [
+      { zh: "是否有最新 I/O 表和电气清单？", en: "Is the latest I/O table and electrical list available?" },
+      { zh: "是否有安全说明、测试计划或验收标准？", en: "Are safety notes, test plans, or acceptance criteria available?" },
+    ],
+  );
+}
+
+function buildBasicReportBody(workspace: ProjectWorkspace, section: ReportSection, readiness: ProjectReadiness, benchmarkResults: BenchmarkResult[], platformCatalog: PlcEcosystem[]): LocalizedText {
+  const lead = benchmarkResults[0];
+  const leadName = lead ? platformName(lead.platformId, platformCatalog) : "-";
+  return {
+    zh: [
+      localize(section.body, "zh") || `${localize(section.title, "zh")}建议。`,
+      "",
+      `基础建议：围绕 ${workspace.project.name} 的目标“${workspace.project.goal || "尚未填写"}”，当前首选为 ${leadName}。`,
+      `请结合项目状态 ${readiness.status}、成熟度 ${readiness.score}%、缺失输入和附件登记情况复核本节。`,
+      "附件正文尚未读取，本建议只基于当前项目输入、偏好、Baseline 评分和已登记资料名称/类型/用途。",
+    ].join("\n"),
+    en: [
+      localize(section.body, "en") || `${localize(section.title, "en")} suggestion.`,
+      "",
+      `Basic suggestion: for ${workspace.project.name}, the current lead is ${leadName} based on the project goal "${workspace.project.goal || "not entered yet"}".`,
+      `Review this section against status ${readiness.status}, readiness ${readiness.score}%, missing inputs, and registered materials.`,
+      "Attachment contents have not been read; this suggestion uses only current project inputs, preferences, baseline scoring, and registered material names/types/purposes.",
+    ].join("\n"),
+  };
+}
+
+function buildBasicReportDraft(workspace: ProjectWorkspace, readiness: ProjectReadiness, benchmarkResults: BenchmarkResult[], platformCatalog: PlcEcosystem[]): ReportGenerationResult {
+  return {
+    id: `basic-report-${Date.now()}`,
+    mode: "deterministic_placeholder",
+    executionStatus: "basic_analysis",
+    retryable: false,
+    qualityProfile: "quality",
+    audience: "executive",
+    sections: workspace.report.sections.map((section) => ({
+      sectionId: section.id,
+      title: section.title,
+      draftBody: buildBasicReportBody(workspace, section, readiness, benchmarkResults, platformCatalog),
+    })),
+    sources: [
+      intelligenceSource(
+        { zh: "当前项目工作台", en: "Current project workspace" },
+        { zh: "项目输入、偏好、Benchmark、readiness 和附件登记信息。", en: "Project inputs, preferences, Benchmark, readiness, and registered material information." },
+      ),
+    ],
+    assumptions: [{ zh: "报告草稿建议不会自动覆盖正式报告。", en: "Report draft suggestions do not automatically overwrite the official report." }],
+    uncertainty: [{ zh: "附件正文尚未读取，报告仍需结合现场资料复核。", en: "Attachment contents have not been read; the report still needs site-data review." }],
+    missingInputs: combinedMissingInputs(readiness),
+    aiUsed: false,
+    documentParsingUsed: false,
+    generatedAt: today,
+  };
+}
+
+function buildBasicSectionRewrite(workspace: ProjectWorkspace, section: ReportSection, instruction: string, readiness: ProjectReadiness, benchmarkResults: BenchmarkResult[], platformCatalog: PlcEcosystem[]): ReportSectionRewriteResult {
+  const base = buildBasicReportBody(workspace, section, readiness, benchmarkResults, platformCatalog);
+  const instructionText = instruction.trim();
+  return {
+    id: `basic-rewrite-${Date.now()}`,
+    sectionId: section.id,
+    suggestedBody: {
+      zh: `${base.zh}\n\n改写要求：${instructionText || "生成更清晰的本节建议。"}`,
+      en: `${base.en}\n\nRewrite instruction: ${instructionText || "Generate a clearer section suggestion."}`,
+    },
+    assumptions: [{ zh: "建议内容需点击接受后才会更新报告。", en: "The suggestion updates the report only after acceptance." }],
+    uncertainty: [{ zh: "附件正文尚未读取，本节仍需人工复核。", en: "Attachment contents have not been read; this section still needs review." }],
+    sources: [
+      intelligenceSource(
+        { zh: "当前报告分区", en: "Current report section" },
+        { zh: "现有正文、项目输入、Benchmark 和附件登记信息。", en: "Existing content, project inputs, Benchmark, and registered material information." },
+      ),
+    ],
+    mode: "deterministic_placeholder",
+    executionStatus: "basic_analysis",
+    retryable: false,
+    qualityProfile: "quality",
+    aiUsed: false,
+    documentParsingUsed: false,
+    generatedAt: today,
+  };
 }
 
 function nextStepFor(workspace: ProjectWorkspace, language: Language): string {
@@ -2359,6 +2521,15 @@ function ActionError({ labels, retry, useBasicAnalysis, disabled }: { labels: (t
 function Attachments({ workspace, registerAttachment, labels, language, useAi }: { workspace: ProjectWorkspace; registerAttachment: (projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>; labels: (typeof copy)[Language]; language: Language; useAi: boolean }) {
   const [form, setForm] = useState({ fileName: "", fileType: "Requirements" as ProjectAttachment["fileType"], declaredPurpose: "" });
   const analysis = useIntelligenceAction<IntelligenceResult>();
+  const materialSuggestions = attachmentMaterialSuggestions(workspace);
+
+  function runAttachmentAnalysis(forceBasic = false) {
+    if (!useAi || forceBasic) {
+      void analysis.run(() => Promise.resolve(buildBasicAttachmentAnalysis(workspace)));
+      return;
+    }
+    void analysis.run(() => analyzeProjectIntelligence(workspace.project.id, { language, quality: "balanced", useAi: true }));
+  }
 
   function addAttachment() {
     if (!form.fileName.trim()) return;
@@ -2393,8 +2564,9 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
       </Panel>
       <Panel title={labels.registeredMaterialsPanel} description={`${workspace.attachments.length} ${language === "zh" ? "项已登记资料" : "registered materials"}`}>
         <div className="mb-4 grid gap-3 rounded-md bg-slate-50 p-4 text-sm text-slate-700 md:grid-cols-2">
-          <p><span className="font-semibold text-slate-900">{labels.attachmentReadLimit}: </span>{labels.attachmentsNotParsed}</p>
+          <p><span className="font-semibold text-slate-900">{labels.attachmentReadLimit}: </span>{labels.attachmentAnalysisBoundary}</p>
           <p><span className="font-semibold text-slate-900">{labels.futureJudgementUse}: </span>{labels.futureJudgementUseText}</p>
+          <p className="md:col-span-2"><span className="font-semibold text-slate-900">{labels.missingMaterialSuggestions}: </span>{materialSuggestions.length ? materialSuggestions.map((item) => localize(item, language)).join(", ") : labels.complete}</p>
         </div>
         {workspace.attachments.length === 0 ? (
           <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -2429,13 +2601,13 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
       <div className="xl:col-span-2">
         <Panel title={labels.analysisResult} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void analysis.run(() => analyzeProjectIntelligence(workspace.project.id, { language, quality: "balanced", useAi }))} disabled={analysis.loading}>
+            <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runAttachmentAnalysis(false)} disabled={analysis.loading}>
               <Sparkles size={16} />
               {analysis.loading ? labels.queryLoading : labels.analyzeRegisteredInfo}
             </button>
             <p className="text-xs font-semibold text-slate-500">{labels.attachmentsNotParsed}</p>
           </div>
-          {analysis.error ? <div className="mt-4"><ActionError labels={labels} retry={analysis.retry} useBasicAnalysis={() => void analysis.run(() => analyzeProjectIntelligence(workspace.project.id, { language, quality: "balanced", useAi: false }))} disabled={analysis.loading} /></div> : null}
+          {analysis.error ? <div className="mt-4"><ActionError labels={labels} retry={analysis.retry} useBasicAnalysis={() => runAttachmentAnalysis(true)} disabled={analysis.loading} /></div> : null}
           {analysis.result ? <div className="mt-4"><IntelligenceResultPanel result={analysis.result} labels={labels} language={language} /></div> : null}
         </Panel>
       </div>
@@ -2769,6 +2941,30 @@ function ReportBuilder({
     rewrite.reset();
   }
 
+  function runReportDraft(forceBasic = false, sectionId?: string) {
+    const basic = buildBasicReportDraft(workspace, readiness, benchmarkResults, platformCatalog);
+    const scopedBasic = sectionId ? { ...basic, sections: basic.sections.filter((item) => item.sectionId === sectionId) } : basic;
+    if (!useAi || forceBasic) {
+      void reportDraft.run(() => Promise.resolve(scopedBasic));
+      return;
+    }
+    void reportDraft.run(async () => {
+      const next = await generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi: true });
+      return sectionId ? { ...next, sections: next.sections.filter((item) => item.sectionId === sectionId) } : next;
+    });
+  }
+
+  function runSectionRewrite(forceBasic = false, instructionOverride?: string) {
+    if (!section) return;
+    const instruction = instructionOverride ?? rewriteInstruction.trim();
+    setRewriteSectionId(section.id);
+    if (!useAi || forceBasic) {
+      void rewrite.run(() => Promise.resolve(buildBasicSectionRewrite(workspace, section, instruction, readiness, benchmarkResults, platformCatalog)));
+      return;
+    }
+    void rewrite.run(() => rewriteProjectReportSection(workspace.project.id, section.id, { instruction, language, audience: "executive", quality: "quality", useAi: true }));
+  }
+
   if (!section) {
     return <Panel title={labels.report} description={language === "zh" ? "暂无报告分区。" : "No report sections available yet."} />;
   }
@@ -2777,14 +2973,14 @@ function ReportBuilder({
     <div className="space-y-5">
       <Panel title={labels.reportSuggestions} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void reportDraft.run(() => generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi }))} disabled={reportDraft.loading || acceptingSuggestions}>
+          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runReportDraft(false)} disabled={reportDraft.loading || acceptingSuggestions}>
             <Sparkles size={16} />
             {reportDraft.loading ? labels.queryLoading : labels.generateReportDraft}
           </button>
           <p className="text-sm text-slate-600">{labels.aiSuggestedContent} · {labels.acceptUpdatesReport}</p>
           <p className="basis-full text-xs font-semibold text-slate-500">{labels.reportContextFromSummary}</p>
         </div>
-        {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} useBasicAnalysis={() => void reportDraft.run(() => generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi: false }))} disabled={reportDraft.loading} /></div> : null}
+        {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} useBasicAnalysis={() => runReportDraft(true)} disabled={reportDraft.loading} /></div> : null}
         {reportDraft.result ? (
           <div className="mt-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2905,11 +3101,17 @@ function ReportBuilder({
                 {labels.rewriteInstruction}
                 <textarea className="min-h-24 resize-y rounded-md border border-slate-300 bg-white p-3 font-normal outline-none focus:ring-2 focus:ring-cyan-400" value={rewriteInstruction} placeholder={labels.rewritePlaceholder} onChange={(event) => setRewriteInstruction(event.target.value)} />
               </label>
-              <button className="mt-3 inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => { setRewriteSectionId(section.id); void rewrite.run(() => rewriteProjectReportSection(workspace.project.id, section.id, { instruction: rewriteInstruction.trim(), language, audience: "executive", quality: "quality", useAi })); }} disabled={rewrite.loading || acceptingSuggestions || !rewriteInstruction.trim()}>
-                <Sparkles size={16} />
-                {rewrite.loading ? labels.queryLoading : labels.suggestRewrite}
-              </button>
-              {rewrite.error && rewriteSectionId === section.id ? <div className="mt-4"><ActionError labels={labels} retry={rewrite.retry} useBasicAnalysis={() => void rewrite.run(() => rewriteProjectReportSection(workspace.project.id, section.id, { instruction: rewriteInstruction.trim(), language, audience: "executive", quality: "quality", useAi: false }))} disabled={rewrite.loading} /></div> : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runReportDraft(false, section.id)} disabled={reportDraft.loading || acceptingSuggestions}>
+                  <Sparkles size={16} />
+                  {reportDraft.loading ? labels.queryLoading : labels.generateSectionSuggestion}
+                </button>
+                <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runSectionRewrite(false)} disabled={rewrite.loading || acceptingSuggestions || !rewriteInstruction.trim()}>
+                  <Sparkles size={16} />
+                  {rewrite.loading ? labels.queryLoading : labels.rewriteThisSection}
+                </button>
+              </div>
+              {rewrite.error && rewriteSectionId === section.id ? <div className="mt-4"><ActionError labels={labels} retry={rewrite.retry} useBasicAnalysis={() => runSectionRewrite(true)} disabled={rewrite.loading} /></div> : null}
               {rewrite.result && rewriteSectionId === section.id ? (
                 <div className="mt-4 space-y-4">
                   <div className="grid gap-4 lg:grid-cols-2">
