@@ -27,6 +27,7 @@ from app.intelligence.service import (
     analyze_benchmark,
     analyze_project,
     explain_benchmark,
+    generate_report_section,
     generate_report,
     global_chat,
     project_chat,
@@ -118,6 +119,18 @@ def post_project_summary_stream(project_id: str, payload: ProjectSummaryRequest)
 @router.post("/projects/{project_id}/report/generate", response_model=ReportGenerationResponse)
 def post_report_generation(project_id: str, payload: ReportGenerationRequest) -> ReportGenerationResponse:
     return _run(lambda: generate_report(project_id, payload))
+
+
+@router.post(
+    "/projects/{project_id}/report/sections/{section_id}/generate",
+    response_model=ReportSectionRewriteResponse,
+)
+def post_report_section_generation(
+    project_id: str,
+    section_id: str,
+    payload: ReportGenerationRequest,
+) -> ReportSectionRewriteResponse:
+    return _run(lambda: generate_report_section(project_id, section_id, payload))
 
 
 @router.post(

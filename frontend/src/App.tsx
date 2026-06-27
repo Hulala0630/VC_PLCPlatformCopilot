@@ -36,7 +36,7 @@ import {
   createProject as apiCreateProject,
   deleteProject as apiDeleteProject,
   finalizeProject,
-  generateProjectReport,
+  generateProjectReportSection,
   getEcosystems,
   getProjects,
   reopenProject,
@@ -3341,6 +3341,7 @@ function ReportBuilder({
     ...readiness.reasons.map((reason) => localize(reason, language)),
   ]);
   const deliveryUncertainty = deliveryScope.limits;
+  const generatedDraftSectionIds = new Set(reportDraftTask.result?.sections.map((item) => item.sectionId) ?? []);
 
   async function copyMarkdown() {
     try {
@@ -3472,20 +3473,73 @@ function ReportBuilder({
     if (reportDraftTask.status === "running") return;
     const basic = buildBasicReportDraft(workspace, readiness, benchmarkResults, platformCatalog);
     const scopedBasic = sectionId ? { ...basic, sections: basic.sections.filter((item) => item.sectionId === sectionId) } : basic;
+    const targetSections = sectionId ? workspace.report.sections.filter((item) => item.id === sectionId) : workspace.report.sections;
     const startedAt = new Date().toISOString();
     if (!useAi || forceBasic) {
       patchReportDraftTask({ status: "success", result: scopedBasic, displayText: "", error: false, startedAt, completedAt: new Date().toISOString(), retry: () => void runReportDraft(forceBasic, sectionId) });
       return;
     }
-    patchReportDraftTask({ status: "running", result: reportDraftTask.result, displayText: "", error: false, startedAt, completedAt: "", retry: () => void runReportDraft(false, sectionId) });
-    try {
-      const next = await generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi: true });
-      const result = sectionId ? { ...next, sections: next.sections.filter((item) => item.sectionId === sectionId) } : next;
-      patchReportDraftTask({ status: taskStatusFromResult(result), result, displayText: "", error: false, completedAt: new Date().toISOString(), retry: () => void runReportDraft(false, sectionId) });
-    } catch (error) {
-      console.warn("Report draft generation failed.", error);
-      patchReportDraftTask({ status: "error", error: true, completedAt: new Date().toISOString(), retry: () => void runReportDraft(false, sectionId) });
+    let accumulated: ReportGenerationResult = {
+      ...scopedBasic,
+      id: `section-report-${Date.now()}`,
+      sections: [],
+      sources: [],
+      assumptions: [],
+      uncertainty: [],
+      missingInputs: scopedBasic.missingInputs,
+      aiUsed: false,
+      executionStatus: "basic_analysis",
+      generatedAt: new Date().toISOString(),
+    };
+    let hasFallback = false;
+    let hasError = false;
+    patchReportDraftTask({ status: "running", result: accumulated, displayText: targetSections[0]?.id ?? "", error: false, startedAt, completedAt: "", retry: () => void runReportDraft(false, sectionId) });
+    for (const target of targetSections) {
+      patchReportDraftTask({ status: "running", result: accumulated, displayText: target.id, error: false, completedAt: "" });
+      try {
+        const sectionResult = await generateProjectReportSection(workspace.project.id, target.id, { language, audience: "executive", quality: "quality", useAi: true });
+        hasFallback = hasFallback || sectionResult.executionStatus === "ai_fallback";
+        accumulated = {
+          ...accumulated,
+          id: sectionResult.id,
+          mode: hasFallback ? "deterministic_fallback" : sectionResult.mode,
+          executionStatus: hasFallback ? "ai_fallback" : sectionResult.executionStatus,
+          retryable: accumulated.retryable || sectionResult.retryable,
+          qualityProfile: sectionResult.qualityProfile,
+          sections: [
+            ...accumulated.sections,
+            { sectionId: sectionResult.sectionId, title: target.title, draftBody: sectionResult.suggestedBody },
+          ],
+          sources: [...accumulated.sources, ...sectionResult.sources],
+          assumptions: [...accumulated.assumptions, ...sectionResult.assumptions],
+          uncertainty: [...accumulated.uncertainty, ...sectionResult.uncertainty],
+          aiUsed: accumulated.aiUsed || sectionResult.aiUsed,
+          documentParsingUsed: false,
+          generatedAt: sectionResult.generatedAt,
+        };
+      } catch (error) {
+        console.warn("Report section draft generation failed.", error);
+        hasError = true;
+        hasFallback = true;
+        const fallbackSection = scopedBasic.sections.find((item) => item.sectionId === target.id);
+        if (fallbackSection) {
+          accumulated = {
+            ...accumulated,
+            mode: "deterministic_fallback",
+            executionStatus: "ai_fallback",
+            sections: [...accumulated.sections, fallbackSection],
+            sources: scopedBasic.sources,
+            assumptions: scopedBasic.assumptions,
+            uncertainty: scopedBasic.uncertainty,
+            aiUsed: false,
+            documentParsingUsed: false,
+            generatedAt: new Date().toISOString(),
+          };
+        }
+      }
+      patchReportDraftTask({ status: "running", result: accumulated, displayText: target.id, error: hasError, completedAt: "" });
     }
+    patchReportDraftTask({ status: hasError ? "fallback" : taskStatusFromResult(accumulated), result: accumulated, displayText: "", error: false, completedAt: new Date().toISOString(), retry: () => void runReportDraft(false, sectionId) });
   }
 
   async function runSectionRewrite(forceBasic = false, instructionOverride?: string) {
@@ -3536,6 +3590,21 @@ function ReportBuilder({
               <span className="rounded-md bg-white/70 px-3 py-2">{uxText(language, "正在核对决策依据", "Reviewing decision evidence")}</span>
               <span className="rounded-md bg-white/70 px-3 py-2">{uxText(language, "可先继续查看项目其他信息", "You can continue reviewing other project information")}</span>
             </div>
+          </div>
+        ) : null}
+        {reportDraftTask.status === "running" ? (
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {workspace.report.sections.map((item) => {
+              const generated = generatedDraftSectionIds.has(item.id);
+              const active = reportDraftTask.displayText === item.id && !generated;
+              return (
+                <div key={item.id} className={`rounded-md px-3 py-2 text-xs font-semibold ring-1 ${generated ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : active ? "bg-white text-cyan-900 ring-cyan-200" : "bg-white/60 text-slate-500 ring-cyan-100"}`}>
+                  <span className="mr-2">{generated ? "✓" : active ? "..." : "·"}</span>
+                  {localize(item.title, language)}
+                  <span className="ml-2 font-normal">{generated ? uxText(language, "已生成", "ready") : active ? uxText(language, "生成中", "running") : uxText(language, "等待", "queued")}</span>
+                </div>
+              );
+            })}
           </div>
         ) : null}
         {reportDraftTask.error ? <div className="mt-4"><ActionError labels={labels} retry={() => reportDraftTask.retry?.()} useBasicAnalysis={() => void runReportDraft(true)} disabled={reportDraftTask.status === "running"} /></div> : null}

@@ -123,6 +123,26 @@ def generate_report(project_id: str, request: ReportGenerationRequest) -> Report
     return _execute("generate_report", request, workspace, create_benchmark(workspace))
 
 
+def generate_report_section(
+    project_id: str,
+    section_id: str,
+    request: ReportGenerationRequest,
+) -> ReportSectionRewriteResponse:
+    language_instruction = (
+        "生成该报告分区的可审阅建议稿，保持顾问式决策报告语气；不要改写其他分区，不要声称读取附件正文。"
+        if request.language == "zh"
+        else "Generate a reviewable suggested draft for this report section in a consulting decision-report tone; do not rewrite other sections and do not claim attachment bodies were read."
+    )
+    rewrite_request = ReportSectionRewriteRequest(
+        instruction=language_instruction,
+        language=request.language,
+        audience=request.audience,
+        use_ai=request.use_ai,
+        quality_profile=request.quality_profile,
+    )
+    return rewrite_report_section(project_id, section_id, rewrite_request)
+
+
 def rewrite_report_section(
     project_id: str,
     section_id: str,

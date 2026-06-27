@@ -765,6 +765,14 @@ export async function generateProjectReport(projectId: string, payload: ReportGe
   return normalizeReportGenerationResponse(response, payload.quality);
 }
 
+export async function generateProjectReportSection(projectId: string, sectionId: string, payload: ReportGenerationPayload): Promise<ReportSectionRewriteResult> {
+  const response = await request<BackendReportSectionRewriteResponse>(`/api/projects/${projectId}/report/sections/${sectionId}/generate`, {
+    method: "POST",
+    body: JSON.stringify({ ...serializeIntelligenceAction(payload), audience: payload.audience }),
+  });
+  return normalizeReportSectionRewriteResponse(response, payload.quality);
+}
+
 export async function rewriteProjectReportSection(projectId: string, sectionId: string, payload: ReportSectionRewritePayload): Promise<ReportSectionRewriteResult> {
   const response = await request<BackendReportSectionRewriteResponse>(`/api/projects/${projectId}/report/sections/${sectionId}/rewrite`, {
     method: "POST",

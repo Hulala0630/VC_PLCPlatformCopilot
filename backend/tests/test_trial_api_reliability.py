@@ -64,6 +64,39 @@ class TrialApiReliabilityTests(unittest.TestCase):
             self.assertTrue(report["uncertainty"])
 
             section_id = report["sections"][0]["section_id"]
+            before_section = next(
+                section
+                for section in detail_response.json()["report"]["sections"]
+                if section["id"] == section_id
+            )
+            section_generation_response = client.post(
+                f"/api/projects/{project_id}/report/sections/{section_id}/generate",
+                json={"language": "en", "audience": "technical", "use_ai": True},
+            )
+            self.assertEqual(section_generation_response.status_code, 200)
+            section_generation = section_generation_response.json()
+            self.assertEqual(section_generation["execution_status"], "ai_fallback")
+            self.assertFalse(section_generation["ai_used"])
+            self.assertFalse(section_generation["document_parsing_used"])
+            self.assertEqual(section_generation["section_id"], section_id)
+            self.assertTrue(section_generation["suggested_body"]["en"])
+            self.assertTrue(section_generation["assumptions"])
+
+            after_generation_detail = client.get(f"/api/projects/{project_id}")
+            self.assertEqual(after_generation_detail.status_code, 200)
+            after_section = next(
+                section
+                for section in after_generation_detail.json()["report"]["sections"]
+                if section["id"] == section_id
+            )
+            self.assertEqual(after_section["body"], before_section["body"])
+
+            missing_section_response = client.post(
+                f"/api/projects/{project_id}/report/sections/not-a-section/generate",
+                json={"language": "en", "audience": "technical", "use_ai": False},
+            )
+            self.assertEqual(missing_section_response.status_code, 404)
+
             rewrite_response = client.post(
                 f"/api/projects/{project_id}/report/sections/{section_id}/rewrite",
                 json={
