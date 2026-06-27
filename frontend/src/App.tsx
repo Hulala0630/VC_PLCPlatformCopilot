@@ -491,6 +491,56 @@ const copy = {
 
 type UiLabels = (typeof copy)[Language];
 
+type AiTaskStatus = "idle" | "running" | "success" | "fallback" | "error";
+
+type AiTaskState<T> = {
+  status: AiTaskStatus;
+  result: T | null;
+  displayText: string;
+  error: boolean;
+  startedAt: string;
+  completedAt: string;
+  retry: (() => void) | null;
+};
+
+type ProjectAiTasks = {
+  overviewSummary: AiTaskState<IntelligenceResult>;
+  attachmentAnalysis: AiTaskState<IntelligenceResult>;
+  benchmarkAnalysis: AiTaskState<IntelligenceResult>;
+  reportDraft: AiTaskState<ReportGenerationResult>;
+  sectionRewrite: Record<string, AiTaskState<ReportSectionRewriteResult>>;
+};
+
+function emptyAiTask<T>(): AiTaskState<T> {
+  return {
+    status: "idle",
+    result: null,
+    displayText: "",
+    error: false,
+    startedAt: "",
+    completedAt: "",
+    retry: null,
+  };
+}
+
+function emptyProjectAiTasks(): ProjectAiTasks {
+  return {
+    overviewSummary: emptyAiTask<IntelligenceResult>(),
+    attachmentAnalysis: emptyAiTask<IntelligenceResult>(),
+    benchmarkAnalysis: emptyAiTask<IntelligenceResult>(),
+    reportDraft: emptyAiTask<ReportGenerationResult>(),
+    sectionRewrite: {},
+  };
+}
+
+function taskStatusFromResult(result: Pick<IntelligenceResult, "executionStatus"> | Pick<ReportGenerationResult, "executionStatus"> | Pick<ReportSectionRewriteResult, "executionStatus">): AiTaskStatus {
+  return result.executionStatus === "ai_fallback" ? "fallback" : "success";
+}
+
+function taskIsBusy(task: AiTaskState<unknown>) {
+  return task.status === "running";
+}
+
 const trialZhCopy: Partial<Record<keyof typeof copy.en, string>> = {
   title: "PLC 平台基准与迁移决策工作台",
   subtitle: "项目闭环：创建项目、登记输入、设置偏好、生成排名、撰写报告",
@@ -1344,6 +1394,7 @@ export default function App() {
   const [projectAiEnabled, setProjectAiEnabled] = useState<Record<string, boolean>>(readStoredProjectAi);
   const [queryLoadingKey, setQueryLoadingKey] = useState("");
   const [queryErrors, setQueryErrors] = useState<Record<string, { question: string }>>({});
+  const [aiTasksByProject, setAiTasksByProject] = useState<Record<string, ProjectAiTasks>>({});
   const queryRequestInFlight = useRef(false);
 
   const t = uiCopy(language);
@@ -1363,6 +1414,62 @@ export default function App() {
   const completeness = calculateCompleteness(workspace);
   const currentReadiness = getWorkspaceReadiness(workspace).readiness;
   const currentProjectAiEnabled = Boolean(projectAiEnabled[workspace.project.id]);
+  const currentAiTasks = aiTasksByProject[workspace.project.id] ?? emptyProjectAiTasks();
+
+  function patchProjectAiTask<T extends keyof Omit<ProjectAiTasks, "sectionRewrite">>(projectId: string, taskKey: T, patch: Partial<ProjectAiTasks[T]>) {
+    setAiTasksByProject((current) => {
+      const projectTasks = current[projectId] ?? emptyProjectAiTasks();
+      return {
+        ...current,
+        [projectId]: {
+          ...projectTasks,
+          [taskKey]: { ...projectTasks[taskKey], ...patch },
+        },
+      };
+    });
+  }
+
+  function patchSectionRewriteTask(projectId: string, sectionId: string, patch: Partial<AiTaskState<ReportSectionRewriteResult>>) {
+    setAiTasksByProject((current) => {
+      const projectTasks = current[projectId] ?? emptyProjectAiTasks();
+      const existing = projectTasks.sectionRewrite[sectionId] ?? emptyAiTask<ReportSectionRewriteResult>();
+      return {
+        ...current,
+        [projectId]: {
+          ...projectTasks,
+          sectionRewrite: {
+            ...projectTasks.sectionRewrite,
+            [sectionId]: { ...existing, ...patch },
+          },
+        },
+      };
+    });
+  }
+
+  function resetProjectAiTask<T extends keyof Omit<ProjectAiTasks, "sectionRewrite">>(projectId: string, taskKey: T) {
+    patchProjectAiTask(projectId, taskKey, emptyAiTask() as Partial<ProjectAiTasks[T]>);
+  }
+
+  function setReportDraftResult(projectId: string, updater: (existing: ReportGenerationResult | null) => ReportGenerationResult | null) {
+    setAiTasksByProject((current) => {
+      const projectTasks = current[projectId] ?? emptyProjectAiTasks();
+      const existingTask = projectTasks.reportDraft;
+      const nextResult = updater(existingTask.result);
+      return {
+        ...current,
+        [projectId]: {
+          ...projectTasks,
+          reportDraft: {
+            ...existingTask,
+            result: nextResult,
+            status: nextResult ? existingTask.status : "idle",
+            displayText: nextResult ? existingTask.displayText : "",
+            error: false,
+          },
+        },
+      };
+    });
+  }
 
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
@@ -1440,6 +1547,11 @@ export default function App() {
       return nextMap;
     });
     setProjectAiEnabled((current) => {
+      const nextMap = { ...current };
+      delete nextMap[projectId];
+      return nextMap;
+    });
+    setAiTasksByProject((current) => {
       const nextMap = { ...current };
       delete nextMap[projectId];
       return nextMap;
@@ -1890,12 +2002,12 @@ export default function App() {
               setView={setProjectHomeView}
             />
           ) : null}
-          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} benchmarkResults={benchmarkResults} language={language} labels={t} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} setActiveTab={setActiveTab} /> : null}
+          {workspaceView === "project" && activeTab === "overview" ? <ProjectOverview workspace={workspace} topPlatform={topPlatform} topResult={topResult} benchmarkResults={benchmarkResults} language={language} labels={t} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} setActiveTab={setActiveTab} task={currentAiTasks.overviewSummary} patchTask={(patch) => patchProjectAiTask(workspace.project.id, "overviewSummary", patch)} /> : null}
           {workspaceView === "project" && activeTab === "intake" ? <Intake workspace={workspace} updateWorkspace={saveIntake} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
           {workspaceView === "project" && activeTab === "preferences" ? <Preferences workspace={workspace} updateWorkspace={updatePreferencesLocal} savePreferences={savePreferences} platformCatalog={platformCatalog} language={language} labels={t} /> : null}
-          {workspaceView === "project" && activeTab === "attachments" ? <Attachments key={workspace.project.id} workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} useAi={currentProjectAiEnabled} /> : null}
-          {workspaceView === "project" && activeTab === "benchmark" ? <Benchmark key={workspace.project.id} results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} useAi={currentProjectAiEnabled} /> : null}
-          {workspaceView === "project" && activeTab === "report" ? <ReportBuilder key={workspace.project.id} workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} updateLifecycleStatus={updateLifecycleStatus} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} /> : null}
+          {workspaceView === "project" && activeTab === "attachments" ? <Attachments key={workspace.project.id} workspace={workspace} registerAttachment={registerAttachment} language={language} labels={t} useAi={currentProjectAiEnabled} task={currentAiTasks.attachmentAnalysis} patchTask={(patch) => patchProjectAiTask(workspace.project.id, "attachmentAnalysis", patch)} /> : null}
+          {workspaceView === "project" && activeTab === "benchmark" ? <Benchmark key={workspace.project.id} results={benchmarkResults} workspace={workspace} platformCatalog={platformCatalog} labels={t} language={language} onRunBenchmark={runBenchmark} useAi={currentProjectAiEnabled} task={currentAiTasks.benchmarkAnalysis} patchTask={(patch) => patchProjectAiTask(workspace.project.id, "benchmarkAnalysis", patch)} /> : null}
+          {workspaceView === "project" && activeTab === "report" ? <ReportBuilder key={workspace.project.id} workspace={workspace} updateWorkspace={updateWorkspace} saveReportSection={saveReportSection} updateLifecycleStatus={updateLifecycleStatus} labels={t} language={language} activeSectionId={activeReportSectionId} setActiveSectionId={setActiveReportSectionId} benchmarkResults={benchmarkResults} platformCatalog={platformCatalog} useAi={currentProjectAiEnabled} reportDraftTask={currentAiTasks.reportDraft} patchReportDraftTask={(patch) => patchProjectAiTask(workspace.project.id, "reportDraft", patch)} resetReportDraftTask={() => resetProjectAiTask(workspace.project.id, "reportDraft")} setReportDraftResult={(updater) => setReportDraftResult(workspace.project.id, updater)} sectionRewriteTasks={currentAiTasks.sectionRewrite} patchSectionRewriteTask={(sectionId, patch) => patchSectionRewriteTask(workspace.project.id, sectionId, patch)} /> : null}
         </div>
       </section>
     </main>
@@ -2198,6 +2310,8 @@ function ProjectOverview({
   platformCatalog,
   useAi,
   setActiveTab,
+  task,
+  patchTask,
 }: {
   workspace: ProjectWorkspace;
   topPlatform: PlcEcosystem;
@@ -2208,24 +2322,70 @@ function ProjectOverview({
   platformCatalog: PlcEcosystem[];
   useAi: boolean;
   setActiveTab: (tab: WorkspaceTab) => void;
+  task: AiTaskState<IntelligenceResult>;
+  patchTask: (patch: Partial<AiTaskState<IntelligenceResult>>) => void;
 }) {
   const { readiness, isLocal } = getWorkspaceReadiness(workspace);
   const keyInputs = calculateKeyInputCompleteness(workspace);
   const candidatePlatformNames = workspace.intake.candidatePlatforms.map((id) => platformCatalog.find((item) => item.id === id)?.name ?? id);
   const missingInputs = combinedMissingInputs(readiness);
-  const summaryStream = useStreamingIntelligence(language);
   const basicSummary = useMemo(() => buildBasicProjectSummary(workspace, readiness, topPlatform, topResult, language, platformCatalog), [language, platformCatalog, readiness, topPlatform, topResult, workspace]);
   const flowSteps = projectFlowSteps(workspace, readiness, benchmarkResults, language);
 
-  useEffect(() => {
+  function showBasicSummary() {
+    patchTask({
+      status: "success",
+      result: null,
+      displayText: basicSummary,
+      error: false,
+      startedAt: task.startedAt || new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      retry: () => showBasicSummary(),
+    });
+  }
+
+  async function runSummary() {
     if (!useAi) {
-      summaryStream.showBasic(basicSummary);
+      showBasicSummary();
       return;
     }
-    void summaryStream.runStream(
-      (onChunk) => streamProjectSummary(workspace.project.id, { language, quality: "balanced", useAi: true }, (chunk) => onChunk(localize(chunk, language))),
-      basicSummary,
-    );
+    if (task.status === "running") return;
+    const startedAt = new Date().toISOString();
+    patchTask({ status: "running", result: null, displayText: "", error: false, startedAt, completedAt: "", retry: () => void runSummary() });
+    try {
+      let accumulated = "";
+      const result = await streamProjectSummary(workspace.project.id, { language, quality: "balanced", useAi: true }, (chunk) => {
+        const text = localize(chunk, language);
+        accumulated = accumulated ? `${accumulated}\n\n${text}` : text;
+        patchTask({ displayText: accumulated });
+      });
+      patchTask({
+        status: taskStatusFromResult(result),
+        result,
+        displayText: localize(result.answer, language),
+        error: false,
+        completedAt: new Date().toISOString(),
+        retry: () => void runSummary(),
+      });
+    } catch (error) {
+      console.warn("Project summary request failed.", error);
+      patchTask({
+        status: "error",
+        result: null,
+        displayText: basicSummary,
+        error: true,
+        completedAt: new Date().toISOString(),
+        retry: () => void runSummary(),
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (!useAi) {
+      showBasicSummary();
+      return;
+    }
+    if (task.status === "idle") void runSummary();
   }, [basicSummary, language, useAi, workspace.project.id]);
 
   return (
@@ -2314,9 +2474,10 @@ function ProjectOverview({
         <StreamingAnalysisPanel
           title={useAi ? labels.aiProjectSummary : labels.projectSummary}
           description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}
-          stream={summaryStream}
+          stream={task}
           labels={labels}
           language={language}
+          useBasicAnalysis={showBasicSummary}
         >
           <p className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{labels.reportContextFromSummary}</p>
         </StreamingAnalysisPanel>
@@ -2709,24 +2870,28 @@ function StreamingAnalysisPanel({
   labels,
   language,
   children,
+  useBasicAnalysis,
 }: {
   title: string;
   description: string;
-  stream: ReturnType<typeof useStreamingIntelligence>;
+  stream: AiTaskState<IntelligenceResult>;
   labels: (typeof copy)[Language];
   language: Language;
   children?: React.ReactNode;
+  useBasicAnalysis?: () => void;
 }) {
+  const loading = stream.status === "running";
+  const streaming = loading && Boolean(stream.displayText);
   return (
     <Panel title={title} description={description}>
       {children}
       <div className="mt-4 rounded-md border border-cyan-200 bg-cyan-50/60 p-4">
         <div className="flex flex-wrap items-center gap-2">
           {stream.result ? <IntelligenceModeBadge result={stream.result} labels={labels} /> : <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-800">{labels.basicAnalysisReady}</span>}
-          {stream.loading ? <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-900">{labels.generating}</span> : null}
-          {stream.displayText && stream.streaming ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.partialResult}</span> : null}
+          {loading ? <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-900">{labels.generating}</span> : null}
+          {stream.displayText && streaming ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.partialResult}</span> : null}
         </div>
-        {stream.loading && !stream.displayText ? (
+        {loading && !stream.displayText ? (
           <div className="mt-4 grid gap-2">
             <div className="h-3 w-11/12 animate-pulse rounded bg-cyan-100" />
             <div className="h-3 w-9/12 animate-pulse rounded bg-cyan-100" />
@@ -2736,12 +2901,12 @@ function StreamingAnalysisPanel({
         {stream.displayText ? (
           <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-800">
             {stream.displayText}
-            {stream.streaming ? <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-cyan-700 align-[-2px]" aria-label={labels.streamingCursor} /> : null}
+            {streaming ? <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-cyan-700 align-[-2px]" aria-label={labels.streamingCursor} /> : null}
           </p>
         ) : null}
         {stream.result?.executionStatus === "ai_fallback" ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
         <p className="mt-4 rounded-md bg-white px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.attachmentsNotParsed}</p>
-        {stream.error ? <div className="mt-4"><ActionError labels={labels} retry={stream.retry} useBasicAnalysis={stream.useBasicAnalysis} disabled={stream.loading} /></div> : null}
+        {stream.error ? <div className="mt-4"><ActionError labels={labels} retry={() => stream.retry?.()} useBasicAnalysis={useBasicAnalysis ?? (() => stream.retry?.())} disabled={loading} /></div> : null}
         {stream.result ? (
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             <LightEvidenceList title={labels.assumptions} items={stream.result.assumptions.map((item) => localize(item, language))} />
@@ -2774,17 +2939,26 @@ function ActionError({ labels, retry, useBasicAnalysis, disabled }: { labels: (t
   );
 }
 
-function Attachments({ workspace, registerAttachment, labels, language, useAi }: { workspace: ProjectWorkspace; registerAttachment: (projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>; labels: (typeof copy)[Language]; language: Language; useAi: boolean }) {
+function Attachments({ workspace, registerAttachment, labels, language, useAi, task, patchTask }: { workspace: ProjectWorkspace; registerAttachment: (projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>; labels: (typeof copy)[Language]; language: Language; useAi: boolean; task: AiTaskState<IntelligenceResult>; patchTask: (patch: Partial<AiTaskState<IntelligenceResult>>) => void }) {
   const [form, setForm] = useState({ fileName: "", fileType: "Requirements" as ProjectAttachment["fileType"], declaredPurpose: "" });
-  const analysis = useIntelligenceAction<IntelligenceResult>();
   const materialSuggestions = attachmentMaterialSuggestions(workspace);
 
-  function runAttachmentAnalysis(forceBasic = false) {
+  async function runAttachmentAnalysis(forceBasic = false) {
+    if (task.status === "running") return;
+    const startedAt = new Date().toISOString();
     if (!useAi || forceBasic) {
-      void analysis.run(() => Promise.resolve(buildBasicAttachmentAnalysis(workspace)));
+      const result = buildBasicAttachmentAnalysis(workspace);
+      patchTask({ status: "success", result, displayText: localize(result.answer, language), error: false, startedAt, completedAt: new Date().toISOString(), retry: () => void runAttachmentAnalysis(forceBasic) });
       return;
     }
-    void analysis.run(() => analyzeProjectIntelligence(workspace.project.id, { language, quality: "balanced", useAi: true }));
+    patchTask({ status: "running", result: task.result, displayText: task.displayText, error: false, startedAt, completedAt: "", retry: () => void runAttachmentAnalysis(false) });
+    try {
+      const result = await analyzeProjectIntelligence(workspace.project.id, { language, quality: "balanced", useAi: true });
+      patchTask({ status: taskStatusFromResult(result), result, displayText: localize(result.answer, language), error: false, completedAt: new Date().toISOString(), retry: () => void runAttachmentAnalysis(false) });
+    } catch (error) {
+      console.warn("Attachment analysis failed.", error);
+      patchTask({ status: "error", error: true, completedAt: new Date().toISOString(), retry: () => void runAttachmentAnalysis(false) });
+    }
   }
 
   function addAttachment() {
@@ -2864,39 +3038,50 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi }:
       <div className="xl:col-span-2">
         <Panel title={labels.analysisResult} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runAttachmentAnalysis(false)} disabled={analysis.loading}>
+            <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void runAttachmentAnalysis(false)} disabled={task.status === "running"}>
               <Sparkles size={16} />
-              {analysis.loading ? labels.queryLoading : labels.analyzeRegisteredInfo}
+              {task.status === "running" ? labels.queryLoading : labels.analyzeRegisteredInfo}
             </button>
             <p className="text-xs font-semibold text-slate-500">{labels.attachmentsNotParsed}</p>
           </div>
-          {analysis.error ? <div className="mt-4"><ActionError labels={labels} retry={analysis.retry} useBasicAnalysis={() => runAttachmentAnalysis(true)} disabled={analysis.loading} /></div> : null}
-          {analysis.result ? <div className="mt-4"><IntelligenceResultPanel result={analysis.result} labels={labels} language={language} /></div> : null}
+          {task.error ? <div className="mt-4"><ActionError labels={labels} retry={() => task.retry?.()} useBasicAnalysis={() => void runAttachmentAnalysis(true)} disabled={task.status === "running"} /></div> : null}
+          {task.result ? <div className="mt-4"><IntelligenceResultPanel result={task.result} labels={labels} language={language} /></div> : null}
         </Panel>
       </div>
     </div>
   );
 }
 
-function Benchmark({ results, workspace, platformCatalog, labels, language, onRunBenchmark, useAi }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language; onRunBenchmark: (projectId: string) => void | Promise<void>; useAi: boolean }) {
+function Benchmark({ results, workspace, platformCatalog, labels, language, onRunBenchmark, useAi, task, patchTask }: { results: BenchmarkResult[]; workspace: ProjectWorkspace; platformCatalog: PlcEcosystem[]; labels: (typeof copy)[Language]; language: Language; onRunBenchmark: (projectId: string) => void | Promise<void>; useAi: boolean; task: AiTaskState<IntelligenceResult>; patchTask: (patch: Partial<AiTaskState<IntelligenceResult>>) => void }) {
   const leadResult = results[0];
   const leadPlatform = leadResult ? platformCatalog.find((item) => item.id === leadResult.platformId) : undefined;
-  const benchmarkStream = useStreamingIntelligence(language);
   const basicBenchmarkSummary = useMemo(() => buildBasicBenchmarkSummary(results, workspace, platformCatalog, language), [language, platformCatalog, results, workspace]);
 
-  function runBenchmarkAnalysis(forceBasic = false) {
+  async function runBenchmarkAnalysis(forceBasic = false) {
+    if (task.status === "running") return;
+    const startedAt = new Date().toISOString();
     if (!useAi || forceBasic) {
-      benchmarkStream.showBasic(basicBenchmarkSummary);
+      patchTask({ status: "success", result: null, displayText: basicBenchmarkSummary, error: false, startedAt, completedAt: new Date().toISOString(), retry: () => void runBenchmarkAnalysis(forceBasic) });
       return;
     }
-    void benchmarkStream.runStream(
-      (onChunk) => streamProjectBenchmarkAnalysis(workspace.project.id, { language, quality: "balanced", useAi: true }, (chunk) => onChunk(localize(chunk, language))),
-      basicBenchmarkSummary,
-    );
+    patchTask({ status: "running", result: null, displayText: "", error: false, startedAt, completedAt: "", retry: () => void runBenchmarkAnalysis(false) });
+    let accumulated = "";
+    try {
+      const result = await streamProjectBenchmarkAnalysis(workspace.project.id, { language, quality: "balanced", useAi: true }, (chunk) => {
+        const text = localize(chunk, language);
+        accumulated = accumulated ? `${accumulated}\n\n${text}` : text;
+        patchTask({ displayText: accumulated });
+      });
+      patchTask({ status: taskStatusFromResult(result), result, displayText: localize(result.answer, language), error: false, completedAt: new Date().toISOString(), retry: () => void runBenchmarkAnalysis(false) });
+    } catch (error) {
+      console.warn("Benchmark analysis failed.", error);
+      patchTask({ status: "error", result: null, displayText: basicBenchmarkSummary, error: true, completedAt: new Date().toISOString(), retry: () => void runBenchmarkAnalysis(false) });
+    }
   }
 
   useEffect(() => {
-    runBenchmarkAnalysis(!useAi);
+    if (!useAi) void runBenchmarkAnalysis(true);
+    else if (task.status === "idle") void runBenchmarkAnalysis(false);
   }, [basicBenchmarkSummary, language, useAi, workspace.project.id]);
 
   return (
@@ -2907,9 +3092,9 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
           <RefreshCw size={16} />
           {language === "zh" ? "运行 Benchmark" : "Run Benchmark"}
         </button>
-        <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runBenchmarkAnalysis(false)} disabled={benchmarkStream.loading || results.length === 0}>
+        <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void runBenchmarkAnalysis(false)} disabled={task.status === "running" || results.length === 0}>
           <Sparkles size={16} />
-          {benchmarkStream.loading ? labels.queryLoading : labels.explainRanking}
+          {task.status === "running" ? labels.queryLoading : labels.explainRanking}
         </button>
       </div>
       {leadResult ? (
@@ -2964,9 +3149,10 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
       <StreamingAnalysisPanel
         title={useAi ? labels.aiBenchmarkAnalysis : labels.analysisResult}
         description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}
-        stream={benchmarkStream}
+        stream={task}
         labels={labels}
         language={language}
+        useBasicAnalysis={() => void runBenchmarkAnalysis(true)}
       >
         <div className="flex items-start gap-2 text-sm text-slate-600">
           <p>{labels.benchmarkExplanation}</p>
@@ -3045,6 +3231,12 @@ function ReportBuilder({
   benchmarkResults,
   platformCatalog,
   useAi,
+  reportDraftTask,
+  patchReportDraftTask,
+  resetReportDraftTask,
+  setReportDraftResult,
+  sectionRewriteTasks,
+  patchSectionRewriteTask,
 }: {
   workspace: ProjectWorkspace;
   updateWorkspace: (workspace: ProjectWorkspace) => void;
@@ -3057,6 +3249,12 @@ function ReportBuilder({
   benchmarkResults: BenchmarkResult[];
   platformCatalog: PlcEcosystem[];
   useAi: boolean;
+  reportDraftTask: AiTaskState<ReportGenerationResult>;
+  patchReportDraftTask: (patch: Partial<AiTaskState<ReportGenerationResult>>) => void;
+  resetReportDraftTask: () => void;
+  setReportDraftResult: (updater: (existing: ReportGenerationResult | null) => ReportGenerationResult | null) => void;
+  sectionRewriteTasks: Record<string, AiTaskState<ReportSectionRewriteResult>>;
+  patchSectionRewriteTask: (sectionId: string, patch: Partial<AiTaskState<ReportSectionRewriteResult>>) => void;
 }) {
   const section = workspace.report.sections.find((item) => item.id === activeSectionId) ?? workspace.report.sections[0];
   const { readiness } = getWorkspaceReadiness(workspace);
@@ -3066,8 +3264,7 @@ function ReportBuilder({
   const [rewriteInstruction, setRewriteInstruction] = useState("");
   const [rewriteSectionId, setRewriteSectionId] = useState("");
   const [acceptingSuggestions, setAcceptingSuggestions] = useState(false);
-  const reportDraft = useIntelligenceAction<ReportGenerationResult>();
-  const rewrite = useIntelligenceAction<ReportSectionRewriteResult>();
+  const rewriteTask = section ? sectionRewriteTasks[section.id] ?? emptyAiTask<ReportSectionRewriteResult>() : emptyAiTask<ReportSectionRewriteResult>();
   const markdown = useMemo(() => buildReportMarkdown(workspace, benchmarkResults, readiness, language, platformCatalog), [benchmarkResults, language, platformCatalog, readiness, workspace]);
   const deliveryScope = reportAnalysisScope(workspace, language);
   const deliveryDataSources = deliveryScope.references;
@@ -3158,13 +3355,13 @@ function ReportBuilder({
   }
 
   async function acceptGeneratedSection(sectionId: string) {
-    const suggestion = reportDraft.result?.sections.find((item) => item.sectionId === sectionId);
+    const suggestion = reportDraftTask.result?.sections.find((item) => item.sectionId === sectionId);
     const current = workspace.report.sections.find((item) => item.id === sectionId);
     if (!suggestion || !current || acceptingSuggestions) return;
     setAcceptingSuggestions(true);
-    const next = sectionFromSuggestion(current, suggestion.draftBody, reportDraft.result?.assumptions ?? [], reportDraft.result?.uncertainty ?? []);
+    const next = sectionFromSuggestion(current, suggestion.draftBody, reportDraftTask.result?.assumptions ?? [], reportDraftTask.result?.uncertainty ?? []);
     await saveReportSection(workspace.project.id, next, applySectionToWorkspace(workspace, next));
-    reportDraft.setResult((existing) => {
+    setReportDraftResult((existing) => {
       if (!existing) return existing;
       const remaining = existing.sections.filter((item) => item.sectionId !== sectionId);
       return remaining.length ? { ...existing, sections: remaining } : null;
@@ -3173,26 +3370,26 @@ function ReportBuilder({
   }
 
   async function acceptAllGeneratedSections() {
-    if (!reportDraft.result || acceptingSuggestions) return;
+    if (!reportDraftTask.result || acceptingSuggestions) return;
     setAcceptingSuggestions(true);
     let rollingWorkspace = workspace;
-    for (const suggestion of reportDraft.result.sections) {
+    for (const suggestion of reportDraftTask.result.sections) {
       const current = rollingWorkspace.report.sections.find((item) => item.id === suggestion.sectionId);
       if (!current) continue;
-      const next = sectionFromSuggestion(current, suggestion.draftBody, reportDraft.result.assumptions, reportDraft.result.uncertainty);
+      const next = sectionFromSuggestion(current, suggestion.draftBody, reportDraftTask.result.assumptions, reportDraftTask.result.uncertainty);
       const fallback = applySectionToWorkspace(rollingWorkspace, next);
       rollingWorkspace = await saveReportSection(workspace.project.id, next, fallback);
     }
-    reportDraft.reset();
+    resetReportDraftTask();
     setAcceptingSuggestions(false);
   }
 
   async function acceptRewriteSuggestion() {
-    if (!section || !rewrite.result || rewriteSectionId !== section.id || acceptingSuggestions) return;
+    if (!section || !rewriteTask.result || rewriteSectionId !== section.id || acceptingSuggestions) return;
     setAcceptingSuggestions(true);
-    const next = sectionFromSuggestion(section, rewrite.result.suggestedBody, rewrite.result.assumptions, rewrite.result.uncertainty);
+    const next = sectionFromSuggestion(section, rewriteTask.result.suggestedBody, rewriteTask.result.assumptions, rewriteTask.result.uncertainty);
     await saveReportSection(workspace.project.id, next, applySectionToWorkspace(workspace, next));
-    rewrite.reset();
+    patchSectionRewriteTask(section.id, emptyAiTask<ReportSectionRewriteResult>());
     setRewriteInstruction("");
     setAcceptingSuggestions(false);
   }
@@ -3201,31 +3398,47 @@ function ReportBuilder({
     setActiveSectionId(sectionId);
     setRewriteInstruction("");
     setRewriteSectionId("");
-    rewrite.reset();
   }
 
-  function runReportDraft(forceBasic = false, sectionId?: string) {
+  async function runReportDraft(forceBasic = false, sectionId?: string) {
+    if (reportDraftTask.status === "running") return;
     const basic = buildBasicReportDraft(workspace, readiness, benchmarkResults, platformCatalog);
     const scopedBasic = sectionId ? { ...basic, sections: basic.sections.filter((item) => item.sectionId === sectionId) } : basic;
+    const startedAt = new Date().toISOString();
     if (!useAi || forceBasic) {
-      void reportDraft.run(() => Promise.resolve(scopedBasic));
+      patchReportDraftTask({ status: "success", result: scopedBasic, displayText: "", error: false, startedAt, completedAt: new Date().toISOString(), retry: () => void runReportDraft(forceBasic, sectionId) });
       return;
     }
-    void reportDraft.run(async () => {
+    patchReportDraftTask({ status: "running", result: reportDraftTask.result, displayText: "", error: false, startedAt, completedAt: "", retry: () => void runReportDraft(false, sectionId) });
+    try {
       const next = await generateProjectReport(workspace.project.id, { language, audience: "executive", quality: "quality", useAi: true });
-      return sectionId ? { ...next, sections: next.sections.filter((item) => item.sectionId === sectionId) } : next;
-    });
+      const result = sectionId ? { ...next, sections: next.sections.filter((item) => item.sectionId === sectionId) } : next;
+      patchReportDraftTask({ status: taskStatusFromResult(result), result, displayText: "", error: false, completedAt: new Date().toISOString(), retry: () => void runReportDraft(false, sectionId) });
+    } catch (error) {
+      console.warn("Report draft generation failed.", error);
+      patchReportDraftTask({ status: "error", error: true, completedAt: new Date().toISOString(), retry: () => void runReportDraft(false, sectionId) });
+    }
   }
 
-  function runSectionRewrite(forceBasic = false, instructionOverride?: string) {
+  async function runSectionRewrite(forceBasic = false, instructionOverride?: string) {
     if (!section) return;
+    if (rewriteTask.status === "running") return;
     const instruction = instructionOverride ?? rewriteInstruction.trim();
     setRewriteSectionId(section.id);
+    const startedAt = new Date().toISOString();
     if (!useAi || forceBasic) {
-      void rewrite.run(() => Promise.resolve(buildBasicSectionRewrite(workspace, section, instruction, readiness, benchmarkResults, platformCatalog)));
+      const result = buildBasicSectionRewrite(workspace, section, instruction, readiness, benchmarkResults, platformCatalog);
+      patchSectionRewriteTask(section.id, { status: "success", result, displayText: "", error: false, startedAt, completedAt: new Date().toISOString(), retry: () => void runSectionRewrite(forceBasic, instruction) });
       return;
     }
-    void rewrite.run(() => rewriteProjectReportSection(workspace.project.id, section.id, { instruction, language, audience: "executive", quality: "quality", useAi: true }));
+    patchSectionRewriteTask(section.id, { status: "running", result: rewriteTask.result, displayText: "", error: false, startedAt, completedAt: "", retry: () => void runSectionRewrite(false, instruction) });
+    try {
+      const result = await rewriteProjectReportSection(workspace.project.id, section.id, { instruction, language, audience: "executive", quality: "quality", useAi: true });
+      patchSectionRewriteTask(section.id, { status: taskStatusFromResult(result), result, displayText: "", error: false, completedAt: new Date().toISOString(), retry: () => void runSectionRewrite(false, instruction) });
+    } catch (error) {
+      console.warn("Report section rewrite failed.", error);
+      patchSectionRewriteTask(section.id, { status: "error", error: true, completedAt: new Date().toISOString(), retry: () => void runSectionRewrite(false, instruction) });
+    }
   }
 
   if (!section) {
@@ -3236,28 +3449,28 @@ function ReportBuilder({
     <div className="space-y-5">
       <Panel title={labels.reportSuggestions} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runReportDraft(false)} disabled={reportDraft.loading || acceptingSuggestions}>
+          <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void runReportDraft(false)} disabled={reportDraftTask.status === "running" || acceptingSuggestions}>
             <Sparkles size={16} />
-            {reportDraft.loading ? labels.queryLoading : labels.generateReportDraft}
+            {reportDraftTask.status === "running" ? labels.queryLoading : labels.generateReportDraft}
           </button>
           <p className="text-sm text-slate-600">{labels.aiSuggestedContent} · {labels.acceptUpdatesReport}</p>
           <p className="basis-full text-xs font-semibold text-slate-500">{labels.reportContextFromSummary}</p>
           <p className="basis-full rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{uxText(language, "建议内容不会自动写入正式报告；确认采用后才会更新。", "Suggested content is not written into the official report until you accept it.")}</p>
         </div>
-        {reportDraft.error ? <div className="mt-4"><ActionError labels={labels} retry={reportDraft.retry} useBasicAnalysis={() => runReportDraft(true)} disabled={reportDraft.loading} /></div> : null}
-        {reportDraft.result ? (
+        {reportDraftTask.error ? <div className="mt-4"><ActionError labels={labels} retry={() => reportDraftTask.retry?.()} useBasicAnalysis={() => void runReportDraft(true)} disabled={reportDraftTask.status === "running"} /></div> : null}
+        {reportDraftTask.result ? (
           <div className="mt-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <IntelligenceModeBadge result={reportDraft.result} labels={labels} />
+              <IntelligenceModeBadge result={reportDraftTask.result} labels={labels} />
               <div className="flex flex-wrap gap-2">
                 <button className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50" onClick={() => void acceptAllGeneratedSections()} disabled={acceptingSuggestions}>{labels.acceptAll}</button>
-                <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={reportDraft.reset} disabled={acceptingSuggestions}>{labels.discardSuggestions}</button>
+                <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={resetReportDraftTask} disabled={acceptingSuggestions}>{labels.discardSuggestions}</button>
               </div>
             </div>
-            {reportDraft.result.executionStatus === "ai_fallback" ? <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
+            {reportDraftTask.result.executionStatus === "ai_fallback" ? <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{labels.noPersistenceBeforeAccept} {labels.acceptUpdatesReport}</p>
             <div className="grid gap-4 xl:grid-cols-2">
-              {reportDraft.result.sections.map((suggestion) => {
+              {reportDraftTask.result.sections.map((suggestion) => {
                 const current = workspace.report.sections.find((item) => item.id === suggestion.sectionId);
                 return (
                   <div key={suggestion.sectionId} className="rounded-md border border-slate-200 bg-slate-50 p-4">
@@ -3272,9 +3485,9 @@ function ReportBuilder({
               })}
             </div>
             <div className="grid gap-3 lg:grid-cols-3">
-              <LightEvidenceList title={labels.assumptions} items={reportDraft.result.assumptions.map((item) => localize(item, language))} />
-              <LightEvidenceList title={labels.uncertainty} items={reportDraft.result.uncertainty.map((item) => localize(item, language))} />
-              <LightEvidenceList title={labels.missingInputsQuery} items={reportDraft.result.missingInputs.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.assumptions} items={reportDraftTask.result.assumptions.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.uncertainty} items={reportDraftTask.result.uncertainty.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.missingInputsQuery} items={reportDraftTask.result.missingInputs.map((item) => localize(item, language))} />
             </div>
           </div>
         ) : null}
@@ -3360,37 +3573,37 @@ function ReportBuilder({
                   <h3 className="font-semibold text-slate-950">{labels.sectionRewrite}</h3>
                   <p className="mt-1 text-xs text-slate-500">{labels.acceptUpdatesReport} · {labels.intelligenceUsesProjectSwitch}: {useAi ? labels.aiEnabled : labels.aiDisabled}</p>
                 </div>
-                {rewrite.result && rewriteSectionId === section.id ? <IntelligenceModeBadge result={rewrite.result} labels={labels} /> : null}
+                {rewriteTask.result && rewriteSectionId === section.id ? <IntelligenceModeBadge result={rewriteTask.result} labels={labels} /> : null}
               </div>
-              {rewrite.result?.executionStatus === "ai_fallback" && rewriteSectionId === section.id ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
+              {rewriteTask.result?.executionStatus === "ai_fallback" && rewriteSectionId === section.id ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
               <label className="mt-4 grid gap-2 text-sm font-semibold text-slate-700">
                 {labels.rewriteInstruction}
                 <textarea className="min-h-24 resize-y rounded-md border border-slate-300 bg-white p-3 font-normal outline-none focus:ring-2 focus:ring-cyan-400" value={rewriteInstruction} placeholder={labels.rewritePlaceholder} onChange={(event) => setRewriteInstruction(event.target.value)} />
               </label>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runReportDraft(false, section.id)} disabled={reportDraft.loading || acceptingSuggestions}>
+                <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void runReportDraft(false, section.id)} disabled={reportDraftTask.status === "running" || acceptingSuggestions}>
                   <Sparkles size={16} />
-                  {reportDraft.loading ? labels.queryLoading : labels.generateSectionSuggestion}
+                  {reportDraftTask.status === "running" ? labels.queryLoading : labels.generateSectionSuggestion}
                 </button>
-                <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => runSectionRewrite(false)} disabled={rewrite.loading || acceptingSuggestions || !rewriteInstruction.trim()}>
+                <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void runSectionRewrite(false)} disabled={rewriteTask.status === "running" || acceptingSuggestions || !rewriteInstruction.trim()}>
                   <Sparkles size={16} />
-                  {rewrite.loading ? labels.queryLoading : labels.rewriteThisSection}
+                  {rewriteTask.status === "running" ? labels.queryLoading : labels.rewriteThisSection}
                 </button>
               </div>
-              {rewrite.error && rewriteSectionId === section.id ? <div className="mt-4"><ActionError labels={labels} retry={rewrite.retry} useBasicAnalysis={() => runSectionRewrite(true)} disabled={rewrite.loading} /></div> : null}
-              {rewrite.result && rewriteSectionId === section.id ? (
+              {rewriteTask.error && rewriteSectionId === section.id ? <div className="mt-4"><ActionError labels={labels} retry={() => rewriteTask.retry?.()} useBasicAnalysis={() => void runSectionRewrite(true)} disabled={rewriteTask.status === "running"} /></div> : null}
+              {rewriteTask.result && rewriteSectionId === section.id ? (
                 <div className="mt-4 space-y-4">
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-md bg-white p-4 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentDocumentContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(section.body, language)}</p></div>
-                    <div className="rounded-md bg-cyan-50 p-4 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(rewrite.result.suggestedBody, language)}</p></div>
+                    <div className="rounded-md bg-cyan-50 p-4 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">{localize(rewriteTask.result.suggestedBody, language)}</p></div>
                   </div>
                   <div className="grid gap-3 lg:grid-cols-2">
-                    <LightEvidenceList title={labels.assumptions} items={rewrite.result.assumptions.map((item) => localize(item, language))} />
-                    <LightEvidenceList title={labels.uncertainty} items={rewrite.result.uncertainty.map((item) => localize(item, language))} />
+                    <LightEvidenceList title={labels.assumptions} items={rewriteTask.result.assumptions.map((item) => localize(item, language))} />
+                    <LightEvidenceList title={labels.uncertainty} items={rewriteTask.result.uncertainty.map((item) => localize(item, language))} />
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50" onClick={() => void acceptRewriteSuggestion()} disabled={acceptingSuggestions}>{labels.accept}</button>
-                    <button className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50" onClick={() => { rewrite.reset(); setRewriteInstruction(""); setRewriteSectionId(""); }} disabled={acceptingSuggestions}>{labels.discard}</button>
+                    <button className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50" onClick={() => { patchSectionRewriteTask(section.id, emptyAiTask<ReportSectionRewriteResult>()); setRewriteInstruction(""); setRewriteSectionId(""); }} disabled={acceptingSuggestions}>{labels.discard}</button>
                   </div>
                 </div>
               ) : null}
