@@ -266,9 +266,11 @@ class OpenAIProvider:
             benchmark_analysis_prompt(request, workspace, benchmark),
             _StructuredBenchmarkAnalysisOutput,
         )
-        if parsed.recommended_platform is not None and parsed.recommended_platform not in {
-            item.platform_id for item in benchmark
-        }:
+        benchmark_platform_ids = {item.platform_id for item in benchmark}
+        baseline_leader = benchmark[0].platform_id if benchmark else None
+        if parsed.recommended_platform is not None and parsed.recommended_platform not in benchmark_platform_ids:
+            raise ProviderCallError("invalid_response", profile)
+        if parsed.recommended_platform is not None and baseline_leader is not None and parsed.recommended_platform != baseline_leader:
             raise ProviderCallError("invalid_response", profile)
         return baseline.model_copy(
             update={

@@ -134,6 +134,29 @@ class BenchmarkSummaryStreamingTests(unittest.TestCase):
         for model_id in MODEL_IDS.values():
             self.assertNotIn(model_id, serialized)
 
+    def test_ai_benchmark_recommendation_must_match_fixed_baseline_leader(self) -> None:
+        workspace = workspace_fixture()
+        benchmark = create_benchmark(workspace)
+        lead = benchmark[0].platform_id
+        non_leader = benchmark[1].platform_id
+        responses = FakeResponses(parse_effects=[benchmark_analysis_output(non_leader)])
+        selection = build_provider_selection(
+            openai_settings(),
+            client=FakeClient(responses),
+            sleep_fn=lambda _: None,
+        )
+
+        with (
+            patch("app.intelligence.service.get_workspace", return_value=workspace),
+            patch("app.intelligence.service.get_provider_selection", return_value=selection),
+        ):
+            analysis = service.analyze_benchmark(workspace.project.id, BenchmarkAnalysisRequest(language="en"))
+
+        self.assertEqual(analysis.execution_status, "ai_fallback")
+        self.assertEqual(analysis.mode, "deterministic_fallback")
+        self.assertEqual(analysis.recommended_platform, lead)
+        self.assertFalse(analysis.ai_used)
+
     def test_ai_failure_returns_deterministic_fallback_with_business_value(self) -> None:
         workspace = workspace_fixture()
         selection = workflow_selection(FailingBenchmarkSummaryProvider())
