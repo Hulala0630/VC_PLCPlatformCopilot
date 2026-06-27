@@ -30,6 +30,7 @@ Attachment files have not been opened, parsed, read, summarized, or understood. 
 Treat benchmark scores, rankings, risk levels, and readiness values as fixed source facts. Explain them; do not recalculate, change, normalize, override, or replace them.
 Separate facts, auditable assumptions, uncertainties, and recommendations. Make assumptions specific enough that a project team can verify or reject them.
 Write like a professional industrial automation consulting advisor: concise, decision-oriented, balanced, and readable in both Chinese and English.
+The output must be not promotional: avoid inflated claims, generic chat filler, and vague best-practice lists. Prefer concrete engineering tradeoffs, missing inputs, risk checks, and next actions.
 Structure the answer for streaming display: use short complete semantic paragraphs, give the conclusion first, then expand into evidence, risks, assumptions, and recommended next actions.
 Return only the requested structured response. Fill every LocalizedText with natural zh and en. Prefer the requested language in substance and emphasis.
 Do not expose internal implementation terms in user-facing fields, including mock, placeholder, deterministic, deterministic_fallback, provider, model id, API key, fallback, persistence, internal, dev wording, or scoring logic. Refer to the benchmark as the fixed benchmark baseline or fixed calculation rules instead.
@@ -53,7 +54,7 @@ def global_chat_prompt(request: GlobalChatRequest, platforms: list[PlcEcosystem]
         ],
     }
     return _bundle(
-        "Answer the global platform comparison question using platform profiles only. Frame the answer as a neutral platform-selection advisory note, identify where the profiles support the conclusion, and ask for project-specific inputs before making a recommendation.",
+        "Answer the global PLC ecosystem selection question using platform profiles only. Distinguish practical ecosystem differences between Siemens TIA Portal, Beckhoff TwinCAT, CODESYS, Rockwell Studio 5000, and other selected platforms when they are present: engineering workflow, motion fit, safety ecosystem, openness, talent availability, integration style, lifecycle risk, and cost pressure. Keep the answer useful for an automation engineer trialing the tool: concrete, restrained, and not promotional. Do not discuss PLC programming, PLC code conversion, direct PLC connections, online diagnostics, or commissioning commands.",
         context,
     )
 
@@ -104,7 +105,7 @@ def project_analysis_prompt(
     context = _project_context(workspace, benchmark)
     context["requested_language"] = request.language
     return _bundle(
-        "Produce an executive-style project summary for PLC platform selection and migration decision review. Use the supplied project goal, industry, project size, I/O scale, motion requirement, safety requirement, budget sensitivity, team experience, existing platform, candidate platforms, platform preference weights and reasons, attachment registration records, deterministic benchmark baseline, readiness, and status. Cover: recommended platform based on the current ranking, ranking rationale, technical fit analysis, business/preference impact, key risks, assumptions, uncertainty, missing inputs, and next recommended actions. Explain why missing inputs matter for PLC platform selection and migration planning. State that attachment file bodies have not been parsed. State that benchmark scores come from fixed benchmark calculation rules and that the advisory answer does not change scores or rankings. Keep the tone strategic, analytical, business-oriented, engineering-grounded, concise, bilingual-compatible, and suitable for an automation migration assessment memo.",
+        "Produce an executive-style project summary for PLC platform selection and migration decision review. Use the supplied project goal, industry, project size, I/O scale, motion requirement, safety requirement, budget sensitivity, team experience, existing platform, candidate platforms, platform preference weights and reasons, attachment registration records, fixed benchmark baseline, readiness, and status. Cover: recommended platform based on the current ranking, ranking rationale, technical fit analysis, business/preference impact, key risks, assumptions, uncertainty, missing inputs, and next recommended actions. Explain why missing inputs matter for PLC platform selection and migration planning. State that attachment file bodies have not been parsed. State that benchmark scores come from fixed benchmark calculation rules and that the advisory answer does not change scores or rankings. Keep the tone strategic, analytical, business-oriented, engineering-grounded, concise, bilingual-compatible, and suitable for an automation migration assessment memo.",
         context,
     )
 
@@ -117,7 +118,7 @@ def benchmark_explanation_prompt(
     context = _project_context(workspace, benchmark)
     context["requested_language"] = request.language
     return _bundle(
-        "Produce an AI benchmark consultant explanation for PLC platform selection and migration decision review. Use the supplied project goal, industry, project size, I/O scale, motion requirement, safety requirement, budget sensitivity, team experience, existing platform, candidate platforms, platform preference weights and reasons, attachment registration records, deterministic benchmark baseline, readiness, and status. Cover: executive-style benchmark summary, recommended platform based on the current top-ranked result, ranking rationale, technical fit analysis, business/preference impact, key risks, assumptions, uncertainty, missing inputs, and next recommended actions. State that attachment file bodies have not been parsed. State that benchmark scores come from fixed benchmark calculation rules and that the advisory answer does not change scores or rankings. Do not recalculate, replace, tune, normalize, or propose changed scores or rankings. If the result is sensitive, describe what project inputs should be validated before a decision. Keep the tone strategic, analytical, business-oriented, engineering-grounded, concise, and bilingual-compatible. Keep each paragraph self-contained for streaming display: conclusion first, then evidence, risks, assumptions, and actions.",
+        "Produce an AI benchmark consultant explanation for PLC platform selection and migration decision review. Use the supplied project goal, industry, project size, I/O scale, motion requirement, safety requirement, budget sensitivity, team experience, existing platform, candidate platforms, platform preference weights and reasons, attachment registration records, fixed benchmark baseline, readiness, and status. Cover: executive-style benchmark summary, recommended platform based on the current top-ranked result, ranking rationale, technical fit analysis, business/preference impact, key risks, assumptions, uncertainty, missing inputs, and next recommended actions. State that attachment file bodies have not been parsed. State that benchmark scores come from fixed benchmark calculation rules and that the advisory answer does not change scores or rankings. Do not recalculate, replace, tune, normalize, or propose changed scores or rankings. If the result is sensitive, describe what project inputs should be validated before a decision. Keep the tone strategic, analytical, business-oriented, engineering-grounded, concise, and bilingual-compatible. Keep each paragraph self-contained for streaming display: conclusion first, then evidence, risks, assumptions, and actions.",
         context,
     )
 
@@ -130,7 +131,7 @@ def benchmark_analysis_prompt(
     context = _project_context(workspace, benchmark)
     context["requested_language"] = request.language
     return _bundle(
-        "Produce a consulting-style benchmark analysis. Use the supplied deterministic benchmark as the audit baseline. Return recommended platform, ranking rationale, technical fit, preference impact, risk assessment, assumptions, uncertainty, and next actions. Never change scores or ranking values.",
+        "Produce a consulting-style benchmark analysis for automation engineers trialing the tool. Use the supplied fixed benchmark baseline as the audit baseline. Return recommended platform, ranking rationale, technical fit, preference impact, risk assessment, assumptions, uncertainty, and next actions. Explain recommendation, risks, and assumptions without marketing language. Never change scores or ranking values, and do not expose internal implementation wording.",
         context,
     )
 
@@ -143,7 +144,7 @@ def project_summary_prompt(
     context = _project_context(workspace, benchmark)
     context["requested_language"] = request.language
     return _bundle(
-        "Produce a concise consulting-style project summary for Overview, Benchmark, and Report surfaces. Ground the summary in project intake, readiness, report status, attachment information, and the deterministic benchmark baseline.",
+        "Produce a concise consulting-style project summary for automation engineers trialing the tool across Overview, Benchmark, and Report surfaces. Ground the summary in project intake, readiness, report status, attachment registration information, and the fixed benchmark baseline. Identify missing information, give executable next steps, state that attachment bodies have not been parsed, and avoid promotional or generic chat language.",
         context,
     )
 

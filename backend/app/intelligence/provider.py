@@ -84,12 +84,26 @@ class DeterministicPlaceholderProvider:
     def global_chat(self, request: GlobalChatRequest, platforms: list[PlcEcosystem]) -> IntelligenceResponse:
         names = ", ".join(platform.name for platform in platforms) or "no selected platforms"
         zh_names = "、".join(platform.name for platform in platforms) or "未选择平台"
+        platform_notes = "; ".join(
+            f"{platform.name}: {platform.summary.en}" for platform in platforms[:4]
+        ) or "No platform profiles were selected."
+        zh_platform_notes = "；".join(
+            f"{platform.name}: {platform.summary.zh}" for platform in platforms[:4]
+        ) or "未选择平台资料。"
         return self._response(
             scope="global",
             key=f"global:{request.question}:{','.join(item.id for item in platforms)}",
             answer=LocalizedText(
-                zh=f"可基于平台 profile 比较 {zh_names} 的生产率、运动控制、安全、仿真、开放性、人才和成本评分。此回答仅使用确定性平台资料。",
-                en=f"Compare {names} using the platform profile dimensions for productivity, motion, safety, simulation, openness, talent, and cost. The comparison uses the currently available platform information.",
+                zh=(
+                    f"可从工程流程、运动控制、安全生态、开放性、人才可得性、集成方式、生命周期风险和成本压力比较 {zh_names}。"
+                    f"当前资料要点：{zh_platform_notes}。"
+                    f"这只是 PLC 生态选型建议，不涉及 PLC 编程、代码转换、直接连接 PLC、在线诊断或调试命令。"
+                ),
+                en=(
+                    f"Compare {names} across engineering workflow, motion fit, safety ecosystem, openness, talent availability, integration style, lifecycle risk, and cost pressure. "
+                    f"Current profile notes: {platform_notes}. "
+                    f"This is PLC ecosystem selection advice only; it does not cover PLC programming, code conversion, direct PLC connection, online diagnostics, or commissioning commands."
+                ),
             ),
             sources=[self._platform_source(platform) for platform in platforms],
             assumptions=self._base_assumptions(),
@@ -98,7 +112,7 @@ class DeterministicPlaceholderProvider:
             ],
             missing_inputs=[],
             follow_up_questions=[
-                LocalizedText(zh="是否需要在具体项目的 I/O、运动、安全和团队背景下比较？", en="Should the comparison be grounded in a project's I/O, motion, safety, and team context?"),
+                LocalizedText(zh="是否需要在具体项目的 I/O、运动、安全、预算和团队经验背景下比较？", en="Should the comparison be grounded in a project's I/O, motion, safety, budget, and team context?"),
             ],
             next_actions=[],
         )
@@ -315,7 +329,7 @@ class DeterministicPlaceholderProvider:
                     else "Risk assessment requires candidate platforms and core inputs."
                 ),
             ),
-            assumptions=self._project_assumptions(workspace) + [assumption for item in benchmark for assumption in item.assumptions],
+            assumptions=self._project_assumptions(workspace),
             uncertainty=self._project_uncertainty(workspace),
             next_actions=[
                 workspace.readiness.next_action,
@@ -368,7 +382,7 @@ class DeterministicPlaceholderProvider:
             summary=summary,
             recommended_focus=[
                 LocalizedText(zh="补齐缺失输入并复核 readiness 下一步。", en="Complete missing inputs and review the readiness next action."),
-                LocalizedText(zh="用确定性 benchmark 作为平台讨论基线。", en="Use the deterministic benchmark as the platform discussion baseline."),
+                LocalizedText(zh="使用当前固定 benchmark 结果作为平台讨论基线。", en="Use the current fixed benchmark result as the platform discussion baseline."),
             ],
             assumptions=self._project_assumptions(workspace),
             uncertainty=self._project_uncertainty(workspace),
