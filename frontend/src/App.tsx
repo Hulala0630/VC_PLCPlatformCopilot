@@ -310,8 +310,8 @@ const copy = {
     finalScore: "Final Score",
     weightedScore: "Weighted Score",
     risk: "Risk",
-    assumptions: "Analysis basis",
-    uncertainty: "Conclusion limits",
+    assumptions: "Evidence Used",
+    uncertainty: "Open Questions",
     dataSources: "Reference information",
     reportSections: "Report Sections",
     sectionEditor: "Document Editor",
@@ -327,8 +327,8 @@ const copy = {
     registeredMaterialsPanel: "Registered Materials",
     futureJudgementUse: "Future Judgement Use",
     futureJudgementUseText: "Platform fit, migration scope, implementation risk, supplier constraints, and maintenance constraints.",
-    currentDocumentContent: "Current Official Report Content",
-    aiSuggestedContent: "AI Suggested Content",
+    currentDocumentContent: "Official Report Content",
+    aiSuggestedContent: "Suggested Draft",
     acceptUpdatesReport: "The report updates only after you accept a suggestion.",
     scoreComposition: "Score Composition",
     riskLevel: "Risk Level",
@@ -398,7 +398,7 @@ const copy = {
     globalAiToggle: "Toggle AI analysis for Global Query",
     projectAiToggle: "Toggle AI analysis for this Project Query",
     queryEmpty: "No conversation yet. Ask a question to receive a backend analysis result.",
-    queryLoading: "Analyzing...",
+    queryLoading: "Preparing review notes...",
     queryFailed: "Unable to connect to the analysis service right now. Your question and previous result are preserved.",
     retry: "Retry",
     aiAnalysis: "AI Analysis",
@@ -408,7 +408,7 @@ const copy = {
     fastQuality: "Fast",
     balancedQuality: "Balanced",
     qualityQuality: "Quality",
-    responseContext: "Analysis basis & conclusion limits",
+    responseContext: "Evidence and open questions",
     attachmentsNotParsed: "This analysis currently uses only file names, types, and declared purposes. File contents and spreadsheet data have not been read.",
     missingInputsQuery: "Missing inputs",
     analyzeRegisteredInfo: "Analyze registered information",
@@ -417,8 +417,8 @@ const copy = {
     analysisResult: "Analysis result",
     followUpQuestions: "Follow-up questions",
     actionFailed: "Unable to connect to the analysis service right now. The last successful result is preserved.",
-    intelligenceUsesProjectSwitch: "Current analysis mode",
-    reportSuggestions: "Report draft suggestions",
+    intelligenceUsesProjectSwitch: "Review mode",
+    reportSuggestions: "Consulting Report Workbench",
     suggestionsNotSaved: "Once confirmed, this suggestion will update the current report content.",
     acceptSection: "Accept suggestion",
     acceptAll: "Accept all",
@@ -430,14 +430,14 @@ const copy = {
     suggestRewrite: "Suggest rewrite",
     accept: "Accept suggestion",
     discard: "Discard suggestion",
-    sectionRewrite: "Section rewrite suggestion",
+    sectionRewrite: "Section Draft Review",
     noPersistenceBeforeAccept: "The current report remains unchanged until you confirm the suggestion.",
     useBasicAnalysis: "Use basic analysis",
     fallbackHint: "A basic analysis has been provided using the current project data.",
     benchmarkExplanation: "Explains platform strengths, preference impact, and key risks using the current scores.",
     benchmarkScoreTooltip: "Recommendation reasons do not change the calculated scores.",
-    analysisScope: "Analysis scope",
-    unreadAttachments: "Attachments not yet read",
+    analysisScope: "Export Readiness",
+    unreadAttachments: "Attachments Not Read Yet",
     accepted: "Accepted",
     currentWorkResults: "Current Work Results",
     workspaceOverview: "Continue PLC decision work from the project list, with status, recommended platform, and next action visible.",
@@ -484,7 +484,7 @@ const copy = {
     reportAnalyzingWarning: "Analysis is in progress. Report can be reviewed, but recommendation confidence may still change.",
     reportReadyNotice: "Report is ready for review.",
     finalizedReportNotice: "Finalized report.",
-    sectionContext: "Section Context",
+    sectionContext: "Section Evidence",
     noMissingInputs: "No missing inputs are currently affecting this section.",
   },
 } as const;
@@ -726,12 +726,80 @@ const trialZhCopy: Partial<Record<keyof typeof copy.en, string>> = {
   noMissingInputs: "当前没有影响该分区的缺失输入。",
 };
 
+const reportWorkbenchZhCopy: Partial<Record<keyof typeof copy.en, string>> = {
+  assumptions: "决策依据",
+  uncertainty: "待确认事项",
+  dataSources: "参考信息",
+  currentDocumentContent: "正式报告内容",
+  aiSuggestedContent: "建议稿",
+  acceptUpdatesReport: "接受建议后才会更新正式报告内容。",
+  queryLoading: "正在整理审阅建议...",
+  responseContext: "决策依据与待确认事项",
+  generateReportDraft: "生成建议稿",
+  reportSuggestions: "咨询报告工作台",
+  suggestionsNotSaved: "确认采用后，此建议稿将更新当前正式报告内容。",
+  acceptSection: "采用此建议稿",
+  acceptAll: "采用全部建议稿",
+  discardSuggestions: "放弃建议稿",
+  suggestedContent: "建议稿",
+  accept: "采用建议稿",
+  discard: "放弃建议稿",
+  sectionRewrite: "分区建议稿审阅",
+  noPersistenceBeforeAccept: "确认采用前，正式报告内容保持不变。",
+  useBasicAnalysis: "使用基础审阅",
+  analysisScope: "导出就绪检查",
+  unreadAttachments: "尚未读取的附件",
+  exportPreparation: "导出准备",
+  sectionContext: "审阅依据",
+  noMissingInputs: "当前没有影响该分区的待确认事项。",
+};
+
+const reportWorkbenchEnCopy: Partial<Record<keyof typeof copy.en, string>> = {
+  assumptions: "Evidence Used",
+  uncertainty: "Open Questions",
+  currentDocumentContent: "Official Report Content",
+  aiSuggestedContent: "Suggested Draft",
+  responseContext: "Evidence and open questions",
+  queryLoading: "Preparing review notes...",
+  generateReportDraft: "Generate suggested draft",
+  reportSuggestions: "Consulting Report Workbench",
+  suggestionsNotSaved: "Once confirmed, this suggested draft will update the official report content.",
+  acceptSection: "Accept this draft",
+  acceptAll: "Accept all drafts",
+  discardSuggestions: "Discard drafts",
+  suggestedContent: "Suggested Draft",
+  accept: "Accept draft",
+  discard: "Discard draft",
+  sectionRewrite: "Section Draft Review",
+  noPersistenceBeforeAccept: "The official report remains unchanged until you accept a draft.",
+  useBasicAnalysis: "Use basic review",
+  analysisScope: "Export Readiness",
+  unreadAttachments: "Attachments Not Read Yet",
+  sectionContext: "Section Evidence",
+  noMissingInputs: "No open questions are currently affecting this section.",
+};
+
 function uiCopy(language: Language): UiLabels {
-  return language === "zh" ? ({ ...copy.zh, ...trialZhCopy } as UiLabels) : copy.en;
+  return language === "zh" ? ({ ...copy.zh, ...trialZhCopy, ...reportWorkbenchZhCopy } as UiLabels) : ({ ...copy.en, ...reportWorkbenchEnCopy } as UiLabels);
 }
 
+function normalizeUxZh(value: string) {
+  if (value.includes("瀹￠槄姝ｅ紡") || value.includes("审阅正式报告内容")) return "审阅正式报告内容、生成建议稿，并在确认后更新报告分区。";
+  if (value.includes("寤鸿") && value.includes("姝ｅ紡鎶")) return "建议稿不会自动写入正式报告；确认采用后才会更新。";
+  if (value.includes("姝ｅ湪鐢熸垚") || value.includes("正在生成建议稿")) return "正在生成建议稿";
+  if (value.includes("姝ｅ湪鏁寸悊") || value.includes("正在整理报告分区")) return "正在整理报告分区";
+  if (value.includes("姝ｅ湪鏍稿") || value.includes("正在核对决策依据")) return "正在核对决策依据";
+  if (value.includes("鍙厛") || value.includes("可先继续查看项目其他信息")) return "可先继续查看项目其他信息";
+  if (value.includes("寤鸿绋垮凡") || value.includes("建议稿已生成")) return "建议稿已生成";
+  if (value.includes("杩欐槸褰撳墠姝ｅ紡鎶") && value.includes("淇濆瓨")) return "这是当前正式报告内容，可以手动编辑并保存。";
+  if (value.includes("杩欐槸褰撳墠姝ｅ紡鎶")) return "这是当前正式报告内容。";
+  if (value.includes("杩欐槸寰呯")) return "这是待确认建议稿，不会自动覆盖正式内容。";
+  if (value.includes("纭閲囩敤")) return "确认采用此建议稿";
+  if (value.includes("瀵煎嚭鍓")) return "导出前请先确认报告正文、审阅依据和附件读取边界。";
+  return value;
+}
 function uxText(language: Language, zh: string, en: string) {
-  return language === "zh" ? zh : en;
+  return language === "zh" ? normalizeUxZh(zh) : en;
 }
 
 const tabOrder: WorkspaceTab[] = ["overview", "intake", "preferences", "attachments", "benchmark", "report"];
@@ -3447,21 +3515,34 @@ function ReportBuilder({
 
   return (
     <div className="space-y-5">
-      <Panel title={labels.reportSuggestions} description={`${labels.intelligenceUsesProjectSwitch}: ${useAi ? labels.aiEnabled : labels.aiDisabled}`}>
+      <Panel title={labels.reportSuggestions} description={uxText(language, "审阅正式报告内容、生成建议稿，并在确认后更新报告分区。", "Review official report content, generate suggested drafts, and update sections only after acceptance.")}>
         <div className="flex flex-wrap items-center gap-3">
           <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void runReportDraft(false)} disabled={reportDraftTask.status === "running" || acceptingSuggestions}>
             <Sparkles size={16} />
             {reportDraftTask.status === "running" ? labels.queryLoading : labels.generateReportDraft}
           </button>
           <p className="text-sm text-slate-600">{labels.aiSuggestedContent} · {labels.acceptUpdatesReport}</p>
-          <p className="basis-full text-xs font-semibold text-slate-500">{labels.reportContextFromSummary}</p>
-          <p className="basis-full rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{uxText(language, "建议内容不会自动写入正式报告；确认采用后才会更新。", "Suggested content is not written into the official report until you accept it.")}</p>
+          <p className="basis-full text-xs font-semibold text-slate-500">{uxText(language, "建议稿用于工程审阅；正式报告内容只在接受后更新。", "Suggested drafts support engineering review; official report content updates only after acceptance.")}</p>
+          <p className="basis-full rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{uxText(language, "建议稿不会自动写入正式报告；确认采用后才会更新。", "Suggested draft is not written into the official report until you accept it.")}</p>
         </div>
+        {reportDraftTask.status === "running" ? (
+          <div className="mt-4 rounded-md border border-cyan-200 bg-cyan-50 p-4 text-sm text-cyan-950">
+            <div className="flex flex-wrap items-center gap-2 font-semibold">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-700" />
+              {uxText(language, "正在生成建议稿", "Generating suggested draft")}
+            </div>
+            <div className="mt-3 grid gap-2 text-xs font-semibold text-cyan-800 md:grid-cols-3">
+              <span className="rounded-md bg-white/70 px-3 py-2">{uxText(language, "正在整理报告分区", "Organizing report sections")}</span>
+              <span className="rounded-md bg-white/70 px-3 py-2">{uxText(language, "正在核对决策依据", "Reviewing decision evidence")}</span>
+              <span className="rounded-md bg-white/70 px-3 py-2">{uxText(language, "可先继续查看项目其他信息", "You can continue reviewing other project information")}</span>
+            </div>
+          </div>
+        ) : null}
         {reportDraftTask.error ? <div className="mt-4"><ActionError labels={labels} retry={() => reportDraftTask.retry?.()} useBasicAnalysis={() => void runReportDraft(true)} disabled={reportDraftTask.status === "running"} /></div> : null}
         {reportDraftTask.result ? (
           <div className="mt-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <IntelligenceModeBadge result={reportDraftTask.result} labels={labels} />
+              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">{uxText(language, "建议稿已生成", "Suggested draft ready")}</span>
               <div className="flex flex-wrap gap-2">
                 <button className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50" onClick={() => void acceptAllGeneratedSections()} disabled={acceptingSuggestions}>{labels.acceptAll}</button>
                 <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={resetReportDraftTask} disabled={acceptingSuggestions}>{labels.discardSuggestions}</button>
@@ -3477,9 +3558,9 @@ function ReportBuilder({
                     <h3 className="font-semibold text-slate-950">{localize(suggestion.title, language)}</h3>
                     <div className="mt-3 grid gap-3 lg:grid-cols-2">
                       <div className="rounded-md bg-white p-3 ring-1 ring-slate-200"><p className="text-xs font-semibold uppercase text-slate-500">{labels.currentDocumentContent}</p><p className="mt-1 text-xs text-slate-500">{uxText(language, "这是当前正式报告内容。", "This is the current official report content.")}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-600">{current ? localize(current.body, language) : "-"}</p></div>
-                      <div className="rounded-md bg-cyan-50 p-3 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-1 text-xs text-cyan-800">{uxText(language, "这是待确认建议，不会自动覆盖正式内容。", "This is a pending suggestion and will not overwrite the official content automatically.")}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-700">{localize(suggestion.draftBody, language)}</p></div>
+                      <div className="rounded-md bg-cyan-50 p-3 ring-1 ring-cyan-200"><p className="text-xs font-semibold uppercase text-cyan-800">{labels.aiSuggestedContent}</p><p className="mt-1 text-xs text-cyan-800">{uxText(language, "这是待确认建议稿，不会自动覆盖正式内容。", "This is a pending suggested draft and will not overwrite the official content automatically.")}</p><p className="mt-2 line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-slate-700">{localize(suggestion.draftBody, language)}</p></div>
                     </div>
-                    <button className="mt-3 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50" onClick={() => void acceptGeneratedSection(suggestion.sectionId)} disabled={acceptingSuggestions}>{uxText(language, "确认采用此建议", "Accept this suggestion")}</button>
+                    <button className="mt-3 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50" onClick={() => void acceptGeneratedSection(suggestion.sectionId)} disabled={acceptingSuggestions}>{uxText(language, "确认采用此建议稿", "Accept this draft")}</button>
                   </div>
                 );
               })}
@@ -3514,7 +3595,7 @@ function ReportBuilder({
         </div>
         <div className="mt-5 space-y-2 rounded-md border border-slate-200 bg-white p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.exportPreparation}</p>
-          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">{uxText(language, "导出前请先确认报告正文、分析范围和附件读取边界。", "Before export, confirm the report body, analysis scope, and attachment reading boundary.")}</p>
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">{uxText(language, "导出前请先确认报告正文、审阅依据和附件读取边界。", "Before export, confirm the report body, review evidence, and attachment reading boundary.")}</p>
           <button className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800" onClick={() => void copyMarkdown()}>
             <CopyIcon size={15} />
             {labels.copyMarkdown}
@@ -3571,9 +3652,9 @@ function ReportBuilder({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="font-semibold text-slate-950">{labels.sectionRewrite}</h3>
-                  <p className="mt-1 text-xs text-slate-500">{labels.acceptUpdatesReport} · {labels.intelligenceUsesProjectSwitch}: {useAi ? labels.aiEnabled : labels.aiDisabled}</p>
+                  <p className="mt-1 text-xs text-slate-500">{uxText(language, "建议稿仅用于审阅，接受后才会更新正式报告。", "Suggested drafts are for review and update the official report only after acceptance.")}</p>
                 </div>
-                {rewriteTask.result && rewriteSectionId === section.id ? <IntelligenceModeBadge result={rewriteTask.result} labels={labels} /> : null}
+                {rewriteTask.result && rewriteSectionId === section.id ? <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">{uxText(language, "建议稿已生成", "Suggested draft ready")}</span> : null}
               </div>
               {rewriteTask.result?.executionStatus === "ai_fallback" && rewriteSectionId === section.id ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
               <label className="mt-4 grid gap-2 text-sm font-semibold text-slate-700">
@@ -3614,14 +3695,15 @@ function ReportBuilder({
           <ReportPreview workspace={workspace} benchmarkResults={benchmarkResults} readiness={readiness} platformCatalog={platformCatalog} labels={labels} language={language} />
         )}
       </Panel>
-      <Panel title={labels.analysisScope}>
+      <Panel title={uxText(language, "审阅辅助", "Section Evidence")}>
         <div className="mb-5 space-y-2 rounded-md bg-slate-50 p-3">
+          <p className="pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{labels.analysisScope}</p>
           <FactRow label={labels.status} value={readiness.status} />
           <FactRow label={labels.readiness} value={`${readiness.score}%`} />
           <FactRow label={labels.confidence} value={readiness.confidenceLevel} />
         </div>
-        <EvidenceBlock title={labels.dataSources} items={deliveryDataSources} />
-        <EvidenceBlock title={labels.assumptions} items={deliveryAssumptions} />
+        <EvidenceBlock title={uxText(language, "审阅依据", "Section Evidence")} items={deliveryDataSources} />
+        <EvidenceBlock title={uxText(language, "关键假设", "Assumptions")} items={deliveryAssumptions} />
         <EvidenceBlock title={labels.uncertainty} items={deliveryUncertainty} />
         <EvidenceBlock title={labels.unreadAttachments} items={deliveryScope.unreadAttachments.length ? deliveryScope.unreadAttachments : [language === "zh" ? "暂无登记附件" : "No registered attachments"]} />
       </Panel>
