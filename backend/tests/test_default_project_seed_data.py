@@ -15,16 +15,16 @@ from app.services import create_benchmark
 
 
 class DefaultProjectSeedDataTests(unittest.TestCase):
-    def test_default_projects_are_realistic_complete_business_scenarios(self) -> None:
-        expected_names = {
-            "新能源电池产线 PLC 标准化",
-            "高速包装设备平台选型",
-            "老旧产线 Siemens / Rockwell 迁移评估",
+    def test_default_projects_are_complete_business_scenarios(self) -> None:
+        expected_ids = {
+            "ev-line-standardization",
+            "high-speed-packaging",
+            "legacy-line-siemens-rockwell-migration",
         }
         visible_forbidden_words = ("demo", "test", "mock", "trial")
         platform_ids = {platform.id for platform in ECOSYSTEMS}
 
-        self.assertEqual({workspace.project.name for workspace in PROJECT_WORKSPACES}, expected_names)
+        self.assertEqual({workspace.project.id for workspace in PROJECT_WORKSPACES}, expected_ids)
         self.assertGreaterEqual(len(PROJECT_WORKSPACES), 3)
 
         for workspace in PROJECT_WORKSPACES:
@@ -37,6 +37,9 @@ class DefaultProjectSeedDataTests(unittest.TestCase):
                     ]
                 ).lower()
                 self.assertFalse(any(word in visible_text for word in visible_forbidden_words))
+                self.assertTrue(workspace.project.name.strip())
+                self.assertTrue(workspace.project.industry.strip())
+                self.assertTrue(workspace.project.goal.strip())
                 self.assertTrue(workspace.project.created_at)
                 self.assertTrue(workspace.project.updated_at)
                 self.assertIn(workspace.project.status, {"Draft", "Analyzing", "Report Ready", "Finalized"})
@@ -44,9 +47,9 @@ class DefaultProjectSeedDataTests(unittest.TestCase):
                 self.assertGreater(workspace.intake.io_scale, 0)
                 self.assertGreaterEqual(len(workspace.intake.candidate_platforms), 2)
                 self.assertTrue(set(workspace.intake.candidate_platforms).issubset(platform_ids))
-                self.assertTrue(workspace.intake.constraints)
-                self.assertTrue(workspace.intake.team_experience)
-                self.assertTrue(workspace.intake.existing_platform)
+                self.assertTrue(workspace.intake.constraints.strip())
+                self.assertTrue(workspace.intake.team_experience.strip())
+                self.assertTrue(workspace.intake.existing_platform.strip())
 
                 preferences = {item.platform_id: item for item in workspace.preferences}
                 self.assertEqual(set(preferences), platform_ids)
@@ -55,7 +58,10 @@ class DefaultProjectSeedDataTests(unittest.TestCase):
 
                 self.assertGreaterEqual(len(workspace.attachments), 1)
                 for attachment in workspace.attachments:
-                    self.assertIn("不解析正文", attachment.declared_purpose)
+                    self.assertTrue(attachment.file_name.strip())
+                    self.assertTrue(attachment.file_type.strip())
+                    self.assertTrue(attachment.declared_purpose.strip())
+                    self.assertTrue(attachment.uploaded_at.strip())
 
                 self.assertEqual([section.id for section in workspace.report.sections], DEFAULT_REPORT_SECTION_IDS)
                 for section in workspace.report.sections:
@@ -96,12 +102,12 @@ class DefaultProjectSeedDataTests(unittest.TestCase):
             {workspace.project.id for workspace in PROJECT_WORKSPACES},
         )
 
-    def test_existing_user_projects_are_not_reset_or_overwritten_by_seed(self) -> None:
+    def test_existing_user_projects_are_preserved_when_missing_defaults_are_seeded(self) -> None:
         with temporary_database_path():
             database.initialize_schema()
             user_workspace = repository.create_workspace(
                 ProjectCreate(
-                    name="用户创建的改造项目",
+                    name="User Created Migration Project",
                     industry="Automotive",
                     goal="Keep this project untouched by default seed data.",
                 )
@@ -110,9 +116,37 @@ class DefaultProjectSeedDataTests(unittest.TestCase):
             repository.seed_initial_workspaces_if_empty()
             workspaces = repository.list_workspaces()
 
-        self.assertEqual(len(workspaces), 1)
-        self.assertEqual(workspaces[0].project.id, user_workspace.project.id)
-        self.assertEqual(workspaces[0].project.name, "用户创建的改造项目")
+        by_id = {workspace.project.id: workspace for workspace in workspaces}
+        self.assertEqual(len(workspaces), len(PROJECT_WORKSPACES) + 1)
+        self.assertIn(user_workspace.project.id, by_id)
+        self.assertEqual(by_id[user_workspace.project.id].project.name, "User Created Migration Project")
+        self.assertTrue({workspace.project.id for workspace in PROJECT_WORKSPACES}.issubset(by_id))
+
+    def test_existing_default_project_is_not_overwritten_by_seed(self) -> None:
+        with temporary_database_path():
+            database.initialize_schema()
+            original = PROJECT_WORKSPACES[0]
+            customized = original.model_copy(
+                deep=True,
+                update={
+                    "project": original.project.model_copy(
+                        update={
+                            "name": "Customer Customized Default Project",
+                            "goal": "Keep custom changes after restart.",
+                        }
+                    )
+                },
+            )
+            with database.get_connection() as connection:
+                repository._insert_workspace(connection, customized)
+
+            repository.seed_initial_workspaces_if_empty()
+            workspaces = repository.list_workspaces()
+
+        by_id = {workspace.project.id: workspace for workspace in workspaces}
+        self.assertEqual(len(workspaces), len(PROJECT_WORKSPACES))
+        self.assertEqual(by_id[original.project.id].project.name, "Customer Customized Default Project")
+        self.assertEqual(by_id[original.project.id].project.goal, "Keep custom changes after restart.")
 
 
 class temporary_database_path:

@@ -24,7 +24,7 @@ from app.services_time import now_iso_date
 
 def initialize_repository() -> None:
     initialize_schema()
-    seed_initial_workspaces_if_empty()
+    seed_initial_workspaces_if_missing()
 
 
 def _json_dump(value: object) -> str:
@@ -64,12 +64,23 @@ def _default_report_sections(project_name: str, generated_at: str) -> list[Repor
 
 
 def seed_initial_workspaces_if_empty() -> None:
+    seed_initial_workspaces_if_missing()
+
+
+def seed_initial_workspaces_if_missing() -> None:
     with get_connection() as connection:
-        count = connection.execute("SELECT COUNT(*) AS count FROM projects").fetchone()["count"]
-        if count > 0:
-            return
+        existing_ids = {
+            row["id"]
+            for row in connection.execute(
+                "SELECT id FROM projects WHERE id IN ({})".format(
+                    ",".join("?" for _ in PROJECT_WORKSPACES)
+                ),
+                [workspace.project.id for workspace in PROJECT_WORKSPACES],
+            ).fetchall()
+        }
         for workspace in PROJECT_WORKSPACES:
-            _insert_workspace(connection, workspace)
+            if workspace.project.id not in existing_ids:
+                _insert_workspace(connection, workspace)
 
 
 def list_workspaces() -> list[ProjectWorkspace]:
