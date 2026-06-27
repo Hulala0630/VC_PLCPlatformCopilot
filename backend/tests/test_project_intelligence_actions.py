@@ -108,7 +108,7 @@ class ProjectIntelligenceActionTests(unittest.TestCase):
             self.assertFalse(result.ai_used)
             self.assertIsNone(result.fallback_reason)
         attachment_analysis = results[0]
-        self.assertIn("Attachment contents have not yet been read", attachment_analysis.answer.en)
+        self.assertIn("Attachment bodies have not been read or parsed", attachment_analysis.answer.en)
         self.assertTrue(attachment_analysis.follow_up_questions)
         self.assertTrue(attachment_analysis.next_actions)
         self.assertFalse(attachment_analysis.document_parsing_used)
@@ -172,7 +172,7 @@ class ProjectIntelligenceActionTests(unittest.TestCase):
         self.assertIn('"content_parsed":false', attachment_prompt)
         self.assertNotIn("file_content", attachment_prompt)
         attachment_analysis = results[0]
-        self.assertIn("Attachment contents have not yet been read", attachment_analysis.answer.en)
+        self.assertIn("Attachment bodies have not been read or parsed", attachment_analysis.answer.en)
         self.assertTrue(attachment_analysis.next_actions)
         self.assertFalse(attachment_analysis.document_parsing_used)
         self.assertEqual(
@@ -213,7 +213,7 @@ class ProjectIntelligenceActionTests(unittest.TestCase):
             self.assertTrue(result.assumptions)
             self.assertTrue(result.uncertainty)
         self.assertTrue(results[0].next_actions)
-        self.assertIn("Attachment contents have not yet been read", results[0].answer.en)
+        self.assertIn("Attachment bodies have not been read or parsed", results[0].answer.en)
         self.assertTrue(results[2].sections)
         self.assertTrue(results[3].suggested_body.en)
         self.assertEqual(workspace.model_dump(), project_before)

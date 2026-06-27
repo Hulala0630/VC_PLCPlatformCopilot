@@ -29,6 +29,11 @@ BANNED_USER_TERMS = (
     "model id",
     "internal",
     "fallback",
+    "占位符",
+    "确定性逻辑",
+    "模型供应商",
+    "内部实现",
+    "回退",
 )
 
 MARKETING_TERMS = (
@@ -106,6 +111,13 @@ class Task6FEngineerTrialOutputTests(unittest.TestCase):
             ]
         )
         for term in (
+            "recommendation",
+            "why this platform",
+            "alternative platform",
+            "key risks",
+            "preference impact",
+            "missing confirmations",
+            "decision next step",
             "review",
             "i/o scale",
             "motion",

@@ -89,7 +89,7 @@ class TrialApiReliabilityTests(unittest.TestCase):
             self.assertEqual(analyze_response.status_code, 200)
             analysis = analyze_response.json()
             self.assertFalse(analysis["document_parsing_used"])
-            self.assertIn("Attachment contents", analysis["answer"]["en"])
+            self.assertIn("Attachment bodies have not been read or parsed", analysis["answer"]["en"])
             self.assertTrue(any(source["type"] == "attachment_metadata" for source in analysis["sources"]))
 
     def test_sqlite_data_persists_across_repository_reinitialization(self) -> None:

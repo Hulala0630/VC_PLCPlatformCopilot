@@ -152,6 +152,25 @@ class BenchmarkSummaryStreamingTests(unittest.TestCase):
         self.assertEqual(analysis.fallback_reason, "timeout")
         self.assertIn(analysis.recommended_platform, workspace.intake.candidate_platforms)
         self.assertTrue(summary.summary.en)
+        combined_analysis = " ".join(
+            [
+                analysis.ranking_rationale.en,
+                analysis.technical_fit_analysis.en,
+                analysis.preference_impact.en,
+                analysis.risk_assessment.en,
+                " ".join(item.en for item in analysis.next_actions),
+            ]
+        ).lower()
+        for term in (
+            "recommendation",
+            "why this platform",
+            "alternative platform",
+            "key risks",
+            "preference impact",
+            "missing confirmations",
+            "decision next step",
+        ):
+            self.assertIn(term, combined_analysis)
         for user_text in [
             analysis.ranking_rationale.en,
             analysis.technical_fit_analysis.en,
@@ -162,6 +181,10 @@ class BenchmarkSummaryStreamingTests(unittest.TestCase):
             self.assertNotIn("provider", user_text.lower())
             self.assertNotIn("fallback", user_text.lower())
             self.assertNotIn("metadata", user_text.lower())
+            self.assertNotIn("placeholder", user_text.lower())
+            self.assertNotIn("deterministic", user_text.lower())
+            self.assertNotIn("model id", user_text.lower())
+            self.assertNotIn("api key", user_text.lower())
 
     def test_streaming_endpoints_emit_chunk_and_done_events(self) -> None:
         workspace = workspace_fixture()

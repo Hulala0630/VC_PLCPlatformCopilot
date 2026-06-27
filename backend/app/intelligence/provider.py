@@ -238,10 +238,13 @@ class DeterministicPlaceholderProvider:
                     f"下一步建议补齐缺失输入，并对前两名平台做迁移风险和实施资源评审。"
                 ),
                 en=(
-                    f"Recommended platform for review: {lead.platform_id}. It ranks first at {lead.weighted_score} with {lead.risk_level} risk.{margin_text} "
-                    f"The ranking uses the fixed benchmark baseline: technical score {lead.technical_score} is weighted at 72% and business/preference score {lead.preference_score} at 28%; this explanation does not change scores or rankings. "
-                    f"Engineering validation should focus on I/O scale, motion/safety requirements, existing platform, team experience, and hard constraints; business validation should confirm budget sensitivity, supply chain, standardization, and downtime window. Attachment bodies have not been parsed. "
-                    f"Next action: close missing inputs and review migration risk and implementation resources for the top-ranked platforms. {sensitivity}"
+                    f"Recommendation: review {lead.platform_id} as the primary decision candidate. "
+                    f"Why this platform: it ranks first at {lead.weighted_score} with {lead.risk_level} risk, based on technical fit score {lead.technical_score} and business/preference score {lead.preference_score}.{margin_text} "
+                    f"Alternative platform: {runner_up.platform_id if runner_up else 'not available from the current candidate set'}. "
+                    f"Key risks: validate I/O scale, motion/safety requirements, existing platform migration effort, team experience, hard constraints, supply chain, and downtime window. "
+                    f"Preference impact: confirm whether the preference weighting reflects actual procurement, maintenance, standardization, and installed-base priorities. "
+                    f"Missing confirmations: attachment bodies have not been parsed, and project constraints still need owner review. Benchmark scores come from fixed benchmark calculation rules; this explanation does not change scores or rankings. "
+                    f"Decision next step: close missing inputs and review migration risk and implementation resources for the recommended platform against the alternative. {sensitivity}"
                 ),
             )
         else:
@@ -287,8 +290,10 @@ class DeterministicPlaceholderProvider:
                     else "当前缺少候选平台，尚不能形成平台排序建议。"
                 ),
                 en=(
-                    f"Review {lead.platform_id} first; it leads with weighted score {lead.weighted_score}."
-                    f"{' The margin to second place is ' + str(margin) + ' point(s).' if margin is not None else ''}"
+                    f"Recommendation: review {lead.platform_id} as the primary decision candidate. "
+                    f"Alternative platform: {second.platform_id if second else 'not available from the current candidate set'}. "
+                    f"The current ranking places {lead.platform_id} first with weighted score {lead.weighted_score}."
+                    f"{' The margin to the alternative is ' + str(margin) + ' point(s).' if margin is not None else ''}"
                     if lead
                     else "No candidate platform is available, so no platform ranking can be recommended yet."
                 ),
@@ -300,7 +305,7 @@ class DeterministicPlaceholderProvider:
                     else "请先补充候选平台，再评估技术适配度。"
                 ),
                 en=(
-                    f"{lead.platform_id} has technical score {lead.technical_score}; review it against I/O scale {workspace.intake.io_scale}, motion need {workspace.intake.motion_requirement}, and safety need {workspace.intake.safety_requirement}."
+                    f"Why this platform: {lead.platform_id} is the current technical fit candidate, but the decision should be checked against I/O scale {workspace.intake.io_scale}, motion need {workspace.intake.motion_requirement}, safety need {workspace.intake.safety_requirement}, existing platform {workspace.intake.existing_platform or 'not confirmed'}, and team experience."
                     if lead
                     else "Add candidate platforms before assessing technical fit."
                 ),
@@ -312,7 +317,7 @@ class DeterministicPlaceholderProvider:
                     else "偏好影响将在候选平台和权重完整后生成。"
                 ),
                 en=(
-                    f"{lead.platform_id} has preference score {lead.preference_score}, reflecting team experience, existing platform context, and business constraints."
+                    f"Preference impact: {lead.platform_id} has preference score {lead.preference_score}. Confirm whether this reflects actual team capability, installed base, procurement constraints, maintenance model, and supplier availability."
                     if lead
                     else "Preference impact will be available after candidate platforms and weights are complete."
                 ),
@@ -324,7 +329,7 @@ class DeterministicPlaceholderProvider:
                     else "风险评估需要候选平台和基础输入后才能形成。"
                 ),
                 en=(
-                    f"{lead.platform_id} currently has {lead.risk_level} risk. Cost, supply-chain, downtime, and safety approval constraints still need confirmation."
+                    f"Key risks and missing confirmations: {lead.platform_id} currently has {lead.risk_level} risk. Confirm cost, supply-chain exposure, downtime window, safety approval path, migration effort from the existing platform, and whether registered attachments are sufficient for report-ready evidence."
                     if lead
                     else "Risk assessment requires candidate platforms and core inputs."
                 ),
@@ -335,7 +340,7 @@ class DeterministicPlaceholderProvider:
                 workspace.readiness.next_action,
                 LocalizedText(
                     zh="复核领先平台与第二名的分差，并确认偏好权重是否反映真实采购和维护约束。",
-                    en="Review the margin between the leading platform and runner-up, and confirm preference weights reflect real procurement and maintenance constraints.",
+                    en="Decision next step: review the primary recommendation against the alternative platform, then confirm preference weights, missing documents, migration constraints, procurement constraints, and maintenance constraints before a decision meeting.",
                 ),
             ],
             sources=self._project_sources(workspace, benchmark),
@@ -465,9 +470,10 @@ class DeterministicPlaceholderProvider:
             f"本建议不改变 benchmark 分数或排名。"
         )
         shared_en = (
-            "Attachment bodies have not been read or parsed; the report is based only on project inputs, "
-            "platform preferences, attachment registration records, and fixed benchmark results. "
-            "This suggestion does not change benchmark scores or rankings."
+            "Decision basis: project inputs, platform preferences, attachment registration records, and fixed benchmark results. "
+            "Assumptions: attachment bodies have not been read or parsed, and project constraints still require review. "
+            "Open questions: confirm missing documents, downtime window, safety approval path, and owner decisions. "
+            "Review notes: this report language does not change benchmark scores or rankings."
         )
         section_key = section.id.lower()
         title_text = f"{section.title.en} {section.title.zh}".lower()
@@ -544,7 +550,7 @@ class DeterministicPlaceholderProvider:
                 f"{base_en} Rewrite instruction: {request.instruction}. "
                 f"This rewrite is limited to the requested section; the current key conclusion is {lead_en}. "
                 f"Keep the factual boundary: attachment bodies have not been read or parsed, benchmark scores and rankings come from fixed calculation rules, and this rewrite does not change them. "
-                f"Assumptions, uncertainty, and project-team confirmations should remain visible."
+                f"Decision basis, assumptions, open questions, review notes, uncertainty, and project-team confirmations should remain visible."
             ),
         )
 
@@ -598,10 +604,12 @@ class DeterministicPlaceholderProvider:
                     f"下一步建议补充需求说明、I/O 清单、现有控制架构、电气/安全资料和迁移约束；benchmark 分数来自固定计算规则，本分析不改变评分或排名。"
                 ),
                 en=(
-                    f"{len(workspace.attachments)} attachment record(s) are registered and {len(declared)} include a declared purpose. Attachment contents have not yet been read. Attachment bodies have not been read or parsed, so Excel, PDF, drawing, or document content cannot be cited. "
-                    f"The registered materials may support preliminary judgment on requirements completeness, I/O scope, architecture, electrical/safety readiness, migration risk, and report evidence. "
-                    f"Key gaps: missing material types: {', '.join(missing_types) if missing_types else 'none apparent'}; attachments without declared purpose: {', '.join(missing_purpose) if missing_purpose else 'none'}. "
-                    f"Next, register requirements, I/O list, current control architecture, electrical/safety material, and migration constraints. Benchmark scores come from fixed calculation rules; this analysis does not change scores or rankings."
+                    f"Registered materials: {len(workspace.attachments)} attachment record(s) are registered and {len(declared)} include a declared purpose. Attachment bodies have not been read or parsed, so Excel, PDF, drawing, or document content cannot be cited. "
+                    f"What they can support: preliminary judgment on requirements completeness, I/O scope, architecture, electrical/safety readiness, migration risk, and report evidence. "
+                    f"What they cannot support yet: detailed content validation, drawing-level risk review, exact I/O verification, or formal safety evidence. "
+                    f"Missing documents: {', '.join(missing_types) if missing_types else 'none apparent'}; attachments without declared purpose: {', '.join(missing_purpose) if missing_purpose else 'none'}. "
+                    f"Impact on benchmark confidence: better registered requirements, I/O, architecture, and safety material would make the platform comparison easier to defend. Impact on report quality: complete declared purposes give the report clearer evidence links. "
+                    f"Decision next step: register requirements, I/O list, current control architecture, electrical/safety material, and migration constraints. Benchmark scores come from fixed calculation rules; this analysis does not change scores or rankings."
                 ),
             ),
             sources=self._project_sources(workspace, []),

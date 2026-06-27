@@ -58,6 +58,11 @@ BANNED_USER_TERMS = (
     "deterministic scoring",
     "persistence",
     "persisted",
+    "占位符",
+    "确定性逻辑",
+    "模型供应商",
+    "内部实现",
+    "回退",
     "元数据",
     "持久化",
 )
@@ -292,6 +297,7 @@ class IntelligenceFallbackContractTests(unittest.TestCase):
             "model id and API key details",
             "deterministic scoring logic",
             "mock internal dev wording",
+            "占位符 确定性逻辑 模型供应商 内部实现 回退",
         ]
         for unsafe_answer in unsafe_answers:
             with self.subTest(unsafe_answer=unsafe_answer):

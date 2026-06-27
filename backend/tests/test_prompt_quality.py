@@ -9,6 +9,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app.data import ECOSYSTEMS
 from app.intelligence.models import (
+    BenchmarkAnalysisRequest,
     BenchmarkExplanationRequest,
     GlobalChatRequest,
     ProjectAnalysisRequest,
@@ -18,6 +19,7 @@ from app.intelligence.models import (
 )
 from app.intelligence.prompts import (
     COMMON_BOUNDARIES,
+    benchmark_analysis_prompt,
     benchmark_explanation_prompt,
     global_chat_prompt,
     project_analysis_prompt,
@@ -151,6 +153,28 @@ class PromptQualityTests(unittest.TestCase):
         self.assertIn("do not recalculate", benchmark_lowered)
         self.assertIn("replace, tune, normalize", benchmark_lowered)
 
+    def test_benchmark_prompts_require_decision_analysis_shape(self) -> None:
+        workspace = workspace_fixture()
+        benchmark = create_benchmark(workspace)
+        prompts = [
+            benchmark_analysis_prompt(BenchmarkAnalysisRequest(language="en"), workspace, benchmark),
+            benchmark_explanation_prompt(BenchmarkExplanationRequest(language="en"), workspace, benchmark),
+        ]
+        for prompt in prompts:
+            lowered = prompt.instructions.lower()
+            for term in (
+                "consulting decision analysis",
+                "recommendation",
+                "why this platform",
+                "alternative platform",
+                "key risks",
+                "preference impact",
+                "missing confirmations",
+                "decision next step",
+                "review meeting",
+            ):
+                self.assertIn(term, lowered)
+
     def test_report_generation_prompt_requires_preserved_section_identity(self) -> None:
         workspace = workspace_fixture()
         prompt = report_generation_prompt(
@@ -175,7 +199,14 @@ class PromptQualityTests(unittest.TestCase):
         )
         attachment_lowered = attachment_prompt.instructions.lower()
         for term in (
-            "attachment analysis note",
+            "material readiness and decision-impact analysis",
+            "registered materials",
+            "what they can support",
+            "what they cannot support yet",
+            "missing documents",
+            "impact on benchmark confidence",
+            "impact on report quality",
+            "decision next step",
             "file name",
             "file type",
             "declared purpose",
@@ -185,7 +216,7 @@ class PromptQualityTests(unittest.TestCase):
             "benchmark confidence",
             "migration risk review",
             "report drafting",
-            "key missing materials",
+            "missing documents",
             "never infer",
             "excel",
             "pdf",
@@ -209,7 +240,11 @@ class PromptQualityTests(unittest.TestCase):
             "risk assessment",
             "implementation / migration roadmap",
             "assumptions & uncertainty",
+            "decision basis",
+            "open questions",
+            "review notes",
             "not a chat reply",
+            "not a description of how output was generated",
             "attachment file bodies have not been parsed",
             "do not change benchmark scores or rankings",
             "do not expose mock",
@@ -229,6 +264,9 @@ class PromptQualityTests(unittest.TestCase):
             "do not change benchmark scores or rankings",
             "do not claim attachment file bodies were read or parsed",
             "keep uncertainty visible",
+            "decision basis",
+            "open questions",
+            "review notes",
             "not a chat reply",
         ):
             self.assertIn(term, rewrite_lowered)
