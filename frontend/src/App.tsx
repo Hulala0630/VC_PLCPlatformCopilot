@@ -2448,14 +2448,6 @@ function ProjectOverview({
     }
   }
 
-  useEffect(() => {
-    if (!useAi) {
-      showBasicSummary();
-      return;
-    }
-    if (task.status === "idle") void runSummary();
-  }, [basicSummary, language, useAi, workspace.project.id]);
-
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Panel title={labels.projectGuidance} description={workspace.project.name}>
@@ -2547,7 +2539,16 @@ function ProjectOverview({
           language={language}
           useBasicAnalysis={showBasicSummary}
         >
-          <p className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{labels.reportContextFromSummary}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="inline-flex items-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void runSummary()} disabled={task.status === "running"}>
+              <Sparkles size={16} />
+              {task.status === "running" ? labels.queryLoading : (useAi ? labels.aiProjectSummary : labels.projectSummary)}
+            </button>
+            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={showBasicSummary} disabled={task.status === "running"}>
+              {labels.useBasicAnalysis}
+            </button>
+          </div>
+          <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{labels.reportContextFromSummary}</p>
         </StreamingAnalysisPanel>
       </div>
     </div>
@@ -2955,7 +2956,7 @@ function StreamingAnalysisPanel({
       {children}
       <div className="mt-4 rounded-md border border-cyan-200 bg-cyan-50/60 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          {stream.result ? <IntelligenceModeBadge result={stream.result} labels={labels} /> : <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-800">{labels.basicAnalysisReady}</span>}
+          {stream.result ? <IntelligenceModeBadge result={stream.result} labels={labels} /> : <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-800">{stream.displayText ? labels.basicAnalysisReady : uxText(language, "等待用户点击生成", "Waiting for user action")}</span>}
           {loading ? <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-900">{labels.generating}</span> : null}
           {stream.displayText && streaming ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{labels.partialResult}</span> : null}
         </div>
@@ -3007,8 +3008,61 @@ function ActionError({ labels, retry, useBasicAnalysis, disabled }: { labels: (t
   );
 }
 
+function inferAttachmentType(fileName: string): ProjectAttachment["fileType"] {
+  const lower = fileName.toLowerCase();
+  if (/io|i\/o|点表|di_|do_|ai_|ao_/.test(lower)) return "I/O List";
+  if (/electric|electrical|电气|柜|asset|清单|bom/.test(lower)) return "Electrical List";
+  if (/arch|network|layout|架构|网络|vsdx|draw/.test(lower)) return "Architecture";
+  if (/require|spec|需求|标准|plan|方案|doc/.test(lower)) return "Requirements";
+  return "Other";
+}
+
+function mockAttachmentDocumentHtml(attachment: ProjectAttachment, language: Language) {
+  const isZh = language === "zh";
+  return `<!doctype html>
+<html lang="${isZh ? "zh-CN" : "en"}">
+<head>
+  <meta charset="utf-8" />
+  <title>${attachment.fileName}</title>
+  <style>
+    body { font-family: Arial, "Microsoft YaHei", sans-serif; margin: 40px; color: #0f172a; line-height: 1.6; }
+    .badge { display:inline-block; padding: 4px 10px; border-radius: 999px; background:#ecfeff; color:#155e75; font-weight:700; font-size:12px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 18px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+    th { background: #f8fafc; }
+    .note { margin-top: 20px; padding: 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <span class="badge">${attachment.fileType}</span>
+  <h1>${isZh ? "附件示例预览" : "Attachment Sample Preview"}: ${attachment.fileName}</h1>
+  <p><strong>${isZh ? "声明用途" : "Declared purpose"}:</strong> ${attachment.declaredPurpose || "-"}</p>
+  <p><strong>${isZh ? "登记时间" : "Registered at"}:</strong> ${attachment.uploadedAt}</p>
+  <table>
+    <thead><tr><th>${isZh ? "字段" : "Field"}</th><th>${isZh ? "示例值" : "Sample value"}</th><th>${isZh ? "决策用途" : "Decision use"}</th></tr></thead>
+    <tbody>
+      <tr><td>I/O</td><td>DI 128 / DO 96 / AI 32 / AO 16</td><td>${isZh ? "估算平台容量和远程站范围" : "Estimate platform capacity and remote station scope"}</td></tr>
+      <tr><td>${isZh ? "运动轴" : "Motion axes"}</td><td>12</td><td>${isZh ? "判断运动控制能力要求" : "Judge motion-control capability needs"}</td></tr>
+      <tr><td>${isZh ? "安全" : "Safety"}</td><td>PL d / SIL2 pending</td><td>${isZh ? "识别安全集成风险" : "Identify safety integration risk"}</td></tr>
+      <tr><td>${isZh ? "停机窗口" : "Downtime window"}</td><td>48h</td><td>${isZh ? "评估迁移实施风险" : "Evaluate migration execution risk"}</td></tr>
+    </tbody>
+  </table>
+  <div class="note">${isZh ? "这是根据已登记元信息生成的示例内容，用于演示点击和查看流程；当前版本没有读取真实文件正文。" : "This sample is generated from registered metadata to demonstrate the open/view flow; this version has not read the real file body."}</div>
+</body>
+</html>`;
+}
+
+function openMockAttachmentDocument(attachment: ProjectAttachment, language: Language) {
+  const blob = new Blob([mockAttachmentDocumentHtml(attachment, language)], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 function Attachments({ workspace, registerAttachment, labels, language, useAi, task, patchTask }: { workspace: ProjectWorkspace; registerAttachment: (projectId: string, attachment: Pick<ProjectAttachment, "fileName" | "fileType" | "declaredPurpose">, fallbackWorkspace: ProjectWorkspace) => void | Promise<void>; labels: (typeof copy)[Language]; language: Language; useAi: boolean; task: AiTaskState<IntelligenceResult>; patchTask: (patch: Partial<AiTaskState<IntelligenceResult>>) => void }) {
   const [form, setForm] = useState({ fileName: "", fileType: "Requirements" as ProjectAttachment["fileType"], declaredPurpose: "" });
+  const [pendingFileUrl, setPendingFileUrl] = useState("");
+  const [localFileUrls, setLocalFileUrls] = useState<Record<string, string>>({});
   const materialSuggestions = attachmentMaterialSuggestions(workspace);
 
   async function runAttachmentAnalysis(forceBasic = false) {
@@ -3044,13 +3098,48 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi, t
       { fileName: next.fileName, fileType: next.fileType, declaredPurpose: next.declaredPurpose },
       { ...workspace, project: { ...workspace.project, updatedAt: today }, attachments: [...workspace.attachments, next] },
     );
+    if (pendingFileUrl) {
+      setLocalFileUrls((current) => ({ ...current, [next.fileName]: pendingFileUrl }));
+      setPendingFileUrl("");
+    }
     setForm({ fileName: "", fileType: "Requirements", declaredPurpose: "" });
+  }
+
+  function selectAttachmentFile(file: File | undefined) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPendingFileUrl(url);
+    setForm({
+      fileName: file.name,
+      fileType: inferAttachmentType(file.name),
+      declaredPurpose: form.declaredPurpose || (language === "zh" ? "用户上传的工程资料；当前仅登记文件信息并允许本地预览，不解析正文。" : "User-uploaded engineering material; only file information is registered and local preview is available, without content parsing."),
+    });
+  }
+
+  function openAttachment(attachment: ProjectAttachment) {
+    const localUrl = localFileUrls[attachment.fileName];
+    if (localUrl) {
+      window.open(localUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    openMockAttachmentDocument(attachment, language);
   }
 
   return (
     <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
       <Panel title={labels.addAttachment} description={uxText(language, "登记工程资料名称、类型和用途，用于判断资料是否充分。", "Register engineering material names, types, and purposes so the workspace can judge information readiness.")}>
         <div className="grid gap-3">
+          <label className="grid gap-2 text-sm font-semibold text-slate-700">
+            {uxText(language, "上传 / 选择文件", "Upload / select file")}
+            <input className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-950 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800" type="file" onChange={(event) => selectAttachmentFile(event.target.files?.[0])} />
+          </label>
+          <p className="rounded-md bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-900 ring-1 ring-cyan-100">{uxText(language, "可选择本地文件进行登记；文件可在本浏览器会话中打开查看，但后端仍只保存文件名、类型和用途。", "Select a local file to register it. The file can be opened in this browser session, while the backend still stores only name, type, and purpose.")}</p>
+          {pendingFileUrl ? (
+            <button className="inline-flex items-center justify-center gap-2 rounded-md border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-900 hover:bg-cyan-100" onClick={() => window.open(pendingFileUrl, "_blank", "noopener,noreferrer")}>
+              <FileText size={16} />
+              {uxText(language, "查看已选择文件", "View selected file")}
+            </button>
+          ) : null}
           <Field label={labels.fileName} badge={labels.required} value={form.fileName} onChange={(value) => setForm({ ...form, fileName: value })} />
           <Select label={labels.fileType} value={form.fileType} options={attachmentTypes} onChange={(value) => setForm({ ...form, fileType: value as ProjectAttachment["fileType"] })} />
           <Field label={labels.attachmentPurpose} badge={labels.optional} value={form.declaredPurpose} onChange={(value) => setForm({ ...form, declaredPurpose: value })} />
@@ -3097,6 +3186,10 @@ function Attachments({ workspace, registerAttachment, labels, language, useAi, t
                   </p>
                   <p className="text-xs text-slate-400">{attachment.uploadedAt}</p>
                   <p className="rounded-md bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{labels.futureJudgementUse}: {labels.futureJudgementUseText}</p>
+                  <button className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => openAttachment(attachment)}>
+                    <FileText size={15} />
+                    {localFileUrls[attachment.fileName] ? uxText(language, "打开上传文件", "Open uploaded file") : uxText(language, "打开示例文档", "Open sample document")}
+                  </button>
                 </div>
               </div>
             ))}
@@ -3146,11 +3239,6 @@ function Benchmark({ results, workspace, platformCatalog, labels, language, onRu
       patchTask({ status: "error", result: null, displayText: basicBenchmarkSummary, error: true, completedAt: new Date().toISOString(), retry: () => void runBenchmarkAnalysis(false) });
     }
   }
-
-  useEffect(() => {
-    if (!useAi) void runBenchmarkAnalysis(true);
-    else if (task.status === "idle") void runBenchmarkAnalysis(false);
-  }, [basicBenchmarkSummary, language, useAi, workspace.project.id]);
 
   return (
     <div className="space-y-5">
