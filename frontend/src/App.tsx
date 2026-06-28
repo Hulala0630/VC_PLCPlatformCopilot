@@ -790,7 +790,7 @@ function normalizeUxZh(value: string) {
   if (value.includes("姝ｅ湪鏁寸悊") || value.includes("正在整理报告分区")) return "正在整理报告分区";
   if (value.includes("姝ｅ湪鏍稿") || value.includes("正在核对决策依据")) return "正在核对决策依据";
   if (value.includes("鍙厛") || value.includes("可先继续查看项目其他信息")) return "可先继续查看项目其他信息";
-  if (value.includes("寤鸿绋垮凡") || value.includes("建议稿已生成")) return "建议稿已生成";
+  if (value.includes("寤鸿绋垮凡") || value.includes("建议稿已生成")) return "建议稿已准备好，等待审阅";
   if (value.includes("杩欐槸褰撳墠姝ｅ紡鎶") && value.includes("淇濆瓨")) return "这是当前正式报告内容，可以手动编辑并保存。";
   if (value.includes("杩欐槸褰撳墠姝ｅ紡鎶")) return "这是当前正式报告内容。";
   if (value.includes("杩欐槸寰呯")) return "这是待确认建议稿，不会自动覆盖正式内容。";
@@ -1073,13 +1073,13 @@ function buildBasicReportDraft(workspace: ProjectWorkspace, readiness: ProjectRe
 
 function buildBasicSectionRewrite(workspace: ProjectWorkspace, section: ReportSection, instruction: string, readiness: ProjectReadiness, benchmarkResults: BenchmarkResult[], platformCatalog: PlcEcosystem[]): ReportSectionRewriteResult {
   const base = buildBasicReportBody(workspace, section, readiness, benchmarkResults, platformCatalog);
-  const instructionText = instruction.trim();
+  void instruction;
   return {
     id: `basic-rewrite-${Date.now()}`,
     sectionId: section.id,
     suggestedBody: {
-      zh: `${base.zh}\n\n改写要求：${instructionText || "生成更清晰的本节建议。"}`,
-      en: `${base.en}\n\nRewrite instruction: ${instructionText || "Generate a clearer section suggestion."}`,
+      zh: `${base.zh}\n\n本节建议稿已按顾问式报告语气整理；请在接受前结合现场资料、项目约束和团队意见复核。`,
+      en: `${base.en}\n\nThis suggested draft has been organized in a consulting-report tone; review it against site data, project constraints, and team feedback before acceptance.`,
     },
     assumptions: [{ zh: "建议内容需点击接受后才会更新报告。", en: "The suggestion updates the report only after acceptance." }],
     uncertainty: [{ zh: "附件正文尚未读取，本节仍需人工复核。", en: "Attachment contents have not been read; this section still needs review." }],
@@ -3430,6 +3430,7 @@ function ReportBuilder({
   ]);
   const deliveryUncertainty = deliveryScope.limits;
   const generatedDraftSectionIds = new Set(reportDraftTask.result?.sections.map((item) => item.sectionId) ?? []);
+  const reportDraftVisibleResult = reportDraftTask.status !== "running" ? reportDraftTask.result : null;
 
   async function copyMarkdown() {
     try {
@@ -3673,6 +3674,9 @@ function ReportBuilder({
               <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-700" />
               {uxText(language, "正在生成建议稿", "Generating suggested draft")}
             </div>
+            <p className="mt-2 text-xs font-semibold text-cyan-800">
+              {uxText(language, `已完成 ${generatedDraftSectionIds.size}/${workspace.report.sections.length} 个分区，全部完成后才会进入审阅状态。`, `${generatedDraftSectionIds.size}/${workspace.report.sections.length} sections ready. Review will be available after all requested sections finish.`)}
+            </p>
             <div className="mt-3 grid gap-2 text-xs font-semibold text-cyan-800 md:grid-cols-3">
               <span className="rounded-md bg-white/70 px-3 py-2">{uxText(language, "正在整理报告分区", "Organizing report sections")}</span>
               <span className="rounded-md bg-white/70 px-3 py-2">{uxText(language, "正在核对决策依据", "Reviewing decision evidence")}</span>
@@ -3696,19 +3700,19 @@ function ReportBuilder({
           </div>
         ) : null}
         {reportDraftTask.error ? <div className="mt-4"><ActionError labels={labels} retry={() => reportDraftTask.retry?.()} useBasicAnalysis={() => void runReportDraft(true)} disabled={reportDraftTask.status === "running"} /></div> : null}
-        {reportDraftTask.result ? (
+        {reportDraftVisibleResult ? (
           <div className="mt-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">{uxText(language, "建议稿已生成", "Suggested draft ready")}</span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">{uxText(language, "建议稿已准备好，等待审阅", "Suggested drafts are ready for review")}</span>
               <div className="flex flex-wrap gap-2">
                 <button className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50" onClick={() => void acceptAllGeneratedSections()} disabled={acceptingSuggestions}>{labels.acceptAll}</button>
                 <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={resetReportDraftTask} disabled={acceptingSuggestions}>{labels.discardSuggestions}</button>
               </div>
             </div>
-            {reportDraftTask.result.executionStatus === "ai_fallback" ? <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
+            {reportDraftVisibleResult.executionStatus === "ai_fallback" ? <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">{labels.noPersistenceBeforeAccept} {labels.acceptUpdatesReport}</p>
             <div className="grid gap-4 xl:grid-cols-2">
-              {reportDraftTask.result.sections.map((suggestion) => {
+              {reportDraftVisibleResult.sections.map((suggestion) => {
                 const current = workspace.report.sections.find((item) => item.id === suggestion.sectionId);
                 return (
                   <div key={suggestion.sectionId} className="rounded-md border border-slate-200 bg-slate-50 p-4">
@@ -3723,9 +3727,9 @@ function ReportBuilder({
               })}
             </div>
             <div className="grid gap-3 lg:grid-cols-3">
-              <LightEvidenceList title={labels.assumptions} items={reportDraftTask.result.assumptions.map((item) => localize(item, language))} />
-              <LightEvidenceList title={labels.uncertainty} items={reportDraftTask.result.uncertainty.map((item) => localize(item, language))} />
-              <LightEvidenceList title={labels.missingInputsQuery} items={reportDraftTask.result.missingInputs.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.assumptions} items={reportDraftVisibleResult.assumptions.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.uncertainty} items={reportDraftVisibleResult.uncertainty.map((item) => localize(item, language))} />
+              <LightEvidenceList title={labels.missingInputsQuery} items={reportDraftVisibleResult.missingInputs.map((item) => localize(item, language))} />
             </div>
           </div>
         ) : null}
@@ -3811,7 +3815,7 @@ function ReportBuilder({
                   <h3 className="font-semibold text-slate-950">{labels.sectionRewrite}</h3>
                   <p className="mt-1 text-xs text-slate-500">{uxText(language, "建议稿仅用于审阅，接受后才会更新正式报告。", "Suggested drafts are for review and update the official report only after acceptance.")}</p>
                 </div>
-                {rewriteTask.result && rewriteSectionId === section.id ? <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">{uxText(language, "建议稿已生成", "Suggested draft ready")}</span> : null}
+                {rewriteTask.result && rewriteSectionId === section.id ? <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">{uxText(language, "建议稿已准备好，等待审阅", "Suggested draft is ready for review")}</span> : null}
               </div>
               {rewriteTask.result?.executionStatus === "ai_fallback" && rewriteSectionId === section.id ? <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{labels.fallbackHint}</p> : null}
               <label className="mt-4 grid gap-2 text-sm font-semibold text-slate-700">

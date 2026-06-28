@@ -27,6 +27,11 @@ BANNED_OUTPUT_TERMS = (
     "api key",
     "internal",
     "fallback",
+    "rewrite instruction",
+    "requested section",
+    "target section",
+    "section_id",
+    "改写要求",
     "占位符",
     "确定性逻辑",
     "模型供应商",
@@ -118,13 +123,12 @@ class AttachmentReportOutputQualityTests(unittest.TestCase):
         )
         content = localized_text([result.suggested_body, *result.assumptions, *result.uncertainty])
         self.assertEqual(result.section_id, section.id)
-        self.assertIn("requested section", content)
-        self.assertIn("attachment bodies have not been read or parsed", content)
-        self.assertIn("does not change them", content)
+        self.assertIn("consulting-report language", content)
+        self.assertIn("attachment bodies have not been read", content)
+        self.assertIn("not changed by this suggestion", content)
         self.assertIn("decision basis", content)
         self.assertIn("assumptions", content)
         self.assertIn("open questions", content)
-        self.assertIn("review notes", content)
         self.assertIn("uncertainty", content)
         self.assert_no_banned_terms(content)
 

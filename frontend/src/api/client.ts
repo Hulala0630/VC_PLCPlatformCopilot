@@ -334,6 +334,11 @@ async function requestStream<T>(path: string, init: RequestInit, onChunk: (chunk
 }
 
 function businessString(value: string, language: Language): string {
+  value = value
+    .replace(/改写要求：?[^\n。]*(。)?/g, "本节建议稿已按顾问式报告语气整理。")
+    .replace(/本节仅围绕目标\s*section[^\n。]*(。)?/gi, "")
+    .replace(/Rewrite instruction:?[^\n.]*(\.)?/gi, "This suggested draft has been organized in a consulting-report tone.")
+    .replace(/This rewrite is limited to the requested section;?/gi, "");
   if (language === "zh") {
     return value
       .replace(/响应由确定性 placeholder 生成，未调用 AI。/g, "当前结果基于已登记的项目数据和评分规则生成。")

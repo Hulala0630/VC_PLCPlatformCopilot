@@ -541,6 +541,20 @@ class DeterministicPlaceholderProvider:
         base_en = self._safe_text(section.body.en)
         return LocalizedText(
             zh=(
+                f"{base_zh} "
+                f"本节建议围绕当前关键结论 {lead_zh} 组织为可审阅的顾问式报告文字。"
+                f"请保留事实边界：附件正文尚未读取，Benchmark 分数和排名不因本建议而改变。"
+                f"仍需列明假设、不确定性和项目团队待确认事项。"
+            ),
+            en=(
+                f"{base_en} "
+                f"This suggested wording is organized as reviewable consulting-report language around the current key conclusion: {lead_en}. "
+                f"Keep the factual boundary visible: attachment bodies have not been read, and Benchmark scores or rankings are not changed by this suggestion. "
+                f"Decision basis, assumptions, open questions, uncertainty, and project-team confirmations should remain visible."
+            ),
+        )
+        return LocalizedText(
+            zh=(
                 f"{base_zh} 改写要求：{request.instruction}。"
                 f"本节仅围绕目标 section 重写，当前关键结论为 {lead_zh}。"
                 f"请保留事实边界：附件正文未读取或解析，benchmark 分数和排名来自固定计算规则，本改写不改变评分或排名。"
