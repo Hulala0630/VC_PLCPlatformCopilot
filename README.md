@@ -34,7 +34,8 @@ Local-first consulting workspace for PLC ecosystem selection, migration decision
 - No PLC code conversion.
 - No direct PLC connection.
 - V1 attachments are metadata-only.
-- V1 does not parse files, read Excel content, run RAG, or call real AI.
+- V1 does not parse files, read Excel content, or run RAG.
+- Real OpenAI-compatible AI can be enabled from backend-only local configuration; the app also keeps a basic analysis path when AI is off or unavailable.
 
 ## Backend Source Of Truth
 
@@ -128,6 +129,7 @@ All responses are bilingual and include sources, assumptions, uncertainty, missi
 - Chat, analysis, generated drafts, and rewrite suggestions are not persisted.
 - Report generation and rewrite endpoints never mutate report sections automatically.
 - Benchmark explanation never changes deterministic scores.
+- AI Benchmark may recommend a different candidate platform than the fixed benchmark leader as an advisory consulting conclusion, but it must preserve the fixed scores, ranking values, risk levels, charts, and baseline data.
 
 聊天、分析、报告建议稿和改写建议均不持久化；报告生成与改写不会自动修改报告分区；Benchmark 解释不会改变确定性评分。
 
@@ -141,9 +143,9 @@ Quality profiles are configured independently through `AI_MODEL_FAST`, `AI_MODEL
 
 三档质量配置分别由 `AI_MODEL_FAST`、`AI_MODEL_BALANCED` 和 `AI_MODEL_QUALITY` 管理。`GET /api/intelligence/status` 只返回 profile 名称，不返回具体 model ID。
 
-This phase does not call OpenAI or any other model. `DeterministicPlaceholderProvider` remains active, and deterministic benchmark scoring remains the source of truth.
+When OpenAI configuration is valid, real AI calls are available through the backend provider boundary. `DeterministicPlaceholderProvider` remains available as the basic analysis path, and deterministic benchmark scoring remains the source of truth.
 
-本阶段不会调用 OpenAI 或任何其他模型。当前仍使用 `DeterministicPlaceholderProvider`，确定性 benchmark 评分继续作为事实来源。
+当 OpenAI 配置有效时，系统可以通过后端 provider 边界调用真实 AI。`DeterministicPlaceholderProvider` 仍作为基础分析路径保留，确定性 benchmark 评分继续作为事实来源。
 
 ## OpenAI Provider And Routing / OpenAI Provider 与路由
 

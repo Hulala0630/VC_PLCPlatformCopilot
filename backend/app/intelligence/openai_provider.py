@@ -270,8 +270,24 @@ class OpenAIProvider:
         baseline_leader = benchmark[0].platform_id if benchmark else None
         if parsed.recommended_platform is not None and parsed.recommended_platform not in benchmark_platform_ids:
             raise ProviderCallError("invalid_response", profile)
-        if parsed.recommended_platform is not None and baseline_leader is not None and parsed.recommended_platform != baseline_leader:
-            raise ProviderCallError("invalid_response", profile)
+        advisory_uncertainty: list[LocalizedText] = []
+        if (
+            parsed.recommended_platform is not None
+            and baseline_leader is not None
+            and parsed.recommended_platform != baseline_leader
+        ):
+            advisory_uncertainty.append(
+                LocalizedText(
+                    zh=(
+                        "AI 顾问建议与固定 Benchmark 第一名不同；请把该差异作为工程审阅项，"
+                        "它不会改变分数、排名或图表。"
+                    ),
+                    en=(
+                        "The AI advisory recommendation differs from the fixed benchmark leader; "
+                        "treat the gap as an engineering review item, not as a change to scores, rankings, or charts."
+                    ),
+                )
+            )
         return baseline.model_copy(
             update={
                 "mode": "openai",
@@ -286,7 +302,10 @@ class OpenAIProvider:
                 "preference_impact": parsed.preference_impact,
                 "risk_assessment": parsed.risk_assessment,
                 "assumptions": _merge_localized(baseline.assumptions, parsed.assumptions),
-                "uncertainty": _merge_localized(baseline.uncertainty, parsed.uncertainty),
+                "uncertainty": _merge_localized(
+                    baseline.uncertainty,
+                    [*parsed.uncertainty, *advisory_uncertainty],
+                ),
                 "next_actions": _merge_localized(baseline.next_actions, parsed.next_actions),
                 "ai_used": True,
                 "generated_at": _now(),

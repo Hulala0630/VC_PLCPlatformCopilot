@@ -134,7 +134,7 @@ class BenchmarkSummaryStreamingTests(unittest.TestCase):
         for model_id in MODEL_IDS.values():
             self.assertNotIn(model_id, serialized)
 
-    def test_ai_benchmark_recommendation_must_match_fixed_baseline_leader(self) -> None:
+    def test_ai_benchmark_recommendation_may_differ_from_fixed_baseline_leader(self) -> None:
         workspace = workspace_fixture()
         benchmark = create_benchmark(workspace)
         lead = benchmark[0].platform_id
@@ -152,10 +152,15 @@ class BenchmarkSummaryStreamingTests(unittest.TestCase):
         ):
             analysis = service.analyze_benchmark(workspace.project.id, BenchmarkAnalysisRequest(language="en"))
 
-        self.assertEqual(analysis.execution_status, "ai_fallback")
-        self.assertEqual(analysis.mode, "deterministic_fallback")
-        self.assertEqual(analysis.recommended_platform, lead)
-        self.assertFalse(analysis.ai_used)
+        self.assertEqual(analysis.execution_status, "ai_success")
+        self.assertEqual(analysis.mode, "openai")
+        self.assertEqual(analysis.recommended_platform, non_leader)
+        self.assertEqual(analysis.baseline[0]["platform_id"], lead)
+        self.assertTrue(analysis.ai_used)
+        self.assertIn(
+            "differs from the fixed benchmark leader",
+            " ".join(item.en for item in analysis.uncertainty),
+        )
 
     def test_ai_failure_returns_deterministic_fallback_with_business_value(self) -> None:
         workspace = workspace_fixture()

@@ -156,6 +156,9 @@ Frontend compatibility should be checked with `npm.cmd run build` when feasible.
 - Do not persist chat history, analysis responses, generated drafts, or rewrite suggestions automatically.
 - Do not let provider output replace benchmark calculations or mutate intake/report data automatically.
 - Always state that attachment metadata may be registered while file content was not parsed.
+- AI benchmark analysis may recommend a candidate platform that differs from the fixed benchmark leader when migration continuity, installed base, team capability, downtime risk, lifecycle strategy, or business constraints justify it.
+- This disagreement must be presented as an engineering review item. It must not change benchmark scores, ranking values, risk levels, charts, project inputs, preferences, or report content unless the user explicitly edits or accepts changes.
+- Reject AI benchmark output when it recommends a platform outside the supplied benchmark candidates or violates the user-safe output boundary.
 
 - 契约集中在 `backend/app/intelligence/models.py`。
 - Provider 实现必须位于 `IntelligenceProvider` 边界之后。
@@ -216,6 +219,7 @@ Frontend compatibility should be checked with `npm.cmd run build` when feasible.
 - User-facing answers must distinguish facts, assumptions, uncertainties, and recommendations.
 - Attachment files have not been opened, parsed, read, summarized, or understood.
 - Benchmark scores, rankings, risk levels, and readiness values are fixed source facts.
+- AI may challenge the first-ranked benchmark platform as an advisory recommendation, but only in business/engineering language and only while preserving the fixed source facts.
 - Report generation must preserve supplied section IDs, titles, and order.
 - Report section rewrite must return only the requested section.
 - User-facing fields must not expose implementation terms such as placeholder, provider, fallback, model id, API key, metadata, persistence, or scoring logic.

@@ -136,6 +136,10 @@ Provider output is advisory and is not persisted automatically. Users remain res
 
 Provider 输出仅作为建议，不会自动持久化。报告修改仍由用户确认和应用。
 
+AI Benchmark can produce an advisory recommendation that differs from the fixed benchmark leader when project context suggests a lower-risk or more practical decision path. This is expected consulting behavior, not a scoring change. The UI and API must continue to preserve the fixed benchmark scores, ranking values, risk levels, charts, and baseline data.
+
+AI Benchmark 可以在项目上下文显示迁移连续性、既有装机基础、团队经验、停机风险、生命周期策略或业务约束更重要时，给出不同于固定 Benchmark 第一名的顾问建议。这属于咨询判断，不是评分修改。UI 和 API 必须继续保留固定 Benchmark 分数、排名值、风险等级、图表和基线数据。
+
 ## Secure AI Configuration / 安全 AI 配置
 
 The backend owns all provider configuration and explicitly loads `.env.local` from the repository root. Process environment variables override local-file values. Frontend code never receives or manages `OPENAI_API_KEY`.
@@ -187,6 +191,10 @@ Structured responses are validated before return. Report generation preserves ex
 Deterministic benchmark scores remain immutable source data. OpenAI may explain them but cannot recalculate or replace them. Attachments remain metadata-only.
 
 确定性 Benchmark 分数是不可变事实数据；OpenAI 只能解释，不能重新计算或替代。附件仍仅作为元信息使用。
+
+OpenAI may recommend a different candidate platform as advisory analysis, but only from supplied benchmark candidates and only with explicit uncertainty. It must not recommend an unknown platform, mutate project inputs, alter preference weights, update report sections automatically, or claim attachment body parsing.
+
+OpenAI 可以在顾问分析中推荐不同的候选平台，但只能来自已提供的 Benchmark 候选平台，并且必须显式说明不确定性。它不得推荐未知平台、修改项目输入、改变偏好权重、自动更新报告分区，或声称已经解析附件正文。
 
 ## Intelligence Execution Contract / 智能执行契约
 
