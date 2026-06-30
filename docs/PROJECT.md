@@ -234,15 +234,11 @@ Fields such as `mode`, `provider`, `model_profile`, and `document_parsing_used` 
 - PowerPoint 基于项目数据在本地生成 `.pptx`。
 - 导出路径使用当前已接受报告、确定性 Benchmark 结果和附件登记元信息；导出时不解析附件，也不调用 AI。
 
-## Next Phase: Task 5B / 下一阶段：Task 5B
+## Future Attachment Intelligence / 未来附件智能化
 
-Task 5B prepares attachment intelligence before real file parsing or RAG. The planning contract is documented in `docs/TASK_5B_AGENT_PLAN.md`.
+The current product treats attachments as registration records only. Future parsing results must be reviewed and accepted by the user before they can become project evidence.
 
-Task 5B 会在真实文件解析或 RAG 之前，先准备附件智能化的业务与技术契约。规划文档位于 `docs/TASK_5B_AGENT_PLAN.md`。
-
-The current product still treats attachments as registration records only. Future parsing results must be reviewed and accepted by the user before they can become project evidence.
-
-当前产品仍只把附件视为登记记录。未来解析结果必须经过用户审阅和接受，才能成为项目证据。
+当前产品仍只把附件作为登记记录。未来任何解析结果都必须经过用户审阅和接受，才能成为项目证据。
 
 ## MVP Engineer Trial / 工程师试用 MVP
 
