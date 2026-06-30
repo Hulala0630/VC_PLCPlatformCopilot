@@ -1,5 +1,23 @@
 # PLC Platform Benchmark & Migration Decision Copilot
 
+## English Overview
+
+PLC Platform Benchmark & Migration Decision Copilot is a local-first decision-support application for PLC platform selection, migration assessment, and consulting-style report generation.
+
+The application helps automation engineers, controls engineers, engineering managers, and technical decision makers compare PLC ecosystems such as Siemens TIA Portal, Beckhoff TwinCAT, CODESYS, and Rockwell Studio 5000 from both technical and business perspectives. It combines structured project intake, platform preference weighting, deterministic benchmark scoring, attachment registration, optional AI-assisted analysis, and editable report drafts.
+
+This is not a PLC programming environment, not a PLC code converter, and not a tool for connecting to live controllers. Its purpose is to support strategic engineering decisions such as:
+
+- Which PLC ecosystem is most suitable for a new automation project?
+- What are the trade-offs between Siemens, TwinCAT, CODESYS, and Rockwell?
+- How much effort and risk may be involved in a platform migration?
+- How mature is the current project information for making a decision?
+- Which assumptions, missing inputs, and risks should be reviewed before committing to a platform?
+
+The current MVP is designed for local engineer trials. Users can create or open a project, fill project inputs, register document metadata, adjust PLC platform preferences, run a benchmark, request AI or basic analysis, edit report sections, and export Markdown, PDF, or PowerPoint outputs.
+
+Current limits are explicit: uploaded files are registered as metadata only; Excel/PDF/DOCX contents are not parsed; RAG is not implemented; AI output is advisory and does not overwrite benchmark scores, project inputs, or official report content unless the user accepts a suggested report section.
+
 本项目是一个本地优先的 PLC 平台选型、迁移评估与报告生成工作台。它面向自动化工程师、控制工程师、技术经理和决策者，用于比较 Siemens TIA Portal、Beckhoff TwinCAT、CODESYS、Rockwell Studio 5000 等 PLC 生态，并围绕项目输入、平台偏好、附件登记、Benchmark、AI 辅助分析和报告输出形成完整决策闭环。
 
 它不是 PLC 编程工具，不连接 PLC，不转换 PLC 代码。
