@@ -1,198 +1,229 @@
 # PLC Platform Benchmark & Migration Decision Copilot
 
-## API Key Setup / API 密钥配置
+本项目是一个本地优先的 PLC 平台选型、迁移评估与报告生成工作台。它面向自动化工程师、控制工程师、技术经理和决策者，用于比较 Siemens TIA Portal、Beckhoff TwinCAT、CODESYS、Rockwell Studio 5000 等 PLC 生态，并围绕项目输入、平台偏好、附件登记、Benchmark、AI 辅助分析和报告输出形成完整决策闭环。
 
-Never paste an API key into source code, frontend environment variables, Git commits, issues, or chat messages. Create a local `.env.local` file in the repository root and keep the real key only on your machine.
+它不是 PLC 编程工具，不连接 PLC，不转换 PLC 代码。
 
-请勿将 API Key 粘贴到源代码、前端环境变量、Git 提交、Issue 或聊天消息中。请在仓库根目录创建本地 `.env.local` 文件，真实密钥只保存在你的电脑上。
+## 快速使用
+
+### 1. 克隆项目
+
+```powershell
+git clone https://github.com/Hulala0630/VC_PLCPlatformCopilot.git
+cd VC_PLCPlatformCopilot
+```
+
+### 2. 配置本地环境变量
+
+复制示例配置文件：
 
 ```powershell
 Copy-Item .env.example .env.local
-notepad .env.local
 ```
 
-Set these values in `.env.local` / 在 `.env.local` 中填写：
+默认可以不启用真实 AI：
+
+```dotenv
+AI_PROVIDER=placeholder
+```
+
+如需启用 OpenAI-compatible API，请只在本机 `.env.local` 中填写密钥：
 
 ```dotenv
 AI_PROVIDER=openai
-OPENAI_API_KEY=replace-with-your-local-key
+OPENAI_API_KEY=your-local-api-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 AI_MODEL_FAST=your-fast-model
 AI_MODEL_BALANCED=your-balanced-model
 AI_MODEL_QUALITY=your-quality-model
 ```
 
-`.env.local` and common private-key formats are excluded by `.gitignore`. Only `.env.example`, containing empty or non-secret example values, may be committed. If a real key is ever committed or shared, revoke it immediately and create a replacement.
+不要把真实 API key 写入源码、README、Issue、提交记录或聊天消息。`.env.local` 已被 `.gitignore` 排除。
 
-`.env.local` 和常见私钥格式已被 `.gitignore` 排除。只能提交不含秘密信息的 `.env.example`。如果真实密钥曾被提交或分享，请立即撤销并重新创建密钥。
-
-Local-first consulting workspace for PLC ecosystem selection, migration decision support, deterministic benchmarking, and report drafting.
-
-## Product Boundary
-
-- Decision support only, not PLC programming.
-- No PLC code conversion.
-- No direct PLC connection.
-- V1 attachments are metadata-only.
-- V1 does not parse files, read Excel content, or run RAG.
-- Real OpenAI-compatible AI can be enabled from backend-only local configuration; the app also keeps a basic analysis path when AI is off or unavailable.
-
-## Backend Source Of Truth
-
-The FastAPI backend uses SQLite as the local source of truth for project-loop data.
-
-- Database path: `backend/data/plc_copilot.db`
-- The database directory and schema are created on backend startup.
-- Initial mock projects are seeded only when the `projects` table is empty.
-- PLC ecosystem profiles still live in memory.
-- Projects, intakes, preferences, attachment metadata, report drafts, report sections, and project status persist across backend restarts.
-
-## Project Status Lifecycle
-
-Backend-owned status values:
-
-- `Draft`
-- `Analyzing`
-- `Report Ready`
-- `Finalized`
-
-`Draft`, `Analyzing`, and `Report Ready` are computed from project readiness and report state. `Finalized` is user-controlled and is not overwritten by normal edits. Reopen a finalized project with `PUT /api/projects/{project_id}/status` and payload `{ "status": "Analyzing" }`.
-
-## Readiness Scoring
-
-`ProjectWorkspace` responses include:
-
-- `readiness.score`
-- `readiness.status`
-- `readiness.missing_required`
-- `readiness.recommended_missing`
-- `readiness.next_action`
-- `readiness.confidence_level`
-- `readiness.reasons`
-
-Required checks contribute 70%:
-
-- Project name exists.
-- Industry exists.
-- Goal exists.
-- I/O scale is greater than 0.
-- At least two candidate platforms are selected.
-
-Recommended checks contribute 30%:
-
-- Team experience exists.
-- Constraints exist.
-- Existing platform exists.
-- At least one attachment metadata record exists.
-- Preferences exist for all candidate platforms.
-- Report sections exist.
-
-## Backend API
-
-- `GET /health`
-- `GET /api/ecosystems`
-- `GET /api/platforms`
-- `GET /api/projects`
-- `GET /api/projects/{project_id}`
-- `GET /api/projects/{project_id}/readiness`
-- `POST /api/projects`
-- `DELETE /api/projects/{project_id}`
-- `PUT /api/projects/{project_id}/status`
-- `PUT /api/projects/{project_id}/intake`
-- `PUT /api/projects/{project_id}/preferences`
-- `POST /api/projects/{project_id}/attachments`
-- `POST /api/projects/{project_id}/benchmark`
-- `PUT /api/projects/{project_id}/report/sections/{section_id}`
-- `POST /api/benchmark`
-
-## Intelligence Provider Foundation / 智能化 Provider 基础
-
-The backend exposes a frozen intelligence contract backed by `DeterministicPlaceholderProvider`. It is a deterministic suggestion service, not an AI provider.
-
-后端提供由 `DeterministicPlaceholderProvider` 实现的固定智能化契约。它是确定性建议服务，不是 AI provider。
-
-- `POST /api/intelligence/global/chat`
-- `GET /api/intelligence/status`
-- `POST /api/projects/{project_id}/intelligence/chat`
-- `POST /api/projects/{project_id}/intelligence/analyze`
-- `POST /api/projects/{project_id}/benchmark/explain`
-- `POST /api/projects/{project_id}/report/generate`
-- `POST /api/projects/{project_id}/report/sections/{section_id}/rewrite`
-
-All responses are bilingual and include sources, assumptions, uncertainty, missing inputs, and explicit provider metadata.
-
-所有响应均包含中英双语内容、来源、假设、不确定性、缺失输入和明确的 provider 元数据。
-
-- `mode = deterministic_placeholder`
-- `ai_used = false`
-- `document_parsing_used = false`
-- Chat, analysis, generated drafts, and rewrite suggestions are not persisted.
-- Report generation and rewrite endpoints never mutate report sections automatically.
-- Benchmark explanation never changes deterministic scores.
-- AI Benchmark may recommend a different candidate platform than the fixed benchmark leader as an advisory consulting conclusion, but it must preserve the fixed scores, ranking values, risk levels, charts, and baseline data.
-
-聊天、分析、报告建议稿和改写建议均不持久化；报告生成与改写不会自动修改报告分区；Benchmark 解释不会改变确定性评分。
-
-## Backend AI Configuration / 后端 AI 配置
-
-AI provider configuration is loaded only by the backend. The repository-root `.env.local` is loaded explicitly, while process environment variables take precedence. `OPENAI_API_KEY` is held as `SecretStr` and is never returned by the status endpoint.
-
-AI provider 配置仅由后端加载。系统显式读取仓库根目录 `.env.local`，且进程环境变量具有更高优先级。`OPENAI_API_KEY` 使用 `SecretStr` 保存，status endpoint 绝不会返回密钥。
-
-Quality profiles are configured independently through `AI_MODEL_FAST`, `AI_MODEL_BALANCED`, and `AI_MODEL_QUALITY`. `GET /api/intelligence/status` returns profile names only, never concrete model IDs.
-
-三档质量配置分别由 `AI_MODEL_FAST`、`AI_MODEL_BALANCED` 和 `AI_MODEL_QUALITY` 管理。`GET /api/intelligence/status` 只返回 profile 名称，不返回具体 model ID。
-
-When OpenAI configuration is valid, real AI calls are available through the backend provider boundary. `DeterministicPlaceholderProvider` remains available as the basic analysis path, and deterministic benchmark scoring remains the source of truth.
-
-当 OpenAI 配置有效时，系统可以通过后端 provider 边界调用真实 AI。`DeterministicPlaceholderProvider` 仍作为基础分析路径保留，确定性 benchmark 评分继续作为事实来源。
-
-## OpenAI Provider And Routing / OpenAI Provider 与路由
-
-When `AI_PROVIDER=openai` and the backend configuration is complete, the provider factory selects `OpenAIProvider`, which uses the official Python SDK and Responses API structured outputs. Incomplete configuration continues safely with the placeholder.
-
-当 `AI_PROVIDER=openai` 且后端配置完整时，provider factory 会选择使用官方 Python SDK 与 Responses API structured outputs 的 `OpenAIProvider`。配置不完整时会安全地继续使用 placeholder。
-
-Default quality routing:
-
-- Global chat and connection test: `fast`
-- Project chat, project analysis, and benchmark explanation: `balanced`
-- Report generation and report section rewrite: `quality`
-
-客户端只能看到 `fast/balanced/quality` profile，具体 model ID 永不出现在公开响应或日志中。
-
-If an OpenAI call fails and fallback is enabled, responses are explicitly marked `mode=deterministic_fallback`, `provider=placeholder`, and include a sanitized `fallback_reason`. With fallback disabled, the API returns only a safe error category.
-
-OpenAI 调用失败且启用 fallback 时，响应会明确标记为 `deterministic_fallback` 和 `provider=placeholder`，并包含脱敏后的 `fallback_reason`。关闭 fallback 时，API 只返回安全错误类别。
-
-- `POST /api/intelligence/connection-test`
-- The connection response never includes model output, model ID, API key, headers, or raw SDK errors.
-- Connection test 响应绝不包含模型输出、model ID、API key、headers 或原始 SDK 错误。
-
-## Report Output / 报告输出
-
-- Markdown can be copied or downloaded directly from the Report workspace.
-- Markdown 可以从 Report 工作区直接复制或下载。
-- PDF output uses a dedicated print document and the browser's Save as PDF capability.
-- PDF 输出使用专用打印文档，并通过浏览器“另存为 PDF”完成。
-- PowerPoint output generates a local `.pptx` file from project, readiness, benchmark, and report data.
-- PowerPoint 根据项目、成熟度、benchmark 和报告数据在本地生成 `.pptx`。
-- Export remains deterministic and does not claim AI or document parsing.
-- 导出仍为确定性逻辑，不声称使用 AI 或解析文档。
-
-## Run Locally
-
-Backend:
+### 3. 启动后端
 
 ```powershell
 cd backend
-uvicorn app.main:app --reload --port 8000
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Frontend:
+后端健康检查：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+### 4. 启动前端
+
+另开一个终端：
 
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
+
+打开：
+
+```text
+http://127.0.0.1:5173/
+```
+
+如果本地使用了其他端口，例如 `5174`，以 Vite 输出为准。
+
+## 典型使用流程
+
+1. 打开本地 Web 应用。
+2. 从项目列表进入一个 PLC 选型或迁移评估项目，或创建新项目。
+3. 填写项目行业、目标、I/O 规模、运动控制、安全、预算敏感度、团队经验、既有平台和候选平台。
+4. 登记附件，例如 I/O 表、电气清单、需求文档和架构说明。当前版本只记录附件名称、类型和用途，不读取正文。
+5. 调整各 PLC 平台偏好权重。
+6. 运行 Benchmark，查看技术评分、偏好影响、综合排序和风险等级。
+7. 使用 AI 或基础分析获取项目摘要、附件缺口建议、Benchmark 解释和报告建议稿。
+8. 审阅并接受报告分区建议，或手动编辑正式报告内容。
+9. 导出 Markdown、浏览器 PDF 或 PowerPoint。
+
+## 核心能力
+
+- PLC 生态对比：Siemens、TwinCAT、CODESYS、Rockwell 等平台卡片与官方链接。
+- 项目工作台：Overview、Intake、Preferences、Attachments、Benchmark、Report。
+- 平台偏好权重：用户可调节各平台倾向性，并影响 Benchmark 综合分。
+- Benchmark：保留技术评分、偏好评分、加权评分、风险等级和推荐排序。
+- 附件登记：记录文件名、文件类型、声明用途和上传时间，当前不解析文件内容。
+- AI 辅助分析：全局 Query、项目 Query、附件分析、Benchmark 分析、项目摘要、报告建议稿和分区改写。
+- 报告输出：支持 Markdown、浏览器打印 PDF、PowerPoint。
+- 中英双语：核心 UI 和主要输出支持中文/英文切换。
+
+## AI 与基础分析模式
+
+系统支持两种分析路径：
+
+- `AI_PROVIDER=placeholder`：使用基础分析逻辑，不调用真实模型。
+- `AI_PROVIDER=openai`：通过后端调用 OpenAI-compatible API。
+
+AI 输出只作为顾问建议，不会自动修改项目输入、偏好权重、Benchmark 分数或正式报告内容。报告建议必须由用户接受后才会写入正式报告。
+
+AI Benchmark 可以在业务约束、既有装机、团队能力、停机风险或生命周期策略更重要时，提出不同于固定排名第一的平台建议；但固定 Benchmark 分数、排名、风险等级和图表仍作为审计基线保留。
+
+## 产品边界
+
+当前版本明确不做：
+
+- PLC 在线连接
+- PLC 程序生成
+- PLC 代码转换
+- Excel/PDF/DOCX 正文解析
+- Chroma/RAG 文档问答
+- 多用户权限和商业报价
+
+附件在当前版本中是 metadata-only：系统可以基于文件名、类型和声明用途讨论“这些资料可能支持什么判断”，但不会声称读取或理解了文件正文。
+
+## 技术栈
+
+Frontend:
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- pptxgenjs
+
+Backend:
+
+- FastAPI
+- Pydantic
+- SQLite
+- OpenAI Python SDK
+
+Future AI/RAG direction:
+
+- LangGraph
+- Chroma
+- 文档解析与用户审阅确认流程
+
+## 项目结构
+
+```text
+.
+├── backend/
+│   ├── app/
+│   │   ├── intelligence/      # AI provider、prompt、streaming、fallback contract
+│   │   ├── data.py            # PLC profiles and seed projects
+│   │   ├── database.py        # SQLite schema and connection
+│   │   ├── models.py          # Domain models
+│   │   ├── repository.py      # Persistence layer
+│   │   ├── routes.py          # Project and benchmark API
+│   │   └── services.py        # Readiness, benchmark, lifecycle logic
+│   └── tests/
+├── frontend/
+│   ├── src/
+│   │   ├── api/client.ts      # Backend API adapter
+│   │   ├── data/platforms.ts  # Frontend fallback mock data
+│   │   ├── App.tsx            # Main workstation UI
+│   │   └── types.ts
+├── docs/
+│   ├── PROJECT.md             # Product architecture and contract
+│   ├── AGENT.md               # Development and AI boundary rules
+│   └── MVP_ENGINEER_TRIAL.md  # Engineer trial checklist
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
+
+## 后端 API 概览
+
+常用接口：
+
+- `GET /health`
+- `GET /api/ecosystems`
+- `GET /api/projects`
+- `POST /api/projects`
+- `GET /api/projects/{project_id}`
+- `PUT /api/projects/{project_id}/intake`
+- `PUT /api/projects/{project_id}/preferences`
+- `POST /api/projects/{project_id}/attachments`
+- `POST /api/projects/{project_id}/benchmark`
+- `PUT /api/projects/{project_id}/report/sections/{section_id}`
+- `GET /api/intelligence/status`
+- `POST /api/intelligence/connection-test`
+- `POST /api/projects/{project_id}/intelligence/chat`
+- `POST /api/projects/{project_id}/intelligence/analyze`
+- `POST /api/projects/{project_id}/intelligence/benchmark/stream`
+- `POST /api/projects/{project_id}/intelligence/summary/stream`
+- `POST /api/projects/{project_id}/report/generate`
+- `POST /api/projects/{project_id}/report/sections/{section_id}/generate`
+- `POST /api/projects/{project_id}/report/sections/{section_id}/rewrite`
+
+## 测试与构建
+
+后端测试：
+
+```powershell
+python -m unittest discover -s backend\tests
+```
+
+前端构建：
+
+```powershell
+cd frontend
+npm run build
+```
+
+Docker 本地编排：
+
+```powershell
+docker compose up --build
+```
+
+## 当前状态
+
+当前目标是 `MVP v0.1 Engineer Trial Ready`：让真实自动化工程师可以在 15-20 分钟内完成一次 PLC 选型或迁移评估试用，并反馈评分维度、风险判断、AI 解释和报告输出是否有工程价值。
+
+更多产品边界和开发规则见：
+
+- `docs/PROJECT.md`
+- `docs/AGENT.md`
+- `docs/MVP_ENGINEER_TRIAL.md`
