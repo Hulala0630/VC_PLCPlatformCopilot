@@ -1,51 +1,49 @@
 # PLC Platform Benchmark & Migration Decision Copilot
 
-## English Overview
+## Overview / 项目概览
 
 PLC Platform Benchmark & Migration Decision Copilot is a local-first decision-support application for PLC platform selection, migration assessment, and consulting-style report generation.
 
-The application helps automation engineers, controls engineers, engineering managers, and technical decision makers compare PLC ecosystems such as Siemens TIA Portal, Beckhoff TwinCAT, CODESYS, and Rockwell Studio 5000 from both technical and business perspectives. It combines structured project intake, platform preference weighting, deterministic benchmark scoring, attachment registration, optional AI-assisted analysis, and editable report drafts.
+PLC Platform Benchmark & Migration Decision Copilot 是一个本地优先的 PLC 平台选型、迁移评估与顾问式报告生成应用。
 
-This is not a PLC programming environment, not a PLC code converter, and not a tool for connecting to live controllers. Its purpose is to support strategic engineering decisions such as:
+It helps automation engineers, controls engineers, engineering managers, and technical decision makers compare PLC ecosystems such as Siemens TIA Portal, Beckhoff TwinCAT, CODESYS, and Rockwell Studio 5000 from both technical and business perspectives.
 
-- Which PLC ecosystem is most suitable for a new automation project?
-- What are the trade-offs between Siemens, TwinCAT, CODESYS, and Rockwell?
-- How much effort and risk may be involved in a platform migration?
-- How mature is the current project information for making a decision?
-- Which assumptions, missing inputs, and risks should be reviewed before committing to a platform?
+它面向自动化工程师、控制工程师、工程经理和技术决策者，用于从技术与业务两个角度比较 Siemens TIA Portal、Beckhoff TwinCAT、CODESYS、Rockwell Studio 5000 等 PLC 生态。
 
-The current MVP is designed for local engineer trials. Users can create or open a project, fill project inputs, register document metadata, adjust PLC platform preferences, run a benchmark, request AI or basic analysis, edit report sections, and export Markdown, PDF, or PowerPoint outputs.
+This is not a PLC programming tool, not a PLC code converter, and not a tool for connecting to live controllers. Its purpose is to support strategic engineering decisions.
 
-Current limits are explicit: uploaded files are registered as metadata only; Excel/PDF/DOCX contents are not parsed; RAG is not implemented; AI output is advisory and does not overwrite benchmark scores, project inputs, or official report content unless the user accepts a suggested report section.
+它不是 PLC 编程工具，不做 PLC 代码转换，也不直接连接现场控制器。它的目标是辅助工程团队完成战略层面的选型与迁移决策。
 
-本项目是一个本地优先的 PLC 平台选型、迁移评估与报告生成工作台。它面向自动化工程师、控制工程师、技术经理和决策者，用于比较 Siemens TIA Portal、Beckhoff TwinCAT、CODESYS、Rockwell Studio 5000 等 PLC 生态，并围绕项目输入、平台偏好、附件登记、Benchmark、AI 辅助分析和报告输出形成完整决策闭环。
+## Quick Start / 快速使用
 
-它不是 PLC 编程工具，不连接 PLC，不转换 PLC 代码。
-
-## 快速使用
-
-### 1. 克隆项目
+### 1. Clone The Repository / 克隆项目
 
 ```powershell
 git clone https://github.com/Hulala0630/VC_PLCPlatformCopilot.git
 cd VC_PLCPlatformCopilot
 ```
 
-### 2. 配置本地环境变量
+### 2. Configure Environment Variables / 配置环境变量
 
-复制示例配置文件：
+Copy the example environment file and keep all real secrets in your local `.env.local`.
+
+复制示例环境文件，并只在本地 `.env.local` 中保存真实密钥。
 
 ```powershell
 Copy-Item .env.example .env.local
 ```
 
-默认可以不启用真实 AI：
+The app can run without a real AI provider by using the placeholder mode.
+
+应用可以在不接入真实 AI Provider 的情况下运行，此时使用 placeholder 模式。
 
 ```dotenv
 AI_PROVIDER=placeholder
 ```
 
-如需启用 OpenAI-compatible API，请只在本机 `.env.local` 中填写密钥：
+To enable an OpenAI-compatible provider, configure the following values in `.env.local`.
+
+如需启用 OpenAI-compatible Provider，请在 `.env.local` 中配置以下变量。
 
 ```dotenv
 AI_PROVIDER=openai
@@ -56,9 +54,11 @@ AI_MODEL_BALANCED=your-balanced-model
 AI_MODEL_QUALITY=your-quality-model
 ```
 
-不要把真实 API key 写入源码、README、Issue、提交记录或聊天消息。`.env.local` 已被 `.gitignore` 排除。
+Never commit real API keys to Git, README files, issues, screenshots, or chat messages. `.env.local` is ignored by Git.
 
-### 3. 启动后端
+不要将真实 API key 写入 Git、README、Issue、截图或聊天消息中。`.env.local` 已被 Git 忽略。
+
+### 3. Start The Backend / 启动后端
 
 ```powershell
 cd backend
@@ -68,15 +68,19 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+Backend health check:
+
 后端健康检查：
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
-### 4. 启动前端
+### 4. Start The Frontend / 启动前端
 
-另开一个终端：
+Open another terminal and run:
+
+另开一个终端并运行：
 
 ```powershell
 cd frontend
@@ -84,64 +88,133 @@ npm install
 npm run dev
 ```
 
-打开：
+Open the Vite URL printed in the terminal, usually:
+
+打开 Vite 在终端输出的地址，通常为：
 
 ```text
 http://127.0.0.1:5173/
 ```
 
-如果本地使用了其他端口，例如 `5174`，以 Vite 输出为准。
+If Vite selects another port, such as `5174`, use the printed URL.
 
-## 典型使用流程
+如果 Vite 选择了其他端口，例如 `5174`，请以终端输出为准。
 
-1. 打开本地 Web 应用。
-2. 从项目列表进入一个 PLC 选型或迁移评估项目，或创建新项目。
-3. 填写项目行业、目标、I/O 规模、运动控制、安全、预算敏感度、团队经验、既有平台和候选平台。
-4. 登记附件，例如 I/O 表、电气清单、需求文档和架构说明。当前版本只记录附件名称、类型和用途，不读取正文。
-5. 调整各 PLC 平台偏好权重。
-6. 运行 Benchmark，查看技术评分、偏好影响、综合排序和风险等级。
-7. 使用 AI 或基础分析获取项目摘要、附件缺口建议、Benchmark 解释和报告建议稿。
-8. 审阅并接受报告分区建议，或手动编辑正式报告内容。
-9. 导出 Markdown、浏览器 PDF 或 PowerPoint。
+### 5. Optional Docker Run / 可选 Docker 运行
 
-## 核心能力
+```powershell
+docker compose up --build
+```
 
-- PLC 生态对比：Siemens、TwinCAT、CODESYS、Rockwell 等平台卡片与官方链接。
-- 项目工作台：Overview、Intake、Preferences、Attachments、Benchmark、Report。
-- 平台偏好权重：用户可调节各平台倾向性，并影响 Benchmark 综合分。
-- Benchmark：保留技术评分、偏好评分、加权评分、风险等级和推荐排序。
-- 附件登记：记录文件名、文件类型、声明用途和上传时间，当前不解析文件内容。
-- AI 辅助分析：全局 Query、项目 Query、附件分析、Benchmark 分析、项目摘要、报告建议稿和分区改写。
-- 报告输出：支持 Markdown、浏览器打印 PDF、PowerPoint。
-- 中英双语：核心 UI 和主要输出支持中文/英文切换。
+## Typical Workflow / 典型使用流程
 
-## AI 与基础分析模式
+1. Open the local web application.
+   打开本地 Web 应用。
 
-系统支持两种分析路径：
+2. Select an existing PLC selection or migration project, or create a new project.
+   选择一个已有 PLC 选型或迁移评估项目，或者创建新项目。
 
-- `AI_PROVIDER=placeholder`：使用基础分析逻辑，不调用真实模型。
-- `AI_PROVIDER=openai`：通过后端调用 OpenAI-compatible API。
+3. Fill in project inputs such as industry, project goal, I/O scale, motion requirements, safety needs, budget sensitivity, team experience, existing platform, and candidate platforms.
+   填写行业、项目目标、I/O 规模、运动控制、安全需求、预算敏感度、团队经验、现有平台和候选平台等项目输入。
 
-AI 输出只作为顾问建议，不会自动修改项目输入、偏好权重、Benchmark 分数或正式报告内容。报告建议必须由用户接受后才会写入正式报告。
+4. Register attachments such as I/O lists, electrical bills of material, requirement documents, and architecture descriptions.
+   登记 I/O 表、电气清单、需求文档和架构说明等附件。
 
-AI Benchmark 可以在业务约束、既有装机、团队能力、停机风险或生命周期策略更重要时，提出不同于固定排名第一的平台建议；但固定 Benchmark 分数、排名、风险等级和图表仍作为审计基线保留。
+5. Adjust platform preference weights for Siemens, TwinCAT, CODESYS, Rockwell, and other PLC ecosystems.
+   调整 Siemens、TwinCAT、CODESYS、Rockwell 等 PLC 平台的偏好权重。
 
-## 产品边界
+6. Run the benchmark to review technical scores, preference impact, weighted ranking, risks, and assumptions.
+   运行 Benchmark，查看技术评分、偏好影响、加权排序、风险和假设。
 
-当前版本明确不做：
+7. Use AI or basic analysis to generate project summaries, gap suggestions, attachment review notes, benchmark explanations, and report draft suggestions.
+   使用 AI 或基础分析生成项目摘要、缺口建议、附件审阅说明、Benchmark 解释和报告建议稿。
 
-- PLC 在线连接
-- PLC 程序生成
-- PLC 代码转换
-- Excel/PDF/DOCX 正文解析
-- Chroma/RAG 文档问答
-- 多用户权限和商业报价
+8. Review and accept report section suggestions, or manually edit the formal report content.
+   审阅并接受报告分区建议，或手动编辑正式报告内容。
 
-附件在当前版本中是 metadata-only：系统可以基于文件名、类型和声明用途讨论“这些资料可能支持什么判断”，但不会声称读取或理解了文件正文。
+9. Export the report as Markdown, browser PDF, or PowerPoint.
+   将报告导出为 Markdown、浏览器 PDF 或 PowerPoint。
 
-## 技术栈
+## Core Features / 核心能力
+
+- PLC ecosystem comparison: platform cards and official links for Siemens, TwinCAT, CODESYS, Rockwell, and other ecosystems.
+  PLC 生态对比：提供 Siemens、TwinCAT、CODESYS、Rockwell 等平台卡片与官方网站链接。
+
+- Project workspace: Overview, Intake, Preferences, Attachments, Benchmark, and Report tabs.
+  项目工作台：包含 Overview、Intake、Preferences、Attachments、Benchmark 和 Report 标签页。
+
+- Platform preference weighting: users can express practical preference or installed-base bias, and the benchmark separates baseline technical score from preference-adjusted score.
+  平台偏好权重：用户可以表达实际倾向或既有装机基础偏好，Benchmark 会区分基础技术评分和偏好加权评分。
+
+- Attachment register: the current MVP records file name, file type, declared purpose, upload time, and project association.
+  附件登记：当前 MVP 记录文件名、文件类型、声明用途、上传时间和关联项目。
+
+- AI-assisted analysis: global chat, project chat, attachment notes, benchmark analysis, project summary, report draft generation, and section rewrite suggestions.
+  AI 辅助分析：支持全局问答、项目问答、附件说明、Benchmark 分析、项目摘要、报告建议稿生成和分区改写建议。
+
+- Report export: Markdown, browser PDF, and PowerPoint outputs.
+  报告导出：支持 Markdown、浏览器 PDF 和 PowerPoint 输出。
+
+- Bilingual experience: the main UI and project-facing language support Chinese and English switching.
+  双语体验：主要 UI 和面向项目的文本支持中英文切换。
+
+## AI And Basic Analysis / AI 与基础分析
+
+The system supports two execution modes.
+
+系统支持两种执行模式。
+
+- `AI_PROVIDER=placeholder`: uses deterministic fallback and basic analysis without calling a real model.
+  `AI_PROVIDER=placeholder`：使用确定性兜底与基础分析，不调用真实模型。
+
+- `AI_PROVIDER=openai`: uses the backend OpenAI-compatible provider for AI-assisted analysis and streaming output.
+  `AI_PROVIDER=openai`：通过后端 OpenAI-compatible Provider 提供 AI 辅助分析和流式输出。
+
+AI output is advisory. It does not automatically overwrite project inputs, preference weights, benchmark scores, ranking, charts, or formal report sections.
+
+AI 输出是顾问建议。它不会自动覆盖项目输入、偏好权重、Benchmark 分数、排序、图表或正式报告分区。
+
+For reports, AI creates suggestions. The user must accept a suggestion before it becomes formal report content.
+
+对于报告，AI 生成的是建议稿。只有用户接受后，建议稿才会写入正式报告内容。
+
+AI may recommend a different platform from the deterministic first-ranked platform when business constraints, installed base, team capability, downtime risk, lifecycle strategy, or missing inputs make that recommendation more defensible. The deterministic benchmark remains visible as the audit baseline.
+
+当业务约束、既有装机、团队能力、停机风险、生命周期策略或缺失输入使另一平台更合理时，AI 可以推荐不同于确定性排名第一的平台。确定性 Benchmark 仍保留为可审计基线。
+
+## Product Boundaries / 产品边界
+
+The current version explicitly does not provide:
+
+当前版本明确不提供：
+
+- Live PLC connection.
+  PLC 在线连接。
+
+- PLC program generation.
+  PLC 程序生成。
+
+- PLC code conversion.
+  PLC 代码转换。
+
+- Excel, PDF, DOCX, or drawing content parsing.
+  Excel、PDF、DOCX 或图纸正文解析。
+
+- Chroma or RAG-based document Q&A.
+  Chroma 或 RAG 文档问答。
+
+- Multi-user permission management.
+  多用户权限管理。
+
+Attachments are metadata-only in the current MVP. The system may discuss what a file name, type, and declared purpose could support, but it must not claim that the file content has been read or understood.
+
+当前 MVP 中附件仅做元信息登记。系统可以说明文件名、类型和声明用途可能支持哪些判断，但不能声称已经读取或理解附件正文。
+
+## Architecture / 技术架构
 
 Frontend:
+
+前端：
 
 - React
 - TypeScript
@@ -151,49 +224,60 @@ Frontend:
 
 Backend:
 
+后端：
+
 - FastAPI
 - Pydantic
 - SQLite
 - OpenAI Python SDK
 
-Future AI/RAG direction:
+Future AI and RAG direction:
 
-- LangGraph
-- Chroma
-- 文档解析与用户审阅确认流程
+未来 AI 与 RAG 方向：
 
-## 项目结构
+- LangGraph for multi-step agent workflows.
+  使用 LangGraph 构建多步骤 Agent 工作流。
+
+- Chroma for vector retrieval.
+  使用 Chroma 做向量检索。
+
+- Document parsing with explicit user review and confirmation.
+  引入带用户审阅确认机制的文档解析流程。
+
+## Project Structure / 项目结构
 
 ```text
 .
-├── backend/
-│   ├── app/
-│   │   ├── intelligence/      # AI provider、prompt、streaming、fallback contract
-│   │   ├── data.py            # PLC profiles and seed projects
-│   │   ├── database.py        # SQLite schema and connection
-│   │   ├── models.py          # Domain models
-│   │   ├── repository.py      # Persistence layer
-│   │   ├── routes.py          # Project and benchmark API
-│   │   └── services.py        # Readiness, benchmark, lifecycle logic
-│   └── tests/
-├── frontend/
-│   ├── src/
-│   │   ├── api/client.ts      # Backend API adapter
-│   │   ├── data/platforms.ts  # Frontend fallback mock data
-│   │   ├── App.tsx            # Main workstation UI
-│   │   └── types.ts
-├── docs/
-│   ├── PROJECT.md             # Product architecture and contract
-│   ├── AGENT.md               # Development and AI boundary rules
-│   └── MVP_ENGINEER_TRIAL.md  # Engineer trial checklist
-├── docker-compose.yml
-├── .env.example
-└── README.md
+|-- backend/
+|   |-- app/
+|   |   |-- intelligence/      # AI provider, prompts, streaming, fallback contract / AI Provider、Prompt、流式输出与兜底契约
+|   |   |-- data.py            # PLC profiles and seed projects / PLC 平台资料与示例项目
+|   |   |-- database.py        # SQLite schema and connection / SQLite 结构与连接
+|   |   |-- models.py          # Domain models / 领域模型
+|   |   |-- repository.py      # Persistence layer / 数据持久化层
+|   |   |-- routes.py          # Project and benchmark API / 项目与 Benchmark API
+|   |   `-- services.py        # Readiness, benchmark, lifecycle logic / 成熟度、Benchmark 与生命周期逻辑
+|   `-- tests/
+|-- frontend/
+|   `-- src/
+|       |-- api/client.ts      # Backend API adapter / 后端 API 适配器
+|       |-- data/platforms.ts  # Frontend fallback data / 前端兜底数据
+|       |-- App.tsx            # Main workstation UI / 主工作台界面
+|       `-- types.ts
+|-- docs/
+|   |-- PROJECT.md             # Product architecture and contract / 产品架构与契约
+|   |-- AGENT.md               # Development and AI boundary rules / 开发规则与 AI 边界
+|   `-- MVP_ENGINEER_TRIAL.md  # Engineer trial checklist / 工程师试用验收清单
+|-- docker-compose.yml
+|-- .env.example
+`-- README.md
 ```
 
-## 后端 API 概览
+## API Overview / 后端 API 概览
 
-常用接口：
+Common backend endpoints:
+
+常用后端接口：
 
 - `GET /health`
 - `GET /api/ecosystems`
@@ -215,33 +299,64 @@ Future AI/RAG direction:
 - `POST /api/projects/{project_id}/report/sections/{section_id}/generate`
 - `POST /api/projects/{project_id}/report/sections/{section_id}/rewrite`
 
-## 测试与构建
+## Testing And Build / 测试与构建
 
-后端测试：
+Run backend tests:
+
+运行后端测试：
 
 ```powershell
 python -m unittest discover -s backend\tests
 ```
 
-前端构建：
+Run frontend build:
+
+运行前端构建：
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Docker 本地编排：
+Run the full local Docker stack:
+
+运行完整本地 Docker 编排：
 
 ```powershell
 docker compose up --build
 ```
 
-## 当前状态
+## Current Status / 当前状态
 
-当前目标是 `MVP v0.1 Engineer Trial Ready`：让真实自动化工程师可以在 15-20 分钟内完成一次 PLC 选型或迁移评估试用，并反馈评分维度、风险判断、AI 解释和报告输出是否有工程价值。
+The current product target is `MVP v0.1 Engineer Trial Ready`: a real automation engineer should be able to complete a PLC selection or migration assessment trial in about 15 to 20 minutes and give feedback on scoring dimensions, risk judgment, AI explanations, and report usefulness.
 
-更多产品边界和开发规则见：
+当前产品目标是 `MVP v0.1 Engineer Trial Ready`：真实自动化工程师应能在约 15 到 20 分钟内完成一次 PLC 选型或迁移评估试用，并反馈评分维度、风险判断、AI 解释和报告输出是否有工程价值。
+
+Useful project documents:
+
+有用的项目文档：
 
 - `docs/PROJECT.md`
 - `docs/AGENT.md`
 - `docs/MVP_ENGINEER_TRIAL.md`
+
+## Roadmap / 后续路线
+
+Near-term priorities:
+
+近期优先事项：
+
+- Improve benchmark evidence and engineering assumptions.
+  增强 Benchmark 评分依据与工程假设表达。
+
+- Harden AI prompts and streaming user experience.
+  打磨 AI Prompt 与流式输出体验。
+
+- Add reviewed document parsing before enabling RAG.
+  在启用 RAG 前加入可审阅的文档解析流程。
+
+- Improve PDF and PowerPoint report polish.
+  优化 PDF 与 PowerPoint 报告输出质量。
+
+- Prepare a structured engineer feedback loop.
+  准备结构化工程师反馈闭环。
